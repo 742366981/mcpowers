@@ -32,36 +32,40 @@ done
 ## 规范体系
 
 ```
-docs/
-├── 技术规范/
-│   ├── 通用规范/     # API、数据库、Git、代码规范等
-│   └── 技术锁规范/   # Flask、Vue、爬虫专项规范
-└── 产品设计/
-    └── 产品设计规范.md
+mcpowers-shared/
+├── docs/
+│   ├── AI操作规范.md     # AI 操作总规范
+│   ├── 技术规范/         # API、数据库、Git、代码规范等
+│   ├── 产品设计/         # 产品设计规范
+│   └── API文档/          # API 文档模板
+└── tools/               # 工具脚本
 ```
 
 ### 规范路径
 
 | 类型 | 路径 | 使用方式 |
 |:-----|:-----|:---------|
-| 技术规范 | `~/mcpowers/docs/技术规范/` | AI 直接读取 |
-| 产品设计 | `~/mcpowers/docs/产品设计/` | AI 直接读取 |
+| AI操作规范 | `~/.claude/skills/mcpowers-shared/docs/AI操作规范.md` | AI 操作总规范 |
+| 技术规范 | `~/.claude/skills/mcpowers-shared/docs/技术规范/` | AI 直接读取 |
+| 产品设计 | `~/.claude/skills/mcpowers-shared/docs/产品设计/` | AI 直接读取 |
 | 项目文档 | 项目 `docs/` | 按需创建 |
 
-> 注：规范由 AI 从技能目录直接读取，不复制到项目
+> 注：规范由 AI 从技能目录直接读取，新项目通过开发环境规范自动创建配置
 
 ---
 
 ## 新项目初始化
 
-```bash
-# 1. 复制项目模板
-cp ~/mcpowers/CLAUDE.md ~/你的项目/
+新项目创建时，AI 会根据开发环境规范自动创建项目配置：
 
-# 2. 在项目中开始开发
-cd ~/你的项目
-# 说"开始开发"触发工作流
-```
+1. **触发**：说"开始开发"或"初始化项目"
+2. **AI 自动执行**：
+   - 创建 .gitignore
+   - 创建语言特定文件（requirements.txt 等）
+   - 创建虚拟环境脚本
+   - **从模板创建 CLAUDE.md 和 AGENTS.md**（详见开发环境规范）
+
+> 配置模板位于：`~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md`
 
 ---
 

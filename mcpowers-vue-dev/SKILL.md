@@ -1,7 +1,12 @@
 ---
 name: mcpowers-vue-dev
 description: |
-  Vue 3 前端开发专项技能。当用户说"Vue项目"、"Vue前端"、"用Vue开发"、"前端项目"时自动触发。
+  Vue 3 前端开发专项技能。当用户说"Vue项目"、"Vue前端"、"用Vue开发"、"前端项目"、"继续Vue项目"时自动触发。
+
+  **触发场景**：
+  - Vue项目 / Vue前端 / 用Vue开发 / 前端项目
+  - 继续Vue项目 / 继续前端开发 / Vue继续开发
+  - 前端项目 / 前端开发 / 继续前端
 
   本技能提供 Vue 3 前端项目的完整开发规范，包括：
   - 技术栈（Vue 3 + Composition API + Vite + Vue Router + Pinia + Axios）
@@ -17,6 +22,7 @@ description: |
   **使用场景**：
   - 用户要创建 Vue 前端项目
   - 用户要开发 Vue 页面组件
+  - 用户要继续 Vue 前端项目开发
   - 用户要求按 Vue 规范开发前端
 
   **配合使用**：`mcpowers-workflow` 提供通用工作流程（12章完整内容）

@@ -1,7 +1,12 @@
 ---
 name: mcpowers-flask-dev
 description: |
-  Flask 后端开发专项技能。当用户说"Flask项目"、"Flask后端"、"用Flask开发"、"Python后端"时自动触发。
+  Flask 后端开发专项技能。当用户说"Flask项目"、"Flask后端"、"用Flask开发"、"Python后端"、"继续Flask项目"时自动触发。
+
+  **触发场景**：
+  - Flask项目 / Flask后端 / 用Flask开发 / Python后端
+  - 继续Flask项目 / 继续后端开发 / Flask继续开发
+  - 后端项目 / 后端开发 / 继续后端
 
   本技能提供 Flask 后端项目的完整开发规范，包括：
   - 目录结构（应用工厂、蓝图、模块划分）
@@ -17,6 +22,7 @@ description: |
   **使用场景**：
   - 用户要创建 Flask 后端项目
   - 用户要开发 Flask 接口
+  - 用户要继续 Flask 后端项目开发
   - 用户要求按 Flask 规范开发后端
 
   **配合使用**：`mcpowers-workflow` 提供通用工作流程（12章完整内容）

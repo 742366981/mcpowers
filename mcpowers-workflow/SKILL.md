@@ -685,11 +685,18 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 - `.gitignore`
 - 语言特定文件（Python: requirements.txt, Node.js: package.json 等）
 - 虚拟环境脚本（venv_windows.bat 等）
+- `CLAUDE.md`
+- `AGENTS.md`
 
-**跳过条件**：以上文件全部存在 → 直接进入 Step 1
+**跳过条件**：以上文件**全部存在** → 直接进入 Step 1
 
 **执行流程**：
-1. **先询问** - 向用户确认是否需要初始化：
+1. **检查缺失文件** - 使用 Bash 工具**实际执行**检查：
+   ```bash
+   ls .gitignore requirements.txt venv_windows.bat CLAUDE.md AGENTS.md 2>&1
+   ```
+
+2. **先询问** - 向用户确认是否需要初始化：
    ```
    ## 新项目初始化确认
 
@@ -697,23 +704,37 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
    - [缺失文件列表]
 
    是否需要按开发环境规范执行初始化？
-   - [ ] 是，执行初始化（创建 .gitignore、语言特定文件、虚拟环境脚本等）
+   - [ ] 是，执行初始化
    - [ ] 否，跳过初始化
 
    请确认。
    ```
-2. **用户确认后** - 按 `docs/技术规范/开发环境规范.md` 执行：
-   1. 创建 .gitignore（根据项目类型识别）
-   2. 创建语言特定文件
-   3. 创建虚拟环境脚本
-   4. 创建环境配置示例
-   5. 更新记忆文件
+
+3. **用户确认后** - 按 `开发环境规范.md` 执行：
+   | 文件类型 | 创建内容 |
+   |:---------|:---------|
+   | .gitignore | 根据项目类型识别 |
+   | 语言特定文件 | requirements.txt / package.json 等 |
+   | 虚拟环境脚本 | venv_windows.bat 等 |
+   | **CLAUDE.md** | **AI项目配置模板** |
+   | **AGENTS.md** | **AI项目配置模板（副本）** |
+
+   > ⚠️ **CLAUDE.md 和 AGENTS.md 必须创建**
+   >
+   > 这两个文件是 AI 工作目录的配置文件，AI 开机时自动加载。
+   > 内容必须包含项目类型、技术栈、规范路径等关键信息。
+
+4. **创建后同步更新**：
+   - CLAUDE.md 和 AGENTS.md 内容必须保持一致
+   - 按 `代码同步修改规范.md` 同步更新所有引用这些文件的文档
 
 **自检确认**：
 - [ ] `.gitignore` 是否已创建？ → 验证：`ls .gitignore`
-- [ ] 语言特定文件是否已创建？ → 验证：`ls requirements.txt`（或对应语言文件）
+- [ ] 语言特定文件是否已创建？ → 验证：`ls requirements.txt`
 - [ ] 虚拟环境脚本是否已创建？ → 验证：`ls venv_windows.bat`
-- [ ] 记忆文件是否已更新？ → 验证：`cat .claude/memory/*.md`
+- [ ] `CLAUDE.md` 是否已创建？ → 验证：`ls CLAUDE.md`
+- [ ] `AGENTS.md` 是否已创建？ → 验证：`ls AGENTS.md`
+- [ ] CLAUDE.md 和 AGENTS.md 内容是否一致？
 
 ---
 

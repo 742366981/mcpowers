@@ -2,7 +2,7 @@
 name: mcpowers-crawler-dev
 description: |
   Python 爬虫项目开发专项技能。当用户说"爬虫项目"、"爬虫开发"、"抓取数据"、"数据采集"时自动触发。
-  
+
   本技能提供爬虫项目的完整开发规范，包括：
   - 目录结构（apps/general/ + 模块层）
   - 配置管理（INI配置文件 + sys.argv启动参数）
@@ -13,28 +13,90 @@ description: |
   - 异常处理（GeneralError / NeedDingtalkFailError）
   - 日志规范（分级日志 + 模块专用日志）
   - Docker部署
-  
+
   **核心价值**：标准化爬虫项目结构、完善的任务包装器、规范的回调机制。
-  
+
   **使用场景**：
   - 用户要创建爬虫项目
   - 用户要开发爬虫模块
   - 用户要求按爬虫规范开发
+
+  **配合使用**：`mcpowers-workflow` 提供通用工作流程（12章完整内容）
 ---
 
 # mcpowers-crawler-dev
 
 Python 爬虫项目开发规范技能。
 
-## 触发词
+## Step 1: 识别核心规范
 
-| 触发词 | 场景 |
-|:-------|:-----|
-| 爬虫项目 | 创建新的爬虫项目 |
-| 爬虫开发 / 数据采集 | 开发爬虫模块 |
-| 抓取数据 | 数据抓取任务 |
+> ⚠️ **强制执行**，每次任务开始都必须执行。
+>
+> ⚠️ **重要**：本技能与 `mcpowers-workflow` 配合使用，`mcpowers-workflow` 提供完整的工作流程（12章内容），本技能提供爬虫专项开发内容。
 
-## 目录结构
+### 核心红线（违反视为不合格）
+
+| 红线行为 | 违规后果 |
+|:---------|:---------|
+| **未经确认直接修改代码/文档** | 用户有权要求回滚 |
+| **先写代码后补文档** | 视为不合格 |
+| **多个操作后才 commit** | 视为不规范 |
+| **只 commit 代码不 commit 文档** | 视为不规范 |
+| **发现重复定义未处理** | 视为不合格 |
+| **代码注释不完整** | 视为不合格 |
+| **临时文件不清理** | 视为不规范 |
+| **违反 SOLID/KISS/DRY/YAGNI** | 视为不合格 |
+
+### 1.1 扫描规范目录
+
+> ⚠️ **规范文件位于共享技能 `mcpowers-shared` 目录**
+>
+> ```bash
+> ls ~/.claude/skills/mcpowers-shared/docs/技术规范/*.md
+> ```
+
+### 1.2 确定项目类型
+
+根据 `docs/设计文档/` 下的设计文档，确认项目类型为**爬虫**。
+
+### 1.3 识别技术锁规范
+
+| 项目特征 | 技术锁规范 |
+|:---------|:----------|
+| 爬虫功能 | `爬虫规范.md` |
+
+### 1.4 读取适用规范
+
+必须读取以下规范文件：
+
+| 优先级 | 规范文件 |
+|:-------|:---------|
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/Git规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/代码同步修改规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/设计规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/代码规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/细节记录规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/爬虫规范.md` |
+
+每读取一个文件，输出：`✓ 已读取：{文件路径}`
+
+### 1.5 汇报项目情况
+
+向用户汇报：
+- 项目类型：爬虫
+- 技术栈：Python + requests + Redis
+- 本次需要遵守的规范清单
+
+### 1.6 环境检查
+
+执行 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 中的检查命令，确认 Python 环境正常。
+
+---
+
+## Step 2: 爬虫专项开发
+
+### 目录结构
 
 ```
 project/
@@ -75,9 +137,9 @@ project/
 └── Dockerfile
 ```
 
-## 配置管理
+### 配置管理
 
-### 配置文件（INI格式）
+#### 配置文件（INI格式）
 
 ```ini
 # config_dev.ini
@@ -95,7 +157,7 @@ timeout = 30
 host = http://api.example.com
 ```
 
-### 启动参数（sys.argv）
+#### 启动参数（sys.argv）
 
 ```python
 # common/constants.py
@@ -119,7 +181,7 @@ RUN_THREAD_SIZE = int(sys_args[1]) if len(sys_args) > 1 else 1
 DATASOURCE_ID = sys_args[2] if len(sys_args) > 2 else 'DEFAULT'
 ```
 
-## 任务包装器
+### 任务包装器
 
 ```python
 def xxx_task_wrapper(func):
@@ -156,7 +218,7 @@ def xxx_task_wrapper(func):
     return wrapper
 ```
 
-## 重试机制
+### 重试机制
 
 ```python
 from retrying import retry
@@ -168,7 +230,7 @@ def xxx_crawl_run(product_id, extra):
     return result
 ```
 
-### 重试条件函数
+#### 重试条件函数
 
 ```python
 def xxx_retry_if_exception(e):
@@ -178,7 +240,7 @@ def xxx_retry_if_exception(e):
     return False
 ```
 
-## 请求封装
+### 请求封装
 
 ```python
 from utils.contexts import requests_try, requests_session_try
@@ -197,7 +259,7 @@ with requests_session_try(session, 'post', url, json=data) as resp:
     data = resp.json()
 ```
 
-## 异常类
+### 异常类
 
 | 异常 | 用途 | 钉钉通知 |
 |:-----|:-----|:---------|
@@ -205,7 +267,7 @@ with requests_session_try(session, 'post', url, json=data) as resp:
 | `NeedDingtalkFailError` | 需要发送失败通知 | 失败通知 |
 | `NeedDingtalkReminderError` | 需要发送提醒通知 | 温馨提示 |
 
-## 任务源类型
+### 任务源类型
 
 | 类型 | 实现 |
 |:-----|:-----|
@@ -214,7 +276,7 @@ with requests_session_try(session, 'post', url, json=data) as resp:
 | Redis队列 | `xxx_query_task_args_list()` |
 | 数据库 | `xxx_query_task_args_db()` |
 
-## 回调机制
+### 回调机制
 
 ```python
 # 多级回调：Redis缓存 + API回调
@@ -232,7 +294,7 @@ def xxx_callback_success(result, extra):
             raise GeneralError(f'回调失败')
 ```
 
-## 日志分级
+### 日志分级
 
 | 级别 | 方法 | 用途 |
 |:-----|:-----|:-----|
@@ -240,7 +302,7 @@ def xxx_callback_success(result, extra):
 | ERROR | save_error | 可恢复错误 |
 | CRITICAL | save_critical | 严重错误（traceback） |
 
-## 模块日志实例
+### 模块日志实例
 
 ```python
 # apps/review/crawl_loggers.py
@@ -250,7 +312,7 @@ review_retry_log = Logger('review_retry', 'logs', ...)     # 重试记录
 review_error_log = Logger('review_error', 'logs', ...)      # 异常记录
 ```
 
-## Docker 启动命令
+### Docker 启动命令
 
 ```bash
 # 构建并启动
@@ -266,23 +328,25 @@ docker-compose down
 # python3 -u main.py <module> <thread_size> <datasource_id>
 ```
 
-## 检查清单
+### 检查清单
 
-### 爬虫模块必查
+#### 爬虫模块必查
 
 - [ ] 使用任务包装器
 - [ ] 使用重试装饰器
 - [ ] 配置分布式锁
 - [ ] 实现多级回调
 
-### 请求处理必查
+#### 请求处理必查
 
 - [ ] 使用上下文管理器
 - [ ] 处理请求失败情况
 - [ ] 实现重试条件
 
-### 异常处理必查
+#### 异常处理必查
 
 - [ ] 使用自定义异常类
 - [ ] 失败时发送钉钉通知
 - [ ] 异常信息脱敏过滤
+- [ ] 符合 SOLID/KISS/DRY/YAGNI 原则
+- [ ] 临时文件已清理

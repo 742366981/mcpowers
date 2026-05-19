@@ -2,7 +2,7 @@
 name: mcpowers-vue-dev
 description: |
   Vue 3 前端开发专项技能。当用户说"Vue项目"、"Vue前端"、"用Vue开发"、"前端项目"时自动触发。
-  
+
   本技能提供 Vue 3 前端项目的完整开发规范，包括：
   - 技术栈（Vue 3 + Composition API + Vite + Vue Router + Pinia + Axios）
   - 项目结构（api/components/router/stores/views）
@@ -11,28 +11,90 @@ description: |
   - 状态管理（Pinia Store）
   - Token管理（localStorage + Bearer Header）
   - 错误处理（try-catch + Toast）
-  
+
   **核心价值**：标准化Vue项目结构、统一API调用方式、规范组件命名。
-  
+
   **使用场景**：
   - 用户要创建 Vue 前端项目
   - 用户要开发 Vue 页面组件
   - 用户要求按 Vue 规范开发前端
+
+  **配合使用**：`mcpowers-workflow` 提供通用工作流程（12章完整内容）
 ---
 
 # mcpowers-vue-dev
 
 Vue 3 前端项目开发规范技能。
 
-## 触发词
+## Step 1: 识别核心规范
 
-| 触发词 | 场景 |
-|:-------|:-----|
-| Vue项目 | 创建新的 Vue 项目 |
-| Vue前端 / 前端项目 | 开发前端页面 |
-| 用Vue开发 | 指定使用 Vue 框架 |
+> ⚠️ **强制执行**，每次任务开始都必须执行。
+>
+> ⚠️ **重要**：本技能与 `mcpowers-workflow` 配合使用，`mcpowers-workflow` 提供完整的工作流程（12章内容），本技能提供 Vue 专项开发内容。
 
-## 技术栈
+### 核心红线（违反视为不合格）
+
+| 红线行为 | 违规后果 |
+|:---------|:---------|
+| **未经确认直接修改代码/文档** | 用户有权要求回滚 |
+| **先写代码后补文档** | 视为不合格 |
+| **多个操作后才 commit** | 视为不规范 |
+| **只 commit 代码不 commit 文档** | 视为不规范 |
+| **发现重复定义未处理** | 视为不合格 |
+| **代码注释不完整** | 视为不合格 |
+| **临时文件不清理** | 视为不规范 |
+| **违反 SOLID/KISS/DRY/YAGNI** | 视为不合格 |
+
+### 1.1 扫描规范目录
+
+> ⚠️ **规范文件位于共享技能 `mcpowers-shared` 目录**
+>
+> ```bash
+> ls ~/.claude/skills/mcpowers-shared/docs/技术规范/*.md
+> ```
+
+### 1.2 确定项目类型
+
+根据 `docs/设计文档/` 下的设计文档，确认项目类型为**前端 + Vue**。
+
+### 1.3 识别技术锁规范
+
+| 项目特征 | 技术锁规范 |
+|:---------|:----------|
+| 前端 + Vue | `Vue前端规范.md` |
+
+### 1.4 读取适用规范
+
+必须读取以下规范文件：
+
+| 优先级 | 规范文件 |
+|:-------|:---------|
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/Git规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/代码同步修改规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/设计规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/代码规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/细节记录规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/Vue前端规范.md` |
+
+每读取一个文件，输出：`✓ 已读取：{文件路径}`
+
+### 1.5 汇报项目情况
+
+向用户汇报：
+- 项目类型：前端（Vue 3）
+- 技术栈：Vue 3 + Vite + Vue Router + Pinia + Axios
+- 本次需要遵守的规范清单
+
+### 1.6 环境检查
+
+执行 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 中的检查命令，确认 Node.js 环境正常。
+
+---
+
+## Step 2: Vue 专项开发
+
+### 技术栈
 
 | 技术 | 说明 |
 |:-----|:-----|
@@ -42,7 +104,7 @@ Vue 3 前端项目开发规范技能。
 | Pinia | 2.x 状态管理 |
 | Axios | HTTP 客户端 |
 
-## 项目结构
+### 项目结构
 
 ```
 project/
@@ -61,7 +123,7 @@ project/
 └── package.json
 ```
 
-## 环境变量
+### 环境变量
 
 | 文件 | 用途 |
 |:-----|:-----|
@@ -74,7 +136,7 @@ project/
 | `VITE_API_BASE_URL` | API 基础路径 |
 | `VITE_API_TARGET` | 开发代理目标地址 |
 
-## axios 实例配置
+### axios 实例配置
 
 ```javascript
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -85,7 +147,7 @@ const axiosInstance = axios.create({
 })
 ```
 
-## 请求拦截器
+### 请求拦截器
 
 ```javascript
 axiosInstance.interceptors.request.use((config) => {
@@ -97,7 +159,7 @@ axiosInstance.interceptors.request.use((config) => {
 })
 ```
 
-## 响应拦截器
+### 响应拦截器
 
 ```javascript
 axiosInstance.interceptors.response.use(
@@ -126,14 +188,14 @@ axiosInstance.interceptors.response.use(
 )
 ```
 
-## API 模块结构
+### API 模块结构
 
 ```javascript
 export const api = {
   get(url, params) { return axiosInstance.get(url, { params }) },
   post(url, data) { return axiosInstance.post(url, data) },
   put(url, data) { return axiosInstance.put(url, data) },
-  delete(url, params) { return axiosInstance.delete(url, { params }) }
+  delete(url, params) { return axiosInstance.delete(url, params) }
 }
 
 export const baseApi = {
@@ -153,7 +215,7 @@ export const baseApi = {
 }
 ```
 
-## API 路径规范
+### API 路径规范
 
 | 操作 | URL 格式 |
 |:-----|:---------|
@@ -164,7 +226,7 @@ export const baseApi = {
 | 删除 | /xxx/delete |
 | 批量删除 | /xxx/batch-delete |
 
-## 页面组件结构
+### 页面组件结构
 
 ```vue
 <template>
@@ -215,7 +277,7 @@ onMounted(() => loadData())
 </script>
 ```
 
-## 变量命名
+### 变量命名
 
 ```javascript
 // 数据
@@ -241,7 +303,7 @@ const searchForm = ref({})
 const selectedIds = ref([])
 ```
 
-## 错误处理
+### 错误处理
 
 ```javascript
 async function loadData() {
@@ -259,7 +321,7 @@ async function loadData() {
 }
 ```
 
-## Pinia Store
+### Pinia Store
 
 ```javascript
 import { defineStore } from 'pinia'
@@ -286,16 +348,18 @@ export const useAuthStore = defineStore('auth', () => {
 })
 ```
 
-## 检查清单
+### 检查清单
 
-### API 调用必查
+#### API 调用必查
 
 - [ ] 使用 try-catch 包裹
 - [ ] 加载失败时清空数据
 - [ ] finally 中关闭 loading
 
-### 组件开发必查
+#### 组件开发必查
 
 - [ ] 变量命名符合规范
 - [ ] 弹窗使用 `showModal`
 - [ ] 编辑状态使用 `isEdit`
+- [ ] 符合 SOLID/KISS/DRY/YAGNI 原则
+- [ ] 临时文件已清理

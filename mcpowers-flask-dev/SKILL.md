@@ -2,7 +2,7 @@
 name: mcpowers-flask-dev
 description: |
   Flask 后端开发专项技能。当用户说"Flask项目"、"Flask后端"、"用Flask开发"、"Python后端"时自动触发。
-  
+
   本技能提供 Flask 后端项目的完整开发规范，包括：
   - 目录结构（应用工厂、蓝图、模块划分）
   - 配置管理（环境变量、配置加载器）
@@ -11,28 +11,90 @@ description: |
   - 认证授权（装饰器、Token管理）
   - Swagger文档（docstring格式、导出）
   - Gunicorn部署
-  
+
   **核心价值**：标准化Flask项目结构、强制docstring先行、完整接口文档。
-  
+
   **使用场景**：
   - 用户要创建 Flask 后端项目
   - 用户要开发 Flask 接口
   - 用户要求按 Flask 规范开发后端
+
+  **配合使用**：`mcpowers-workflow` 提供通用工作流程（12章完整内容）
 ---
 
 # mcpowers-flask-dev
 
 Flask 后端项目开发规范技能。
 
-## 触发词
+## Step 1: 识别核心规范
 
-| 触发词 | 场景 |
-|:-------|:-----|
-| Flask项目 | 创建新的 Flask 项目 |
-| Flask后端 / Python后端 | 开发后端接口 |
-| 用Flask开发 | 指定使用 Flask 框架 |
+> ⚠️ **强制执行**，每次任务开始都必须执行。
+>
+> ⚠️ **重要**：本技能与 `mcpowers-workflow` 配合使用，`mcpowers-workflow` 提供完整的工作流程（12章内容），本技能提供 Flask 专项开发内容。
 
-## 目录结构
+### 核心红线（违反视为不合格）
+
+| 红线行为 | 违规后果 |
+|:---------|:---------|
+| **未经确认直接修改代码/文档** | 用户有权要求回滚 |
+| **先写代码后补文档** | 视为不合格 |
+| **多个操作后才 commit** | 视为不规范 |
+| **只 commit 代码不 commit 文档** | 视为不规范 |
+| **发现重复定义未处理** | 视为不合格 |
+| **代码注释不完整** | 视为不合格 |
+| **临时文件不清理** | 视为不规范 |
+| **违反 SOLID/KISS/DRY/YAGNI** | 视为不合格 |
+
+### 1.1 扫描规范目录
+
+> ⚠️ **规范文件位于共享技能 `mcpowers-shared` 目录**
+>
+> ```bash
+> ls ~/.claude/skills/mcpowers-shared/docs/技术规范/*.md
+> ```
+
+### 1.2 确定项目类型
+
+根据 `docs/设计文档/` 下的设计文档，确认项目类型为**后端 + Flask**。
+
+### 1.3 识别技术锁规范
+
+| 项目特征 | 技术锁规范 |
+|:---------|:----------|
+| 后端 + Flask | `Flask后端规范.md` |
+
+### 1.4 读取适用规范
+
+必须读取以下规范文件：
+
+| 优先级 | 规范文件 |
+|:-------|:---------|
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/Git规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/代码同步修改规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/设计规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/代码规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/细节记录规范.md` |
+| 必须 | `~/.claude/skills/mcpowers-shared/docs/技术规范/Flask后端规范.md` |
+
+每读取一个文件，输出：`✓ 已读取：{文件路径}`
+
+### 1.5 汇报项目情况
+
+向用户汇报：
+- 项目类型：后端（Flask）
+- 技术栈：Flask + MySQL + Redis
+- 本次需要遵守的规范清单
+
+### 1.6 环境检查
+
+执行 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 中的检查命令，确认 Python 环境正常。
+
+---
+
+## Step 2: Flask 专项开发
+
+### 目录结构
 
 ```
 project/
@@ -79,38 +141,38 @@ project/
 └── gunicorn_loader.py     # Gunicorn启动器
 ```
 
-## 应用工厂模式
+### 应用工厂模式
 
 ```python
 # apps/__init__.py
 
 def create_app(protect_swagger=True):
     app = Flask(__name__)
-    
+
     # 配置
     app.config['SECRET_KEY'] = config.get('secret_key')
-    
+
     # 数据库
     from db.mysql.helpers import db
     db.init_app(app)
-    
+
     # CORS
     CORS(app, resources={r'/*': {'origins': '*'}})
-    
+
     # 中间件
     from utils.middleware import init_request_id
     init_request_id(app)
-    
+
     # 蓝图注册
     register_blueprints(app)
-    
+
     # Swagger
     register_swagger(app, protect=protect_swagger)
-    
+
     return app
 ```
 
-## 核心原则
+### 核心原则
 
 | 原则 | 说明 |
 |:-----|:-----|
@@ -119,7 +181,7 @@ def create_app(protect_swagger=True):
 | **禁止默认值** | 配置缺失必须启动失败 |
 | **先写docstring** | 接口必须先写文档再写实现 |
 
-## Swagger docstring 格式
+### Swagger docstring 格式
 
 > ⚠️ **标题与 `---` 之间不能有空行**
 
@@ -160,7 +222,7 @@ responses:
     # 视图函数实现
 ```
 
-## 必需字段
+### 必需字段
 
 | 字段 | 必须 | 说明 |
 |:-----|:-----|:-----|
@@ -169,7 +231,7 @@ responses:
 | parameters | ✅ | 请求参数 |
 | responses | ✅ | 响应格式+examples |
 
-## 装饰器
+### 装饰器
 
 ```python
 # 登录装饰器
@@ -179,7 +241,7 @@ responses:
 @permission_required('user:create', 'user:update')
 ```
 
-## 响应格式
+### 响应格式
 
 ```python
 # 成功响应
@@ -192,9 +254,9 @@ return api_error(400, '参数错误')
 return api_page(records, page_no, page_size, total_count)
 ```
 
-## 检查清单
+### 检查清单
 
-### 接口开发必查
+#### 接口开发必查
 
 - [ ] docstring 先于代码编写
 - [ ] 标题与 `---` 之间无空行
@@ -202,9 +264,11 @@ return api_page(records, page_no, page_size, total_count)
 - [ ] responses 包含 examples
 - [ ] 参数名符合规范（id / xxx_id）
 
-### 提交前必查
+#### 提交前必查
 
 - [ ] 接口参数命名正确
 - [ ] docstring 格式正确
 - [ ] 配置通过 ENV_TYPE 动态加载
 - [ ] 无调试代码残留
+- [ ] 符合 SOLID/KISS/DRY/YAGNI 原则
+- [ ] 临时文件已清理

@@ -8,10 +8,8 @@ AI 辅助开发的标准化技能体系，提供完整的开发流程规范和�
 
 | 技能 | 触发词 | 用途 |
 |:-----|:-------|:-----|
-| `mcpowers-workflow` | 新项目 / 开始开发 / 初始化项目 | 7 步法开发流程 |
-| `mcpowers-flask-dev` | Flask 项目 / Flask 后端 / Python 后端 | Flask 后端规范 |
-| `mcpowers-vue-dev` | Vue 项目 / Vue 前端 / 前端项目 | Vue 3 前端规范 |
-| `mcpowers-crawler-dev` | 爬虫项目 / 爬虫开发 / 数据采集 | 爬虫开发规范 |
+| `mcpowers-workflow` | 新项目/开始开发/继续开发/继续项目/初始化项目/产品设计等 | 7 步法开发流程 |
+| `mcpowers-shared` | （不主动触发，供 workflow 引用） | 技术规范库 |
 
 ---
 
@@ -21,10 +19,9 @@ AI 辅助开发的标准化技能体系，提供完整的开发流程规范和�
 # 克隆仓库
 git clone git@github.com:742366981/mcpowers.git ~/mcpowers
 
-# 安装所有技能
-for skill in mcpowers-workflow mcpowers-flask-dev mcpowers-vue-dev mcpowers-crawler-dev; do
-  cp -r ~/mcpowers/$skill ~/.claude/skills/
-done
+# 安装技能
+cp -r ~/mcpowers/mcpowers-workflow ~/.claude/skills/
+cp -r ~/mcpowers/mcpowers-shared ~/.claude/skills/
 ```
 
 ---
@@ -54,24 +51,19 @@ mcpowers-shared/
 
 ---
 
-## 新项目初始化
+## 工作流程
 
-新项目创建时，AI 会根据开发环境规范自动创建项目配置：
+`mcpowers-workflow` 是唯一入口技能，任何开发场景（新建项目、继续项目、产品设计等）都会触发它：
 
-1. **触发**：说"开始开发"或"初始化项目"
-2. **AI 自动执行**：
-   - 创建 .gitignore
-   - 创建语言特定文件（requirements.txt 等）
-   - 创建虚拟环境脚本
-   - **从模板创建 CLAUDE.md 和 AGENTS.md**（详见开发环境规范）
-
-> 配置模板位于：`~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md`
+1. **Step 1**：扫描项目代码结构，识别技术栈（Flask/Vue/爬虫等）
+2. **读取规范**：根据技术栈读取对应规范（通用规范 + 技术锁规范）
+3. **执行开发**：按 7 步法流程执行（需求→设计→代码→测试→部署）
 
 ---
 
 ## 规范清单
 
-### 通用规范
+### 通用规范（所有项目必须）
 | 规范 | 用途 |
 |:-----|:-----|
 | API规范.md | API 设计 |
@@ -89,7 +81,7 @@ mcpowers-shared/
 | 文档编写规范.md | 文档标准 |
 | 导入导出规范.md | 导入导出 |
 
-### 技术锁规范
+### 技术锁规范（按项目类型按需读取）
 | 规范 | 适用项目 |
 |:-----|:---------|
 | Flask后端规范.md | Flask 后端 |

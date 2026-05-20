@@ -752,36 +752,66 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 
 **执行后必须输出扫描结果**
 
-**1.2 扫描项目代码结构（强制）**
+**1.2 扫描项目结构 + 读取配置文件（强制）**
 
 > ⚠️ **必须先了解项目实际情况，再确定项目类型**
+>
+> ⚠️ **只读取关键配置文件，不读取所有代码**（大项目代码量巨大，耗时且无必要）
 
-**实际执行以下命令**：
+**第一步：扫描目录结构**
 
 ```bash
-# 扫描项目结构
+# 扫描项目结构（不读内容，只看结构）
 ls -la
-find . -maxdepth 3 -type f -name "*.py" -o -name "*.js" -o -name "*.vue" -o -name "*.ts" 2>/dev/null | head -30
+find . -maxdepth 3 -type f \( -name "*.py" -o -name "*.js" -o -name "*.vue" -o -name "*.ts" -o -name "*.json" \) 2>/dev/null | head -50
 
 # 扫描设计文档（如有）
 ls docs/设计文档/ 2>/dev/null || echo "无设计文档"
 ```
 
-**输出项目实际情况**：
-```
-## 项目代码结构
+**第二步：读取关键配置文件（判断技术栈）**
 
+根据目录结构发现的配置文件，读取以下关键文件：
+
+**Python 后端项目**：
+| 文件 | 读取内容 | 能判断 |
+|:-----|:---------|:-------|
+| `requirements.txt` | 依赖包名 | Flask/Django/FastAPI |
+| `pyproject.toml` | 项目配置 | Poetry/Pipenv |
+| `setup.py` | 项目名、依赖 | 具体框架 |
+| `app.py` | import 语句 | 具体框架 |
+
+**前端项目**：
+| 文件 | 读取内容 | 能判断 |
+|:-----|:---------|:-------|
+| `package.json` | dependencies | Vue/React、版本 |
+| `vite.config.ts` | 构建工具 | Vite/Webpack |
+| `tsconfig.json` | TypeScript 配置 | TS 版本 |
+
+**第三步：输出项目实际情况**
+
+```
+## 项目分析结果
+
+### 目录结构
 | 类型 | 文件/目录 | 说明 |
 |:-----|:----------|:-----|
 | 入口文件 | app.py / main.py / index.js | 项目启动文件 |
-| 后端框架 | app.py / views.py / api/ | Flask/Django/FastAPI 等 |
-| 前端框架 | src/ / components/ / pages/ | Vue/React 等 |
+| 后端框架 | apps/ / api/ | 后端项目 |
+| 前端框架 | src/components/ / src/pages/ | 前端项目 |
 | 配置文件 | requirements.txt / package.json | 依赖管理 |
-...
 
-本次扫描发现：
+### 关键配置文件内容
+| 文件 | 关键内容 | 技术栈判断 |
+|:-----|:---------|:-----------|
+| requirements.txt | flask, django, fastapi | Flask/Django/FastAPI |
+| package.json | vue, react | Vue/React |
+| ... | ... | ... |
+
+### 最终判断
 - 项目类型：{后端/前端/全栈/其他}
-- 技术栈：{Python/Node.js/其他}
+- 技术栈：{Flask + Python / Vue 3 + Vite / Django + Python / 其他}
+- 依据：从 {配置文件名} 中发现 {关键标识}
 ```
 
 ---

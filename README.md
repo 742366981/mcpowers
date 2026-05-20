@@ -26,16 +26,6 @@ cp -r ~/mcpowers/mcpowers-shared ~/.claude/skills/
 
 ---
 
-### 跨 AI 工具兼容
-
-> ⚠️ **注意**：本技能默认安装路径为 `~/.claude/skills/`（Claude Code 专用）。
->
-> 其他 AI 工具（如 OpenCode 等）需替换为对应路径：
-> - `~/.claude/skills/` → `~/.config/opencode/skills/` 或对应工具的 skills 目录
-> - 安装后需将 `mcpowers-workflow/SKILL.md` 和 `mcpowers-shared/SKILL.md` 中的 `~/.claude/skills/mcpowers-shared/` 替换为实际路径
-
----
-
 ## 规范体系
 
 ```

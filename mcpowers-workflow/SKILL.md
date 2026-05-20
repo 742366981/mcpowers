@@ -752,67 +752,64 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 
 **执行后必须输出扫描结果**
 
-**1.2 扫描项目结构 + 读取配置文件（强制）**
+**1.2 扫描项目结构 + 自适应读取配置文件（强制）**
 
-> ⚠️ **必须先了解项目实际情况，再确定项目类型**
->
-> ⚠️ **只读取关键配置文件，不读取所有代码**（大项目代码量巨大，耗时且无必要）
+> ⚠️ **核心原则：让 AI 根据实际目录结构自适应判断，不预设清单**
 
 **第一步：扫描目录结构**
 
 ```bash
-# 扫描项目结构（不读内容，只看结构）
+# 扫描项目结构（只看有哪些文件，不读内容）
 ls -la
-find . -maxdepth 3 -type f \( -name "*.py" -o -name "*.js" -o -name "*.vue" -o -name "*.ts" -o -name "*.json" \) 2>/dev/null | head -50
+find . -maxdepth 3 -type f 2>/dev/null | head -100
 
 # 扫描设计文档（如有）
 ls docs/设计文档/ 2>/dev/null || echo "无设计文档"
 ```
 
-**第二步：读取关键配置文件（判断技术栈）**
+**第二步：根据实际文件列表，自适应判断并读取**
 
-根据目录结构发现的配置文件，读取以下关键文件：
+> ⚠️ **不要预设要读哪些文件，根据扫描发现的实际文件来决定**
 
-**Python 后端项目**：
-| 文件 | 读取内容 | 能判断 |
-|:-----|:---------|:-------|
-| `requirements.txt` | 依赖包名 | Flask/Django/FastAPI |
-| `pyproject.toml` | 项目配置 | Poetry/Pipenv |
-| `setup.py` | 项目名、依赖 | 具体框架 |
-| `app.py` | import 语句 | 具体框架 |
+**判断逻辑**：
+- 发现 `.py` 文件 + `requirements.txt` → 读取 `requirements.txt` 判断 Python 框架
+- 发现 `.py` 文件 + `pyproject.toml` → 读取 `pyproject.toml` 判断项目配置
+- 发现 `package.json` → 读取它判断是前端还是 Node.js 后端
+- 发现 `pom.xml` → 读取它判断 Java 项目（Maven）
+- 发现 `build.gradle` 或 `build.gradle.kts` → 读取它判断 Java 项目（Gradle）
+- 发现 `go.mod` → 读取它判断 Go 项目
+- 发现 `Cargo.toml` → 读取它判断 Rust 项目
+- 发现 `*.csproj` → 读取它判断 .NET 项目
+- 发现 `scrapy.cfg` → 判断为 Scrapy 爬虫项目
+- 发现其他配置文件 → AI 根据文件名判断是否需要读取
 
-**前端项目**：
-| 文件 | 读取内容 | 能判断 |
-|:-----|:---------|:-------|
-| `package.json` | dependencies | Vue/React、版本 |
-| `vite.config.ts` | 构建工具 | Vite/Webpack |
-| `tsconfig.json` | TypeScript 配置 | TS 版本 |
+**读取要求**：
+- 每个可能判断技术栈的文件都要读取
+- 不要遗漏任何可能影响技术栈判断的文件
+- 读取后从内容中提取关键标识（如依赖包名、框架名、版本号）
 
-**第三步：输出项目实际情况**
+**第三步：输出分析结果**
 
 ```
 ## 项目分析结果
 
 ### 目录结构
-| 类型 | 文件/目录 | 说明 |
-|:-----|:----------|:-----|
-| 入口文件 | app.py / main.py / index.js | 项目启动文件 |
-| 后端框架 | apps/ / api/ | 后端项目 |
-| 前端框架 | src/components/ / src/pages/ | 前端项目 |
-| 配置文件 | requirements.txt / package.json | 依赖管理 |
+（扫描结果，列出发现的文件分布）
 
-### 关键配置文件内容
-| 文件 | 关键内容 | 技术栈判断 |
-|:-----|:---------|:-----------|
-| requirements.txt | flask, django, fastapi | Flask/Django/FastAPI |
-| package.json | vue, react | Vue/React |
-| ... | ... | ... |
+### 发现的配置文件
+（列出所有可能影响技术栈判断的文件）
 
-### 最终判断
+### 技术栈判断
 - 项目类型：{后端/前端/全栈/其他}
-- 技术栈：{Flask + Python / Vue 3 + Vite / Django + Python / 其他}
-- 依据：从 {配置文件名} 中发现 {关键标识}
+- 技术栈：{根据配置文件内容判断}
+- 依据：从 {配置文件} 中发现 {关键标识}
 ```
+
+**核心原则**：
+- ✅ 扫描发现实际存在的文件
+- ✅ 根据实际文件自适应决定要读取哪些
+- ✅ 根据读取内容判断技术栈
+- ❌ 不预设清单，不限制文件类型
 
 ---
 

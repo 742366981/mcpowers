@@ -854,15 +854,26 @@ C. 我没有设计，需要 AI 引导生成
 **跳过条件**：以上文件**全部存在** → 直接进入 Step 1
 
 **执行流程**：
-1. **检查缺失文件** - 使用 Bash 工具**实际执行**检查：
+1. **检查 Git 仓库状态** - 使用 Bash 工具**实际执行**检查：
+   ```bash
+   ls -la .git 2>/dev/null || echo "NOT_A_GIT_REPO"
+   ```
+
+   | 检查结果 | 判断 | 后续操作 |
+   |:---------|:-----|:---------|
+   | `.git` 目录存在 | 已是 Git 仓库 | 跳过 git init，仅检查/创建其他缺失文件 |
+   | `NOT_A_GIT_REPO` | 非 Git 仓库 | 执行 git init 后再创建其他文件 |
+
+2. **检查缺失文件** - 使用 Bash 工具**实际执行**检查：
    ```bash
    ls .gitignore requirements.txt venv_windows.bat CLAUDE.md AGENTS.md 2>&1
    ```
 
-2. **先询问** - 向用户确认是否需要初始化：
+3. **先询问** - 向用户确认是否需要初始化：
    ```
    ## 新项目初始化确认
 
+   Git 仓库状态：[已有/需要创建]
    检测到项目缺少以下文件：
    - [缺失文件列表]
 
@@ -873,14 +884,20 @@ C. 我没有设计，需要 AI 引导生成
    请确认。
    ```
 
-3. **用户确认后** - 按 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 执行：
-   | 文件类型 | 创建内容 |
-   |:---------|:---------|
-   | .gitignore | 根据项目类型识别 |
-   | 语言特定文件 | requirements.txt / package.json 等 |
-   | 虚拟环境脚本 | venv_windows.bat 等 |
-   | **CLAUDE.md** | **AI项目配置模板** |
-   | **AGENTS.md** | **AI项目配置模板（副本）** |
+4. **用户确认后** - 按 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 执行：
+
+   | 执行顺序 | 操作 | 触发条件 |
+   |:--------:|:-----|:---------|
+   | 1 | **执行 `git init`** | 仅在非 Git 仓库时执行 |
+   | 2 | 创建 .gitignore | 缺失时创建 |
+   | 3 | 创建语言特定文件 | 缺失时创建 |
+   | 4 | 创建虚拟环境脚本 | 缺失时创建 |
+   | 5 | 创建 **CLAUDE.md** | 缺失时创建 |
+   | 6 | 创建 **AGENTS.md** | 缺失时创建 |
+
+   > ⚠️ **`git init` 必须首先执行**
+   >
+   > 只有初始化 Git 仓库后，才能创建 `.gitignore` 并遵守后续的 Git 规范（如 commit 规范）。
 
    > ⚠️ **CLAUDE.md 和 AGENTS.md 必须创建**
    >
@@ -892,6 +909,7 @@ C. 我没有设计，需要 AI 引导生成
    - 按 `~/.claude/skills/mcpowers-shared/docs/技术规范/代码同步修改规范.md` 同步更新所有引用这些文件的文档
 
 **自检确认**：
+- [ ] Git 仓库状态是否已检查？ → 验证：`ls -la .git`（已有仓库应存在，新仓库应被创建）
 - [ ] `.gitignore` 是否已创建？ → 验证：`ls .gitignore`
 - [ ] 语言特定文件是否已创建？ → 验证：`ls requirements.txt`
 - [ ] 虚拟环境脚本是否已创建？ → 验证：`ls venv_windows.bat`

@@ -250,7 +250,7 @@ def api_page(records, page_no, page_size, total_count):
 | 导入接口 | `/import` | `POST /ec/order/import` | 导入订单 |
 | 导出接口 | `/export` | `GET /ec/order/export` | 导出订单 |
 | 模板下载 | `/template/download` | `GET /ec/order/template/download` | 下载订单导入模板 |
-| 下拉接口 | `/{操作}?type={类型}` | `GET /ec/order/dict?type=status` | 获取订单状态下拉选项 |
+| 下拉接口 | `/dict?type={类型值}` | `GET /ec/order/dict?type=status` | 获取指定类型的下拉选项 |
 | 上传接口 | `/upload` | `POST /ec/upload` | 通用文件上传（无业务模块） |
 
 > ⚠️ **注意**：

@@ -299,6 +299,65 @@ def api_page(records, page_no, page_size, total_count):
 
 **只有一个字段时**：dictLabel 和 dictValue 都用那一个。
 
+### 3.4 级联下拉接口响应格式（强制）
+
+用于 Element UI 等前端框架的 `el-cascader` 组件，返回树形结构数据。
+
+**响应格式**：
+
+```json
+{
+  "code": 0,
+  "msg": "success",
+  "data": [
+    {
+      "label": "Node1",
+      "value": "0-0",
+      "children": [
+        {
+          "label": "Child Node1",
+          "value": "0-0-0"
+        }
+      ]
+    },
+    {
+      "label": "Node2",
+      "value": "0-1",
+      "children": [
+        {
+          "label": "Child Node3",
+          "value": "0-1-0",
+          "disabled": true
+        },
+        {
+          "label": "Child Node4",
+          "value": "0-1-1"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 必须 | 说明 |
+|:-----|:-----|:-----|:-----|
+| label | string | 是 | 显示文本 |
+| value | string/number | 是 | 存储值 |
+| children | array | 否 | 子节点，嵌套结构 |
+| disabled | boolean | 否 | 是否禁用 |
+
+**使用场景**：
+- 地区选择（省-市-区）
+- 组织架构（公司-部门-小组）
+- 分类层级（类别-子类别）
+
+**注意事项**：
+- `value` 必须唯一，建议使用路径格式（如 `0-0`、`0-1-0`）
+- `children` 为空或不存在时表示叶子节点
+- 支持多选时 `value` 应为数组格式
+
 ---
 
 ## 4. API参数命名规范（强制）

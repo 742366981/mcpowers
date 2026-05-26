@@ -365,6 +365,24 @@ def json_to_markdown(spec, output_file, login_path=None):
                                         lines.append(f"| {rec_name} | {rec_type} | {rec_desc} |")
                                     lines.append("")
 
+                        # data 是数组时，添加数组元素字段说明（非分页场景）
+                        if not is_page:
+                            data_info = resp_props.get('data')
+                            if isinstance(data_info, dict) and data_info.get('type') == 'array':
+                                items = data_info.get('items', {})
+                                if isinstance(items, dict) and 'properties' in items:
+                                    lines.append("**data 响应参数**:")
+                                    lines.append("")
+                                    lines.append("| 字段 | 类型 | 说明 |")
+                                    lines.append("|:-----|:-----|:-----|")
+                                    for item_name, item_info in items['properties'].items():
+                                        if not isinstance(item_info, dict):
+                                            continue
+                                        item_type = item_info.get('type', 'string')
+                                        item_desc = item_info.get('description', '')
+                                        lines.append(f"| {item_name} | {item_type} | {item_desc} |")
+                                    lines.append("")
+
                 # 响应示例
                 lines.append("**响应示例**:")
                 lines.append("```json")

@@ -217,22 +217,45 @@ def api_page(records, page_no, page_size, total_count):
 
 ### 3.2 路径规范（强制）
 
-**在接口前缀之后，路径片段使用中横线分隔**（如 `exchange-rate`），接口路径按以下规则命名：
+**在接口前缀之后，路径片段使用中横线分隔**（如 `exchange-rate`），接口路径格式为：
 
-| 接口类型 | 路径规则 | 完整示例 |
-|:---------|:---------|:---------|
-| 列表接口 | `/list` | `GET /{前缀}/order/list` |
-| 详情接口 | `/detail` | `GET /{前缀}/order/detail` |
-| 创建接口 | `/create` | `POST /{前缀}/order/create` |
-| 更新接口 | `/update` | `POST /{前缀}/order/update` |
-| 状态修改 | `/update-status` | `POST /{前缀}/order/update-status` |
-| 删除接口 | `/delete` | `POST /{前缀}/order/delete` |
-| 批量删除 | `/batch-delete` | `POST /{前缀}/order/batch-delete` |
-| 导入接口 | `/import` | `POST /{前缀}/order/import` |
-| 导出接口 | `/export` | `GET /{前缀}/order/export` |
-| 模板下载 | `/template/download` | `GET /{前缀}/order/template/download` |
-| 下拉接口 | `/dict?type={类型}` | `GET /{前缀}/order/dict?type=status` |
-| 上传接口 | `/upload` | `POST /{前缀}/upload` |
+```
+/{前缀}/{业务模块}/{操作}
+```
+
+**路径各部分含义**：
+
+| 路径部分 | 含义 | 示例 |
+|:---------|:-----|:-----|
+| `{前缀}` | 项目英文标识，与数据库表前缀一致 | `ec`（电商）、`crm`（客户管理） |
+| `{业务模块}` | 业务功能模块名，与表名对应 | `order`（订单）、`product`（产品）、`user`（用户） |
+| `{操作}` | 接口操作类型 | `list`、`detail`、`create` 等 |
+
+**路径命名原则**：
+- **业务模块名**：使用**小写英文单数**名词（与数据库表名单数对应）
+- **操作名**：使用小写英文动词
+- **多单词**：使用中横线 `-` 分隔（如 `exchange-rate`）
+
+**接口命名示例**：
+
+| 接口类型 | 路径规则 | 完整示例 | 说明 |
+|:---------|:---------|:---------|:-----|
+| 列表接口 | `/list` | `GET /ec/order/list` | 获取订单列表，`order` 是业务模块（单数） |
+| 详情接口 | `/detail` | `GET /ec/order/detail` | 获取订单详情 |
+| 创建接口 | `/create` | `POST /ec/order/create` | 创建订单 |
+| 更新接口 | `/update` | `POST /ec/order/update` | 更新订单 |
+| 状态修改 | `/update-status` | `POST /ec/order/update-status` | 修改订单状态 |
+| 删除接口 | `/delete` | `POST /ec/order/delete` | 删除订单 |
+| 批量删除 | `/batch-delete` | `POST /ec/order/batch-delete` | 批量删除订单 |
+| 导入接口 | `/import` | `POST /ec/order/import` | 导入订单 |
+| 导出接口 | `/export` | `GET /ec/order/export` | 导出订单 |
+| 模板下载 | `/template/download` | `GET /ec/order/template/download` | 下载订单导入模板 |
+| 下拉接口 | `/{操作}?type={类型}` | `GET /ec/order/dict?type=status` | 获取订单状态下拉选项 |
+| 上传接口 | `/upload` | `POST /ec/upload` | 通用文件上传（无业务模块） |
+
+> ⚠️ **注意**：
+> - 业务模块名使用**单数**：`order`（订单）而非 `orders`
+> - `order` 是模块名，代表"订单模块"，不是"订单列表"
 
 ### 3.3 下拉接口响应格式（强制）
 

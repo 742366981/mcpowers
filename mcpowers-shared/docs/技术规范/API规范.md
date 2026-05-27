@@ -245,6 +245,10 @@ def api_page(records, page_no, page_size, total_count):
 
 > ⚠️ **强制约束**：路径规范中定义的每种接口类型，**必须使用对应的 HTTP 方法**，不得随意变更。
 
+**禁止路径参数**：
+- ❌ 禁止在路径中传递参数（如 `GET /result/1`、`GET /user/123`）
+- ✅ 参数必须使用 query（如 `GET /result?id=1`）或 body 传递
+
 **接口命名示例**：
 
 | 接口类型 | 路径规则 | 完整示例 | 说明 |

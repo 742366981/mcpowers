@@ -715,6 +715,10 @@ def register_error_handlers(app):
     def not_found(e):
         return api_error(404, '请求的资源不存在')
 
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        return api_error(405, '请求方法不允许')
+
     @app.errorhandler(500)
     def server_error(e):
         return api_error(500, '服务器内部错误')

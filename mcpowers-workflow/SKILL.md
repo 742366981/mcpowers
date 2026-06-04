@@ -1632,6 +1632,172 @@ AI 生成的临时文件**必须**放在 `temp/` 目录，用完即删。
 
 ---
 
+## 13. Git 分支管理规范（强制）
+
+### 13.1 分支类型与命名
+
+| 类型 | 命名格式 | 示例 |
+|:-----|:---------|:-----|
+| 主分支 | `master` | 生产环境代码 |
+| 主分支 | `test` | 测试环境代码 |
+| 主分支 | `dev` | 开发环境代码 |
+| 功能分支 | `feature/{负责人}/{功能名}` | `feature/zhangsan/user-module` |
+| 热修复分支 | `hotfix/{负责人}/{问题描述}` | `hotfix/wangwu/login-bug` |
+
+**命名建议**：负责人用拼音或英文，避免中文编码问题。
+
+### 13.2 合并规则
+
+#### 正常晋升流程
+
+```
+feature → dev → test → master
+```
+
+| 源分支 | 目标分支 | 合并方式 |
+|:-------|:---------|:---------|
+| feature | dev | ✅ 直接 push 到 dev |
+| dev | test | ✅ PR 合并 |
+| test | master | ✅ PR 合并 |
+
+#### 例外情况
+
+以下情况可**单独 PR** 合并到指定分支：
+
+| 场景 | 示例 |
+|:-----|:-----|
+| 紧急 hotfix | `hotfix/wangwu/login-bug` → `master` |
+| 跳过测试环境 | 特殊发布直接 `test` → `master` |
+| 独立变更 | 文档更新、配置文件修改等 |
+
+### 13.3 详细操作流程
+
+#### 3.1 功能开发流程
+
+```bash
+# 1. 从 dev 创建功能分支
+git checkout dev
+git pull origin dev
+git checkout -b feature/zhangsan/user-module
+
+# 2. 开发并提交
+git add .
+git commit -m "feat: 完成用户模块"
+git push -u origin feature/zhangsan/user-module
+
+# 3. 开发完成后合并到 dev
+git checkout dev
+git merge feature/zhangsan/user-module
+git push origin dev
+
+# 4. 删除功能分支（可选）
+git branch -d feature/zhangsan/user-module
+```
+
+#### 3.2 环境晋升流程
+
+```bash
+# 1. dev → test（测试环境验收）
+git checkout test
+git pull origin test
+git merge dev
+git push origin test
+
+# 2. test → master（正式发布）
+git checkout master
+git pull origin master
+git merge test
+git push origin master
+
+# 3. 打版本 tag
+git tag -a v1.0.0 -m "正式发布 v1.0.0"
+git push origin master --tags
+```
+
+#### 3.3 热修复流程
+
+```bash
+# 1. 从 master 创建热修复分支
+git checkout master
+git pull origin master
+git checkout -b hotfix/wangwu/login-bug
+
+# 2. 修复并提交
+git add .
+git commit -m "fix: 修复登录验证bug"
+git push -u origin hotfix/wangwu/login-bug
+
+# 3. PR 合并到 master（紧急情况可跳过 PR）
+git checkout master
+git merge hotfix/wangwu/login-bug
+git push origin master
+
+# 4. 同步到 dev
+git checkout dev
+git merge hotfix/wangwu/login-bug
+git push origin dev
+
+# 5. 删除热修复分支
+git branch -d hotfix/wangwu/login-bug
+```
+
+### 13.4 冲突处理
+
+合并时如遇冲突，按以下步骤处理：
+
+```bash
+# 1. 获取最新代码
+git fetch origin
+
+# 2. 切换到目标分支
+git checkout {目标分支}
+git pull origin {目标分支}
+
+# 3. 执行合并
+git merge {源分支}
+
+# 4. 解决冲突（编辑冲突文件）
+# 5. 添加解决后的文件
+git add .
+
+# 6. 提交合并结果
+git commit -m "merge: 解决合并冲突"
+git push origin {目标分支}
+```
+
+### 13.5 tag 管理
+
+| 规则 | 说明 |
+|:-----|:-----|
+| 命名格式 | `v{主版本}.{次版本}.{修订版}` |
+| 示例 | `v1.0.0`、`v1.1.0`、`v1.0.1` |
+| 打 tag 时机 | master 合并后立即打 tag |
+| 删除本地 tag | `git tag -d v1.0.0` |
+| 删除远程 tag | `git push origin :refs/tags/v1.0.0` |
+
+### 13.6 分支保护（推荐配置）
+
+| 分支 | 保护规则 |
+|:-----|:---------|
+| `master` | 禁止直接 push，必须 PR 合并 |
+| `test` | 禁止直接 push，必须 PR 合并 |
+| `dev` | 允许直接 push（单人/AI 开发场景） |
+
+### 13.7 流程图
+
+```
+ feature/zhangsan/xxx ────┐
+ feature/lisi/yyy    ────┤
+                         ↓
+                        dev ──→ test ──→ master
+                         ↑       ↑         ↑
+                         └───────┴─────────┘
+                           正常晋升
+              （例外情况可直接 PR 到任意分支）
+```
+
+---
+
 ## 规范索引
 
 ### 通用规范（所有项目必须）

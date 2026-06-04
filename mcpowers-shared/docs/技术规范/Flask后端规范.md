@@ -1343,3 +1343,145 @@ python app.py --prod
 ### B. 标签对照表（强制）
 
 > ⚠️ **通用规范引用**：详见 `API规范.md` 第9章
+
+---
+
+## 21. Docker容器化（强制）
+
+### 21.1 Dockerfile
+
+```dockerfile
+FROM python:3.13.3
+
+WORKDIR /{项目名}
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1
+
+# 复制依赖文件并安装
+COPY requirements.txt .
+RUN python3 -m pip install -U pip -i https://mirrors.aliyun.com/pypi/simple && \
+    pip3 install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple
+
+# 复制项目代码
+COPY . .
+```
+
+### 21.2 docker-compose.dev.yml
+
+```yaml
+version: '2.1'
+services:
+  {项目名}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: {项目名}:dev
+    container_name: {项目名}-dev
+    restart: always
+    ports:
+      - '{端口}:{端口}'
+    volumes:
+      - ./logs:/{项目名}/logs
+      - ./config/config_dev.ini:/{项目名}/config/config_dev.ini:ro
+    environment:
+      - TZ=Asia/Shanghai
+    command: python -u gunicorn_loader.py --dev
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '2'
+```
+
+### 21.3 docker-compose.test.yml
+
+```yaml
+version: '2.1'
+services:
+  {项目名}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: {项目名}:test
+    container_name: {项目名}-test
+    restart: always
+    ports:
+      - '{端口}:{端口}'
+    volumes:
+      - ./logs:/{项目名}/logs
+      - ./config/config_test.ini:/{项目名}/config/config_test.ini:ro
+    environment:
+      - TZ=Asia/Shanghai
+    command: python -u gunicorn_loader.py --test
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '2'
+```
+
+### 21.4 docker-compose.prod.yml
+
+```yaml
+version: '2.1'
+services:
+  {项目名}:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: {项目名}:prod
+    container_name: {项目名}-prod
+    restart: always
+    ports:
+      - '{端口}:{端口}'
+    volumes:
+      - ./logs:/{项目名}/logs
+      - ./config/config_prod.ini:/{项目名}/config/config_prod.ini:ro
+    environment:
+      - TZ=Asia/Shanghai
+    command: python -u gunicorn_loader.py --prod
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '2'
+```
+
+### 21.5 启动命令
+
+```bash
+# ========== 开发环境 ==========
+# 首次启动 / 代码变更后
+docker-compose -f docker-compose.dev.yml up -d --build
+# 代码没变时快速启动
+docker-compose -f docker-compose.dev.yml up -d
+
+# ========== 测试环境 ==========
+# 首次启动 / 代码变更后
+docker-compose -f docker-compose.test.yml up -d --build
+# 代码没变时快速启动
+docker-compose -f docker-compose.test.yml up -d
+
+# ========== 正式环境 ==========
+# 首次启动 / 代码变更后
+docker-compose -f docker-compose.prod.yml up -d --build
+# 代码没变时快速启动
+docker-compose -f docker-compose.prod.yml up -d
+
+# ========== 通用命令 ==========
+# 查看日志
+docker-compose -f docker-compose.{环境}.yml logs -f
+
+# 停止
+docker-compose -f docker-compose.{环境}.yml down
+```
+
+### 21.6 三环境差异对照表
+
+| 配置项 | dev | test | prod |
+|:-------|:----|:-----|:-----|
+| image tag | `:dev` | `:test` | `:prod` |
+| container_name | `{项目名}-dev` | `{项目名}-test` | `{项目名}-prod` |
+| config文件 | `config_dev.ini` | `config_test.ini` | `config_prod.ini` |
+| command | `--dev` | `--test` | `--prod` |

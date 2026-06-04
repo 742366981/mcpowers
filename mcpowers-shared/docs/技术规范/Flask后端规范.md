@@ -110,7 +110,10 @@ project/
 ├── app.py                              # 应用入口
 ├── requirements.txt                    # 依赖
 ├── gunicorn_loader.py                  # Gunicorn启动器
-└── Dockerfile                          # Docker镜像
+├── Dockerfile                          # Docker镜像
+├── docker-compose.dev.yml              # 开发环境
+├── docker-compose.test.yml             # 测试环境
+└── docker-compose.prod.yml             # 生产环境
 ```
 
 ### 1.2 模块划分规范

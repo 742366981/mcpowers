@@ -1666,14 +1666,13 @@ AI 生成的临时文件**必须**放在 `temp/` 目录，用完即删。
 
 ### 13.4 启动命令选择
 
-> ⚠️ **AI 自动检查代码更新情况和容器状态**
+> ⚠️ **AI 自动检查容器状态**
 
-| 代码更新？ | 容器状态 | 命令 |
-|:-----------|:---------|:-----|
-| 是 | 任何 | `docker-compose -f docker-compose.{环境}.yml up -d` |
-| 否 | 未运行 | `docker-compose -f docker-compose.{环境}.yml up -d` |
-| 否 | 已运行 | `docker-compose -f docker-compose.{环境}.yml restart` |
-| 任何 | 任何 | **用户明确说"重新构建"** → `up -d --build` |
+| 容器状态 | 命令 |
+|:---------|:-----|
+| 已运行 | `docker-compose -f docker-compose.{环境}.yml up -d` → `restart` |
+| 未运行 | `docker-compose -f docker-compose.{环境}.yml up -d` |
+| 用户明确说"重新构建" | `up -d --build` |
 
 ### 13.5 启动前检查
 
@@ -1684,11 +1683,8 @@ AI 生成的临时文件**必须**放在 `temp/` 目录，用完即删。
 2. 检查当前分支与 CLAUDE.md 记录是否一致
    └→ 不一致 → 提示用户确认
 
-3. 检查代码是否有更新
-   └→ 使用 git status 或 docker-diff 检查
-
-4. 检查容器状态（docker-compose ps）
-   └→ 根据代码更新情况和容器状态选择命令
+3. 检查容器状态（docker-compose ps）
+   └→ 根据容器状态选择命令
 ```
 
 ### 13.6 非 Flask 项目处理

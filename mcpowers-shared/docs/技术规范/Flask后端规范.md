@@ -1385,8 +1385,7 @@ services:
     ports:
       - '{端口}:{端口}'
     volumes:
-      - ./logs:/{项目名}/logs
-      - ./config/config_dev.ini:/{项目名}/config/config_dev.ini:ro
+      - .:/{项目名}
     environment:
       - TZ=Asia/Shanghai
     command: python -u gunicorn_loader.py --dev
@@ -1412,8 +1411,7 @@ services:
     ports:
       - '{端口}:{端口}'
     volumes:
-      - ./logs:/{项目名}/logs
-      - ./config/config_test.ini:/{项目名}/config/config_test.ini:ro
+      - .:/{项目名}
     environment:
       - TZ=Asia/Shanghai
     command: python -u gunicorn_loader.py --test
@@ -1439,8 +1437,7 @@ services:
     ports:
       - '{端口}:{端口}'
     volumes:
-      - ./logs:/{项目名}/logs
-      - ./config/config_prod.ini:/{项目名}/config/config_prod.ini:ro
+      - .:/{项目名}
     environment:
       - TZ=Asia/Shanghai
     command: python -u gunicorn_loader.py --prod

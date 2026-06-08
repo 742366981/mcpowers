@@ -1207,7 +1207,30 @@ CORS(app, resources={r'/*': {'origins': cors_origins_list, 'supports_credentials
 
 > ⚠️ **技术锁定**：Gunicorn 是 Python WSGI 特有的应用服务器，不属于通用部署规范。
 
-### 18.1 Gunicorn启动器（强制）
+### 18.1 Worker Class选择（强制）
+
+Gunicorn 支持多种 worker_class，推荐使用 `GeventWebSocketWorker`。
+
+#### 常见 Worker Class 对比
+
+| Worker Class | 特点 | 适用场景 | WebSocket支持 |
+|:-------------|:-----|:---------|:--------------|
+| **sync**（默认） | 同步阻塞，每个请求一个进程 | 简单 Flask 应用 | ❌ 不支持 |
+| **gevent** | 异步非阻塞，协程 | 需要高并发的 HTTP 服务 | ⚠️ 需配合 pywebsocket |
+| **geventwebsocket** | 异步非阻塞，协程 | 需要 WebSocket 的应用 | ✅ 原生支持 |
+| **eventlet** | 异步非阻塞，协程 | 需要高并发和 WebSocket | ✅ 支持 |
+| **gthread** | 线程池模型 | 需要多线程的场景 | ⚠️ 有限支持 |
+
+#### 为什么推荐 GeventWebSocketWorker
+
+1. **一步到位**：同时支持普通 HTTP 和 WebSocket，无需中途切换
+2. **性能优异**：基于 gevent 协程，异步非阻塞，高并发场景表现优秀
+3. **兼容性广**：绝大多数第三方库都能与 gevent 兼容
+4. **维护简单**：统一使用一种 worker，避免后续因需求变更而重构
+
+> ⚠️ **强制要求**：所有 Flask 项目必须使用 `GeventWebSocketWorker`，不得使用其他 worker_class
+
+### 18.2 Gunicorn启动器（强制）
 
 ```python
 # gunicorn_loader.py

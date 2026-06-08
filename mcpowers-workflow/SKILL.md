@@ -1718,7 +1718,7 @@ AI 生成的临时文件**必须**放在 `temp/` 目录，用完即删。
 | 功能分支 | `feature/{负责人}/{功能名}` | `feature/zhangsan/user-module` |
 | 热修复分支 | `hotfix/{负责人}/{问题描述}` | `hotfix/wangwu/login-bug` |
 
-**命名建议**：负责人用拼音或英文，避免中文编码问题。
+**命名建议**：负责人和功能名都用拼音或英文，避免中文编码问题。例如 `feature/zhangsan/yonghuguanli`（用户管理），禁止使用中文命名。
 
 ### 13.2 合并规则
 

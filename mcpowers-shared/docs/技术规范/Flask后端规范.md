@@ -1213,13 +1213,13 @@ Gunicorn 支持多种 worker_class，推荐使用 `GeventWebSocketWorker`。
 
 #### 常见 Worker Class 对比
 
-| Worker Class | 特点 | 适用场景 | WebSocket支持 |
-|:-------------|:-----|:---------|:--------------|
-| **sync**（默认） | 同步阻塞，每个请求一个进程 | 简单 Flask 应用 | ❌ 不支持 |
-| **gevent** | 异步非阻塞，协程 | 需要高并发的 HTTP 服务 | ⚠️ 需配合 pywebsocket |
-| **geventwebsocket** | 异步非阻塞，协程 | 需要 WebSocket 的应用 | ✅ 原生支持 |
-| **eventlet** | 异步非阻塞，协程 | 需要高并发和 WebSocket | ✅ 支持 |
-| **gthread** | 线程池模型 | 需要多线程的场景 | ⚠️ 有限支持 |
+| Worker Class | 特点 | 并发能力 | 适用场景 | WebSocket支持 |
+|:-------------|:-----|:---------|:---------|:--------------|
+| **sync**（默认） | 同步阻塞，每个请求一个进程 | 低（workers × 1） | 简单 Flask 应用 | ❌ 不支持 |
+| **gevent** | 异步非阻塞，协程 | 高（workers × 2000） | 需要高并发的 HTTP 服务 | ⚠️ 需配合 pywebsocket |
+| **geventwebsocket** | 异步非阻塞，协程 | 高（workers × 2000） | 需要 WebSocket 的应用 | ✅ 原生支持 |
+| **eventlet** | 异步非阻塞，协程 | 高（workers × 2000） | 需要高并发和 WebSocket | ✅ 支持 |
+| **gthread** | 线程池模型 | 中（workers × 50） | 需要多线程的场景 | ⚠️ 有限支持 |
 
 #### 为什么推荐 GeventWebSocketWorker
 

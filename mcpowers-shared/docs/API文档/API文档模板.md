@@ -50,7 +50,7 @@ http://{host}:{port}/{项目前缀}
 
 **请求示例**:
 ```json
-{"username": "admin", "password": "e10adc3949ba59abbe56e057f20f883e"}
+{"username": "admin", "password": "0192023a7bbd73250516f069df18b500"}
 ```
 
 **响应示例**:
@@ -704,13 +704,13 @@ Content-Disposition: attachment; filename={模块}_template.xlsx
 | 参数名 | 类型 | 必填 | 说明 |
 |:------|:----:|:----:|------|
 | username | string | 是 | 用户名（手机号也可以）（示例: admin） |
-| password | string | 是 | 密码(MD5)（示例: e10adc3949ba59abbe56e057f20f883e） |
+| password | string | 是 | 密码(MD5)（示例: 0192023a7bbd73250516f069df18b500） |
 
 **请求示例**:
 ```json
 {
   "username": "admin",
-  "password": "e10adc3949ba59abbe56e057f20f883e"
+  "password": "0192023a7bbd73250516f069df18b500"
 }
 ```
 

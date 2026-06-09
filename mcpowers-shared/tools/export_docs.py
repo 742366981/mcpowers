@@ -183,7 +183,7 @@ def json_to_markdown(spec, output_file, login_path=None):
     lines.append("")
     lines.append("**请求示例**:")
     lines.append("```json")
-    lines.append('{"username": "admin", "password": "e10adc3949ba59abbe56e057f20f883e"}')
+    lines.append('{"username": "admin", "password": "0192023a7bbd73250516f069df18b500"}')
     lines.append("```")
     lines.append("")
     lines.append("**响应示例**:")

@@ -1388,9 +1388,6 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 RUN python3 -m pip install -U pip -i https://mirrors.aliyun.com/pypi/simple && \
     pip3 install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple
-
-# 复制项目代码
-COPY . .
 ```
 
 ### 21.2 docker-compose.dev.yml

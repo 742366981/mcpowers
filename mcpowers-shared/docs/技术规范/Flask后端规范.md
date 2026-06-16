@@ -1253,10 +1253,16 @@ class StandaloneApplication(BaseApplication):
         super().__init__()
 
     def load_config(self):
+        # 开发环境只启动2个worker，避免内存占用过高
+        if ENV_TYPE == 'dev':
+            workers = 2
+        else:
+            workers = (multiprocessing.cpu_count() * 2) + 1
+
         config = {
             'bind': f'{app_conf.get("host")}:{app_conf.getint("port")}',
             'worker_class': GeventWebSocketWorker,
-            'workers': (multiprocessing.cpu_count() * 2) + 1,
+            'workers': workers,
             'accesslog': '-',
             'errorlog': '-'
         }

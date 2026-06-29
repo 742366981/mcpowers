@@ -478,11 +478,11 @@ GET /user/list?role_id=3
 
 #### 5.3.2 多选查询（强制）
 
-**多个值任一匹配（IN查询）**：逗号分隔
+**多个值任一匹配（IN查询）**：逗号分隔，参数名用复数形式
 
 ```
-GET /user/list?role_id=1,2,3
-GET /user/list?status=1,2
+GET /user/list?role_ids=1,2,3
+GET /user/list?status_ids=1,2
 ```
 
 #### 5.3.3 范围查询（强制）
@@ -523,10 +523,10 @@ def build_query():
 
     # 单选
     if status := request.args.get('status'):
-        query = query.filter(User.status == int(status))
+        query = query.filter(User.status == status)
 
     # 多选
-    role_ids = parse_multi_ids(request.args.get('role_id'))
+    role_ids = parse_multi_ids(request.args.get('role_ids'))
     if role_ids:
         query = query.filter(User.role_id.in_(role_ids))
 

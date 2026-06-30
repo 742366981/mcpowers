@@ -586,10 +586,20 @@ def build_query():
     if status := request.args.get('status'):
         query = query.filter(User.status == status)
 
-    # 多选
+    # 多选-整数（角色ID列表）
     role_ids = parse_multi_ids(request.args.get('role_ids'))
     if role_ids:
         query = query.filter(User.role_id.in_(role_ids))
+
+    # 多选-字符串（分类列表）
+    categories = parse_multi_strings(request.args.get('categories'))
+    if categories:
+        query = query.filter(User.category.in_(categories))
+
+    # 多选-字符串（标签列表）
+    tags = parse_multi_strings(request.args.get('tags'))
+    if tags:
+        query = query.filter(User.tag.in_(tags))
 
     # 范围
     if create_time_start := request.args.get('create_time_start'):

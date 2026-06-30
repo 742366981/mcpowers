@@ -596,11 +596,6 @@ def build_query():
     if categories:
         query = query.filter(User.category.in_(categories))
 
-    # 多选-字符串（标签列表）
-    tags = parse_multi_strings(request.args.get('tags'))
-    if tags:
-        query = query.filter(User.tag.in_(tags))
-
     # 范围
     if create_time_start := request.args.get('create_time_start'):
         query = query.filter(User.create_time >= create_time_start)

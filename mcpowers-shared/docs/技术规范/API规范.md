@@ -583,7 +583,8 @@ def build_query():
     query = User.query
 
     # 单选
-    if status := request.args.get('status'):
+    status = request.args.get('status')
+    if status:
         query = query.filter(User.status == status)
 
     # 多选-整数（角色ID列表）
@@ -597,11 +598,13 @@ def build_query():
         query = query.filter(User.category.in_(categories))
 
     # 范围
-    if create_time_start := request.args.get('create_time_start'):
+    create_time_start = request.args.get('create_time_start')
+    if create_time_start:
         query = query.filter(User.create_time >= create_time_start)
 
     # 模糊
-    if username := request.args.get('username', '').strip():
+    username = request.args.get('username', '').strip()
+    if username:
         query = query.filter(User.username.like(f'%{username}%'))
 
     return query

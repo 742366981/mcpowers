@@ -521,22 +521,62 @@ GET /user/list?status=1&role_id=1,2&create_time_start=2024-01-01&username=admin
 from typing import Optional
 
 
-def parse_multi_ids(value: Optional[str]) -> list[int]:
-    """
-    解析逗号分隔的ID字符串为整数列表
-    
+def parse_multi_ids(value):
+    """解析逗号分隔的ID列表
+
+    支持格式：
+    - "1,2,3" -> [1, 2, 3]
+    - "1" -> [1]
+    - None -> []
+
     Args:
-        value: 逗号分隔的ID字符串，如 "1,2,3" 或 None
-    
+        value: 可以是字符串(逗号分隔)、整数列表、或None
+
     Returns:
-        整数列表，如 [1, 2, 3]，空或无效输入返回空列表
+        list: ID整数列表
     """
-    if not value:
+    if value is None or value == '':
         return []
-    try:
-        return [int(x) for x in value.split(',') if x.strip()]
-    except (ValueError, TypeError):
+
+    if isinstance(value, (list, tuple)):
+        return [int(v) for v in value]
+
+    if isinstance(value, str):
+        if ',' in value:
+            return [int(v.strip()) for v in value.split(',') if v.strip()]
+        else:
+            return [int(value)]
+
+    return [int(value)]
+
+
+def parse_multi_strings(value):
+    """解析逗号分隔的字符串列表
+
+    支持格式：
+    - "3C电子产品,服装" -> ["3C电子产品", "服装"]
+    - "3C电子产品" -> ["3C电子产品"]
+    - None -> []
+
+    Args:
+        value: 可以是字符串(逗号分隔)、列表、或None
+
+    Returns:
+        list: 字符串列表
+    """
+    if value is None or value == '':
         return []
+
+    if isinstance(value, (list, tuple)):
+        return [str(v).strip() for v in value if v]
+
+    if isinstance(value, str):
+        if ',' in value:
+            return [v.strip() for v in value.split(',') if v.strip()]
+        else:
+            return [value.strip()]
+
+    return [str(value)]
 
 
 def build_query():

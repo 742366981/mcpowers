@@ -518,6 +518,27 @@ GET /user/list?status=1&role_id=1,2&create_time_start=2024-01-01&username=admin
 
 > 📝 **Python查询构建示例参考**
 ```python
+from typing import Optional
+
+
+def parse_multi_ids(value: Optional[str]) -> list[int]:
+    """
+    解析逗号分隔的ID字符串为整数列表
+    
+    Args:
+        value: 逗号分隔的ID字符串，如 "1,2,3" 或 None
+    
+    Returns:
+        整数列表，如 [1, 2, 3]，空或无效输入返回空列表
+    """
+    if not value:
+        return []
+    try:
+        return [int(x) for x in value.split(',') if x.strip()]
+    except (ValueError, TypeError):
+        return []
+
+
 def build_query():
     query = User.query
 

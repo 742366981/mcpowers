@@ -50,21 +50,20 @@ git@github.com:742366981/mcpowers.git
 修改本技能时，请遵循以下流程：
 
 1. **先改本项目**：在当前工作目录下修改
-2. **再安装到本地**：执行下面的安装命令同步到 `~/.claude/skills/`
+2. **symlink 模式无需重装**：直接重启 Claude Code 即可生效（除非是首次安装）
 3. **最后推送**：commit 并 push 到 git 仓库
 
-**禁止**直接修改 `~/.claude/skills/` 下的技能源码（除非是临时调试）。
+**禁止**直接修改 `~/.claude/skills/` 下的技能源码（symlink 模式下改了也无效；除非是临时调试）。
 
-## 技能安装
-
-修改技能源码后，执行以下命令安装到本地：
+## 技能安装（首次/重装）
 
 ```bash
-# 从当前目录安装技能
-cp -r mcpowers ~/.claude/skills/
-cp -r skills ~/.claude/skills/
-cp -r mcpowers-shared ~/.claude/skills/
+bash install.sh            # macOS / Linux / Git Bash on Windows
+# 或 Windows PowerShell:
+.\install.ps1
 ```
+
+如需 `--copy` / `-Copy` 模式（无 symlink 权限时），见 README。
 
 ## 设计原则
 

@@ -106,17 +106,104 @@ mcpowers/
 
 ## 快速安装
 
-```bash
-# 克隆仓库
-git clone git@github.com:742366981/mcpowers.git ~/mcpowers
+### 一键安装（推荐，symlink 模式，参考 superpowers）
 
-# 安装技能
-cp -r ~/mcpowers/mcpowers ~/.claude/skills/
-cp -r ~/mcpowers/skills ~/.claude/skills/
-cp -r ~/mcpowers/mcpowers-shared ~/.claude/skills/
+```bash
+# 1. 克隆仓库
+git clone git@github.com:742366981/mcpowers.git ~/mcpowers
+cd ~/mcpowers
+
+# 2. 运行安装脚本
+bash install.sh            # macOS / Linux / Git Bash on Windows
+# 或 Windows PowerShell:
+.\install.ps1
 ```
 
+**安装内容**：
+- ✅ 18 个技能（自动注入）
+- ✅ 18 个斜杠命令（`/mcpowers:feat` 等）
+- ✅ 规范库（`mcpowers-shared/docs/`）
+
+**symlink 模式的好处**（superpowers 风格）：
+- 📝 编辑源文件后**立即生效**（无需重装）
+- 🔄 升级 = `git pull`（无需重装）
+- 💾 仓库本身就是 source of truth
+
 > mcpowers **完全独立**：Git 操作由自有 `mcpowers-git-*` 4 个技能处理，无需依赖任何外部技能。
+
+### 手动安装（不用脚本）
+
+```bash
+# macOS / Linux / Git Bash
+mkdir -p ~/.claude/skills ~/.claude/commands
+cp -r mcpowers ~/.claude/skills/
+cp -r skills/scene/* skills/method/* ~/.claude/skills/
+cp -r mcpowers-shared ~/.claude/skills/
+cp -r commands/mcpowers ~/.claude/commands/
+
+# Windows PowerShell（等价命令）
+```
+
+### 升级
+
+```bash
+cd ~/mcpowers
+git pull
+# symlink 模式：升级完成，无需重装
+# copy 模式（如安装时用了 --copy / -Copy）：重新跑 install.sh
+```
+
+### 卸载
+
+```bash
+bash uninstall.sh         # macOS / Linux / Git Bash
+# 或 Windows:
+.\uninstall.ps1
+# 跳过确认：bash uninstall.sh --yes   /   .\uninstall.ps1 -Yes
+```
+
+### 验证安装
+
+装完后：
+
+1. **重启 Claude Code**
+2. 在对话中输入 `/mcpowers:`，斜杠菜单应出现 18 个命令
+3. 直接说"加个用户登录接口"，AI 应自动调 mcpowers-feat
+4. 命令文件路径里应是 `~/.claude/skills/mcpowers-feat/SKILL.md`（无 `skills/skills/`）
+
+### 安装后目录结构
+
+```
+~/.claude/
+├── skills/                              # Claude Code 扫描根
+│   ├── mcpowers/SKILL.md                # 路由器（每次对话注入）
+│   ├── mcpowers-feat/SKILL.md           # 18 个技能扁平
+│   ├── mcpowers-bugfix/SKILL.md
+│   ├── mcpowers-brainstorm/SKILL.md
+│   ├── ... (15 more)
+│   └── mcpowers-shared/                 # 规范库
+│       ├── SKILL.md
+│       ├── mcpowers-spec-index/SKILL.md
+│       └── docs/...
+└── commands/
+    └── mcpowers/                        # 命名空间
+        ├── feat.md                      # 18 个斜杠命令
+        └── ... (17 more)
+```
+
+### Windows PowerShell 执行策略
+
+首次运行 `.\install.ps1` 若被拦截，先执行：
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+或绕过策略：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
 
 ---
 

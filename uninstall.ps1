@@ -14,7 +14,6 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $SkillsDir = Join-Path $env:USERPROFILE '.claude\skills'
-$CommandsDir = Join-Path $env:USERPROFILE '.claude\commands'
 
 Write-Host '=== mcpowers 卸载 ===' -ForegroundColor Cyan
 Write-Host ''
@@ -31,9 +30,6 @@ if (Test-Path "$SkillsDir\mcpowers-shared") {
 Get-ChildItem "$SkillsDir\mcpowers-*" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
     if ($_.Name -eq 'mcpowers' -or $_.Name -eq 'mcpowers-shared') { return }
     $targets += $_.FullName
-}
-if (Test-Path "$CommandsDir\mcpowers") {
-    $targets += "$CommandsDir\mcpowers"
 }
 
 if ($targets.Count -eq 0) {

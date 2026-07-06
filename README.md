@@ -120,9 +120,11 @@ bash install.sh            # macOS / Linux / Git Bash on Windows
 ```
 
 **安装内容**：
-- ✅ 18 个技能（自动注入）
-- ✅ 18 个斜杠命令（`/mcpowers:feat` 等）
+- ✅ 1 个主入口路由器（`mcpowers`）
+- ✅ 18 个场景/方法技能（`mcpowers-feat` 等）
 - ✅ 规范库（`mcpowers-shared/docs/`）
+
+> **不提供斜杠命令**（`/mcpowers:feat` 等）—— 通过自然语言触发 AI 自动路由，避免命令重名冲突。
 
 **symlink 模式的好处**（superpowers 风格）：
 - 📝 编辑源文件后**立即生效**（无需重装）
@@ -135,11 +137,10 @@ bash install.sh            # macOS / Linux / Git Bash on Windows
 
 ```bash
 # macOS / Linux / Git Bash
-mkdir -p ~/.claude/skills ~/.claude/commands
+mkdir -p ~/.claude/skills
 cp -r mcpowers ~/.claude/skills/
 cp -r skills/scene/* skills/method/* ~/.claude/skills/
 cp -r mcpowers-shared ~/.claude/skills/
-cp -r commands/mcpowers ~/.claude/commands/
 
 # Windows PowerShell（等价命令）
 ```
@@ -167,29 +168,26 @@ bash uninstall.sh         # macOS / Linux / Git Bash
 装完后：
 
 1. **重启 Claude Code**
-2. 在对话中输入 `/mcpowers:`，斜杠菜单应出现 18 个命令
-3. 直接说"加个用户登录接口"，AI 应自动调 mcpowers-feat
-4. 命令文件路径里应是 `~/.claude/skills/mcpowers-feat/SKILL.md`（无 `skills/skills/`）
+2. 直接说"加个用户登录接口"，AI 应自动调 mcpowers-feat
+3. 路径应是 `~/.claude/skills/mcpowers-feat/SKILL.md`（无 `skills/skills/`）
 
 ### 安装后目录结构
 
 ```
 ~/.claude/
-├── skills/                              # Claude Code 扫描根
-│   ├── mcpowers/SKILL.md                # 路由器（每次对话注入）
-│   ├── mcpowers-feat/SKILL.md           # 18 个技能扁平
-│   ├── mcpowers-bugfix/SKILL.md
-│   ├── mcpowers-brainstorm/SKILL.md
-│   ├── ... (15 more)
-│   └── mcpowers-shared/                 # 规范库
-│       ├── SKILL.md
-│       ├── mcpowers-spec-index/SKILL.md
-│       └── docs/...
-└── commands/
-    └── mcpowers/                        # 命名空间
-        ├── feat.md                      # 18 个斜杠命令
-        └── ... (17 more)
+└── skills/                              # Claude Code 扫描根
+    ├── mcpowers/SKILL.md                # 路由器（每次对话注入）
+    ├── mcpowers-feat/SKILL.md           # 18 个技能扁平
+    ├── mcpowers-bugfix/SKILL.md
+    ├── mcpowers-brainstorm/SKILL.md
+    ├── ... (15 more)
+    └── mcpowers-shared/                 # 规范库
+        ├── SKILL.md
+        ├── mcpowers-spec-index/SKILL.md
+        └── docs/...
 ```
+
+> 无 `~/.claude/commands/mcpowers/` —— 本技能**不提供斜杠命令**，全部通过自然语言触发。
 
 ### Windows PowerShell 执行策略
 

@@ -29,7 +29,6 @@ $Mode = if ($Copy) { 'copy' } else { 'symlink' }
 # ============== 定位源和目标 ==============
 $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SkillsDir = Join-Path $env:USERPROFILE '.claude\skills'
-$CommandsDir = Join-Path $env:USERPROFILE '.claude\commands'
 
 # ============== 预检 ==============
 $ClaudeDir = Split-Path $SkillsDir
@@ -38,13 +37,11 @@ if (-not (Test-Path $ClaudeDir)) {
     exit 1
 }
 New-Item -ItemType Directory -Force -Path $SkillsDir | Out-Null
-New-Item -ItemType Directory -Force -Path $CommandsDir | Out-Null
 
 # ============== 打印头部 ==============
 Write-Host '=== mcpowers 安装 ===' -ForegroundColor Cyan
 Write-Host "源:   $RepoDir"
 Write-Host "目标: $SkillsDir"
-Write-Host "      $CommandsDir"
 Write-Host "模式: $Mode"
 Write-Host ''
 
@@ -90,11 +87,11 @@ function Install-Item {
 }
 
 # ============== 1. 主入口 ==============
-Write-Host '[1/4] 安装主入口 mcpowers/' -ForegroundColor Cyan
+Write-Host '[1/3] 安装主入口 mcpowers/' -ForegroundColor Cyan
 Install-Item -Src "$RepoDir\mcpowers" -Dst "$SkillsDir\mcpowers" -Name "mcpowers"
 
 # ============== 2. 18 个技能（扁平化） ==============
-Write-Host '[2/4] 安装技能（scene + method，共 18 个）' -ForegroundColor Cyan
+Write-Host '[2/3] 安装技能（scene + method，共 18 个）' -ForegroundColor Cyan
 $skillDirs = @()
 $skillDirs += Get-ChildItem "$RepoDir\skills\scene" -Directory
 $skillDirs += Get-ChildItem "$RepoDir\skills\method" -Directory
@@ -104,20 +101,14 @@ foreach ($skillDir in $skillDirs) {
 }
 
 # ============== 3. 规范库 ==============
-Write-Host '[3/4] 安装规范库 mcpowers-shared/' -ForegroundColor Cyan
+Write-Host '[3/3] 安装规范库 mcpowers-shared/' -ForegroundColor Cyan
 Install-Item -Src "$RepoDir\mcpowers-shared" -Dst "$SkillsDir\mcpowers-shared" -Name "mcpowers-shared"
-
-# ============== 4. 斜杠命令 ==============
-Write-Host '[4/4] 安装斜杠命令' -ForegroundColor Cyan
-Install-Item -Src "$RepoDir\commands\mcpowers" -Dst "$CommandsDir\mcpowers" -Name "mcpowers/commands"
 
 # ============== 收尾 ==============
 Write-Host ''
 Write-Host '=== 安装完成 ===' -ForegroundColor Green
 $skillCount = (Get-ChildItem $SkillsDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'mcpowers*' }).Count
-$cmdCount = (Get-ChildItem "$CommandsDir\mcpowers" -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.md' }).Count
-Write-Host "  技能数: $skillCount"
-Write-Host "  命令数: $cmdCount"
+Write-Host "  技能数: $skillCount（含 1 个路由器 + 18 个技能 + 1 个规范库）"
 Write-Host ''
 if ($Mode -eq 'symlink') {
     Write-Host '✓ symlink (Junction) 模式已启用：' -ForegroundColor Green
@@ -130,4 +121,4 @@ if ($Mode -eq 'symlink') {
 }
 Write-Host ''
 Write-Host '请重启 Claude Code 使技能生效。' -ForegroundColor Yellow
-Write-Host '验证: 在任意项目输入 /mcpowers:feat，看是否出现在斜杠菜单'
+Write-Host '验证: 在任意项目说"加个功能"，看 AI 是否自动调 mcpowers-feat'

@@ -17,7 +17,6 @@ case "${1:-}" in
 esac
 
 SKILLS_DIR="$HOME/.claude/skills"
-COMMANDS_DIR="$HOME/.claude/commands"
 
 # ============== 列出待删内容 ==============
 echo "=== mcpowers 卸载 ==="
@@ -33,7 +32,7 @@ for d in "$SKILLS_DIR"/mcpowers-*; do
         *) TARGETS+=("$d") ;;
     esac
 done
-[ -e "$COMMANDS_DIR/mcpowers" ] && TARGETS+=("$COMMANDS_DIR/mcpowers")
+
 
 if [ ${#TARGETS[@]} -eq 0 ]; then
     echo "✓ 没有找到 mcpowers 相关的安装，无需卸载"

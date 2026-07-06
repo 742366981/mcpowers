@@ -24,20 +24,18 @@ fi
 # ============== 定位源和目标 ==============
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
-COMMANDS_DIR="$HOME/.claude/commands"
 
 # ============== 预检 ==============
 if [ ! -d "$HOME/.claude" ]; then
     echo "✗ ~/.claude 不存在，请先安装 Claude Code"
     exit 1
 fi
-mkdir -p "$SKILLS_DIR" "$COMMANDS_DIR"
+mkdir -p "$SKILLS_DIR"
 
 # ============== 打印头部 ==============
 echo "=== mcpowers 安装 ==="
 echo "源:   $REPO_DIR"
 echo "目标: $SKILLS_DIR"
-echo "      $COMMANDS_DIR"
 echo "模式: $MODE"
 echo
 
@@ -107,11 +105,11 @@ is_windows() {
 }
 
 # ============== 1. 主入口 ==============
-echo "[1/4] 安装主入口 mcpowers/"
+echo "[1/3] 安装主入口 mcpowers/"
 install_item "$REPO_DIR/mcpowers" "$SKILLS_DIR/mcpowers" "mcpowers"
 
 # ============== 2. 18 个技能（扁平化） ==============
-echo "[2/4] 安装技能（scene + method，共 18 个）"
+echo "[2/3] 安装技能（scene + method，共 18 个）"
 for skill_dir in "$REPO_DIR/skills/scene"/* "$REPO_DIR/skills/method"/*; do
     [ -d "$skill_dir" ] || continue
     name=$(basename "$skill_dir")
@@ -119,20 +117,14 @@ for skill_dir in "$REPO_DIR/skills/scene"/* "$REPO_DIR/skills/method"/*; do
 done
 
 # ============== 3. 规范库 ==============
-echo "[3/4] 安装规范库 mcpowers-shared/"
+echo "[3/3] 安装规范库 mcpowers-shared/"
 install_item "$REPO_DIR/mcpowers-shared" "$SKILLS_DIR/mcpowers-shared" "mcpowers-shared"
-
-# ============== 4. 斜杠命令 ==============
-echo "[4/4] 安装斜杠命令 → $COMMANDS_DIR/mcpowers/"
-install_item "$REPO_DIR/commands/mcpowers" "$COMMANDS_DIR/mcpowers" "mcpowers/commands"
 
 # ============== 收尾 ==============
 echo
 echo "=== 安装完成 ==="
 SKILL_COUNT=$(ls -1 "$SKILLS_DIR" 2>/dev/null | grep -c '^mcpowers' || true)
-CMD_COUNT=$(ls -1 "$COMMANDS_DIR/mcpowers"/*.md 2>/dev/null | wc -l)
-echo "  技能数: $SKILL_COUNT"
-echo "  命令数: $CMD_COUNT"
+echo "  技能数: $SKILL_COUNT（含 1 个路由器 + 18 个技能 + 1 个规范库）"
 echo
 if [ "$MODE" = "symlink" ]; then
     echo "✓ symlink 模式已启用："
@@ -145,4 +137,4 @@ else
 fi
 echo
 echo "请重启 Claude Code 使技能生效。"
-echo "验证: 在任意项目输入 /mcpowers:feat，看是否出现在斜杠菜单"
+echo "验证: 在任意项目说\"加个功能\"，看 AI 是否自动调 mcpowers-feat"

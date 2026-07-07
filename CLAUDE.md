@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `mcpowers/` | **主入口路由器**（< 150 行，每次对话注入） |
 | `skills/scene/` | **场景层**（11 个：feat/bugfix/refactor/optimize/deploy/requirement-change/init + 4 个 git 技能） |
 | `skills/method/` | **方法层**（7 个：brainstorm/prd/plan/execute/tdd/code-review/subagent） |
-| `mcpowers-shared/` | 规范资产库（含 `mcpowers-spec-index` 导航 + 17 个规范文件） |
+| `mcpowers-shared/` | 规范资产库（含 `mcpowers-spec-index` 导航 + 18 个规范文件） |
 
 ## 触发条件
 
@@ -72,4 +72,4 @@ bash install.sh            # macOS / Linux / Git Bash on Windows
 - **规范按需加载**：避免一次加载所有规范（爆上下文）
 - **方法复用**：TDD / Review / Plan 等不重复写
 - **铁律强制**：TDD 铁律、Debug 铁律
-- **规范资产零损耗**：13+ 规范文件原地保留，路径不变
+- **规范资产零损耗**：20+ 规范文件原地保留，路径不变

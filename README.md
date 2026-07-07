@@ -14,7 +14,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | 维护成本 | 改一处要同步多处 | 规范资产零损耗，技能独立 |
 | 实际使用率 | 低（太重） | 高（精准触发） |
 
-> ⚠️ **v2 重构说明**：原 `mcpowers-workflow`（2142 行单体）已拆分为路由器 + 14 个场景/方法技能。详见 `mcpowers-workflow/SKILL.md`（已降级为重定向说明）。
+> ⚠️ **v2 重构说明**：原 `mcpowers-workflow`（2142 行单体）已拆分为路由器 + 18 个场景/方法技能（11 场景 + 7 方法）。详见 `mcpowers-workflow/SKILL.md`（已降级为重定向说明）。
 
 ---
 
@@ -57,6 +57,7 @@ mcpowers/
 │           ├── Flask后端规范.md
 │           ├── Vue前端规范.md
 │           ├── 爬虫规范.md
+│           ├── 爬虫分析规范.md
 │           ├── 代码规范.md
 │           ├── 数据库规范.md
 │           ├── 缓存规范.md
@@ -124,7 +125,7 @@ bash install.sh            # macOS / Linux / Git Bash on Windows
 - ✅ 18 个场景/方法技能（`mcpowers-feat` 等）
 - ✅ 规范库（`mcpowers-shared/docs/`）
 
-> **不提供斜杠命令**（`/mcpowers:feat` 等）—— 通过自然语言触发 AI 自动路由，避免命令重名冲突。
+> **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。本技能不额外注册 `~/.claude/commands/` 下的传统命令文件，避免命令重名冲突。
 
 **symlink 模式的好处**（superpowers 风格）：
 - 📝 编辑源文件后**立即生效**（无需重装）
@@ -187,7 +188,7 @@ bash uninstall.sh         # macOS / Linux / Git Bash
         └── docs/...
 ```
 
-> 无 `~/.claude/commands/mcpowers/` —— 本技能**不提供斜杠命令**，全部通过自然语言触发。
+> 无 `~/.claude/commands/mcpowers/` —— 本技能不注册传统命令文件，但技能本身支持斜杠调用（`/mcpowers-feat`），也可自然语言自动触发。
 
 ### Windows PowerShell 执行策略
 
@@ -212,7 +213,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 - **规范按需加载**：`mcpowers-spec-index` 提供"做什么 → 读哪个"的查表
 - **方法复用**：TDD / Review / Plan 等不重复写，被场景层调用
 - **铁律强制**：TDD 铁律（NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST）、Debug 铁律（NO FIXES WITHOUT ROOT CAUSE）
-- **规范资产零损耗**：13+ 规范文件原地保留，路径不变
+- **规范资产零损耗**：20+ 规范文件原地保留，路径不变
 
 ---
 

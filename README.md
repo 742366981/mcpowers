@@ -12,6 +12,9 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
+- **编排显式化**：11 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
+- **规范元数据化**：18 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **骨架增强**：路由器瘦身（105 行）、SessionStart 注入完整铁律、3 类 hooks（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
 ---
 
@@ -74,6 +77,8 @@ mcpowers/
 │           ├── 代码同步修改规范.md
 │           └── 细节记录规范.md
 │
+├── tests/                             # 冒烟测试（install-smoke.sh）
+├── scripts/                           # 工具脚本（check-readme-sync.sh）
 ├── CLAUDE.md
 ├── README.md
 └── .gitignore

@@ -10,6 +10,9 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `skills/scene/` | **场景层**（11 个：feat/bugfix/refactor/optimize/deploy/requirement-change/init + 4 个 git 技能） |
 | `skills/method/` | **方法层**（7 个：brainstorm/prd/plan/execute/tdd/code-review/subagent） |
 | `mcpowers-shared/` | 规范资产库（含 `mcpowers-spec-index` 导航 + 18 个规范文件） |
+| `hooks/` | Claude Code hooks 资产（SessionStart + PreToolUse + PostToolUse） |
+| `tests/` | 冒烟测试（`install-smoke.sh`） |
+| `scripts/` | 工具脚本（`check-readme-sync.sh`） |
 
 ## 触发条件
 

@@ -50,6 +50,7 @@ description: mcpowers 技能体系总入口。每次对话自动注入，识别�
 | 初始化/新项目/脚手架/搭建 | `mcpowers-init` | 场景层 |
 | 写需求/写 PRD/整理需求 | `mcpowers-prd` | 方法层 |
 | 任务拆解/列计划/排期 | `mcpowers-plan` | 方法层 |
+| 按计划执行/实施计划/开始执行 | `mcpowers-execute` | 方法层 |
 | 审查/审一下/review/自审 | `mcpowers-code-review` | 方法层 |
 | 写测试/TDD/单测 | `mcpowers-tdd` | 方法层 |
 | 不清楚要做什么/需求不清 | `mcpowers-brainstorm` | 方法层 |

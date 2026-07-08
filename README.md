@@ -6,15 +6,12 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 ## 设计理念
 
-| 维度 | 旧版（已废弃） | 新版 |
-|:-----|:---------------|:-----|
-| 单次对话加载 | 2142 行全量 | ~150 行路由器 + 按需 ~200 行 |
-| 触发方式 | 7 步法整体触发 | 精准路由到场景技能 |
-| 规范加载 | 全量预加载 | 按需 Read（渐进式披露） |
-| 维护成本 | 改一处要同步多处 | 规范资产零损耗，技能独立 |
-| 实际使用率 | 低（太重） | 高（精准触发） |
+mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，而不是拿到需求就写代码**。
 
-> ⚠️ **v2 重构说明**：原 `mcpowers-workflow`（2142 行单体）已拆分为路由器 + 18 个场景/方法技能（11 场景 + 7 方法）。详见 `mcpowers-workflow/SKILL.md`（已降级为重定向说明）。
+- **精准路由**：单入口路由器 + 场景/方法分层，按意图关键词精准分流
+- **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
+- **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
+- **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
 
 ---
 
@@ -23,6 +20,11 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 ```
 mcpowers/
 ├── mcpowers/                          # 主入口路由器（< 150 行，每次对话注入）
+│
+├── hooks/                             # Claude Code hooks 资产（铁律硬约束）
+│   ├── hooks.json                     # SessionStart + PreToolUse(Bash) 配置
+│   ├── session-start.sh               # 启动时注入铁律摘要
+│   └── pre-bash-guard.sh              # 阻断 rm -rf / 等危险命令
 │
 ├── skills/
 │   ├── scene/                         # 场景层（11 个，用户输入直接命中）
@@ -94,6 +96,7 @@ mcpowers/
 | 初始化/新项目/脚手架/搭建 | `mcpowers-init` |
 | 写需求/写 PRD/整理需求 | `mcpowers-prd` |
 | 任务拆解/列计划/排期 | `mcpowers-plan` |
+| 按计划执行/实施计划/开始执行 | `mcpowers-execute` |
 | 审查/审一下/review/自审 | `mcpowers-code-review` |
 | 写测试/TDD/单测 | `mcpowers-tdd` |
 | 不清楚要做什么/需求不清 | `mcpowers-brainstorm` |
@@ -176,8 +179,14 @@ bash uninstall.sh         # macOS / Linux / Git Bash
 
 ```
 ~/.claude/
+├── settings.json                       # hooks 自动注册（含 _mcpowers_marker）
 └── skills/                              # Claude Code 扫描根
-    ├── mcpowers/SKILL.md                # 路由器（每次对话注入）
+    ├── mcpowers/                        # 路由器 + hooks 资产
+    │   ├── SKILL.md
+    │   └── hooks/                       # symlink 到本仓库 hooks/
+    │       ├── hooks.json
+    │       ├── session-start.sh
+    │       └── pre-bash-guard.sh
     ├── mcpowers-feat/SKILL.md           # 18 个技能扁平
     ├── mcpowers-bugfix/SKILL.md
     ├── mcpowers-brainstorm/SKILL.md
@@ -206,14 +215,34 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 ---
 
-## 核心原则
+## Hooks 行为
 
-- **路由器轻量**：主入口只做路由，< 150 行
-- **场景精准触发**：每个场景技能 < 200 行，`description` 描述精确
-- **规范按需加载**：`mcpowers-spec-index` 提供"做什么 → 读哪个"的查表
-- **方法复用**：TDD / Review / Plan 等不重复写，被场景层调用
-- **铁律强制**：TDD 铁律（NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST）、Debug 铁律（NO FIXES WITHOUT ROOT CAUSE）
-- **规范资产零损耗**：20+ 规范文件原地保留，路径不变
+mcpowers 安装时会自动在 `~/.claude/settings.json` 注册两个 Claude Code hooks，让铁律从"软提示"升级为"硬约束"。
+
+| 钩子 | 触发时机 | 作用 |
+|:-----|:---------|:-----|
+| `SessionStart` | 每次 Claude Code 启动 | 注入路由器铁律摘要（改前确认 / TDD 先行 / 改完即 commit 等），AI 每轮对话开始就知道 mcpowers 流程 |
+| `PreToolUse (Bash)` | 每次执行 Bash 命令前 | 阻断 `rm -rf /`、`git push --force main` 等危险操作 |
+
+### 跳过 hooks 安装
+
+不需要 hooks 的用户可以：
+
+```bash
+bash install.sh --no-hooks      # macOS / Linux / Git Bash
+.\install.ps1 -NoHooks          # Windows PowerShell
+```
+
+跳过安装后 `~/.claude/settings.json` 不会被修改；卸载时也不会清理（因为没有 mcpowers 标记）。
+
+### 故障排查与详细说明
+
+见 [`hooks/README.md`](hooks/README.md)：
+
+- Hooks 资产位置和升级机制
+- 跨平台说明（依赖 Git Bash / WSL）
+- 误伤正常命令时如何调整白名单
+- 卸载失败的恢复方法
 
 ---
 

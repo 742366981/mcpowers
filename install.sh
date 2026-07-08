@@ -8,8 +8,10 @@
 #   - 自动检测并替换旧安装（copy 或断链的 symlink）
 #
 # 用法：
-#   bash install.sh                # 默认 symlink 模式
+#   bash install.sh                # 默认 symlink 模式（含 hooks 注册）
 #   bash install.sh --copy         # 复制模式（无 symlink 权限时使用）
+#   bash install.sh --no-hooks     # 跳过 hooks 注册（仅安装 skills）
+#   bash install.sh --copy --no-hooks  # 组合使用
 #
 # 仓库地址：git@github.com:742366981/mcpowers.git
 
@@ -17,9 +19,13 @@ set -e
 
 # ============== 解析参数 ==============
 MODE="symlink"
-if [ "${1:-}" = "--copy" ]; then
-    MODE="copy"
-fi
+INSTALL_HOOKS=true
+for arg in "$@"; do
+    case "$arg" in
+        --copy) MODE="copy" ;;
+        --no-hooks) INSTALL_HOOKS=false ;;
+    esac
+done
 
 # ============== 定位源和目标 ==============
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -104,12 +110,139 @@ is_windows() {
     esac
 }
 
+# ============== 注册 hooks 到 ~/.claude/settings.json ==============
+# 策略：合并式写入 — 保留用户的 permissions / mcpServers 等其他段
+# 工具降级：python3 → node → jq → 纯 bash 字符串操作
+# 失败回滚：先备份再修改
+register_hooks() {
+    local settings="$HOME/.claude/settings.json"
+    local hooks_file="$REPO_DIR/hooks/hooks.json"
+    local hooks_install_dir="$SKILLS_DIR/mcpowers/hooks"  # symlink 后的路径
+
+    if [ ! -f "$hooks_file" ]; then
+        echo "  ✗ hooks 配置不存在: $hooks_file"
+        return 1
+    fi
+
+    # 1. 备份已有 settings.json
+    local backup=""
+    if [ -f "$settings" ]; then
+        backup="$settings.bak.mcpowers.$$"
+        if ! cp "$settings" "$backup" 2>/dev/null; then
+            echo "  ⚠ 备份 settings.json 失败，继续（不阻塞）"
+            backup=""
+        fi
+    fi
+
+    # 2. 渲染 hooks.json（替换 __HOOKS_DIR__ 占位符）
+    local rendered_hooks
+    rendered_hooks=$(mktemp)
+    if ! sed "s|__HOOKS_DIR__|$hooks_install_dir|g" "$hooks_file" > "$rendered_hooks" 2>/dev/null; then
+        echo "  ✗ 渲染 hooks.json 失败"
+        [ -n "$backup" ] && cp "$backup" "$settings" && rm -f "$backup"
+        rm -f "$rendered_hooks"
+        return 1
+    fi
+
+    # 3. 合并写入 settings.json
+    local merge_ok=false
+    mkdir -p "$(dirname "$settings")"
+
+    if [ ! -f "$settings" ]; then
+        # settings.json 不存在 → 直接复制
+        if cp "$rendered_hooks" "$settings"; then
+            merge_ok=true
+        fi
+    else
+        # settings.json 已存在 → 合并（只覆盖 hooks 段）
+        # 优先 python3，回退 python（Windows 默认安装为 python 而非 python3）
+        local py_bin=""
+        if command -v python3 >/dev/null 2>&1; then
+            py_bin="python3"
+        elif command -v python >/dev/null 2>&1; then
+            py_bin="python"
+        fi
+
+        if [ -n "$py_bin" ]; then
+            if $py_bin -c "
+import json, sys
+try:
+    with open(r'$settings', 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    with open(r'$rendered_hooks', 'r', encoding='utf-8') as f:
+        hooks = json.load(f)
+    data['hooks'] = hooks['hooks']
+    data['_mcpowers_marker'] = hooks.get('_mcpowers_marker', True)
+    with open(r'$settings', 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    print('ok')
+except Exception as e:
+    print('err: ' + str(e), file=sys.stderr)
+    sys.exit(1)
+" >/dev/null 2>&1; then
+                merge_ok=true
+            fi
+        elif command -v node >/dev/null 2>&1; then
+            if node -e "
+const fs = require('fs');
+try {
+  const data = JSON.parse(fs.readFileSync('$settings', 'utf8'));
+  const hooks = JSON.parse(fs.readFileSync('$rendered_hooks', 'utf8'));
+  data.hooks = hooks.hooks;
+  data._mcpowers_marker = hooks._mcpowers_marker || true;
+  fs.writeFileSync('$settings', JSON.stringify(data, null, 2));
+  console.log('ok');
+} catch (e) {
+  console.error('err: ' + e.message);
+  process.exit(1);
+}
+" >/dev/null 2>&1; then
+                merge_ok=true
+            fi
+        elif command -v jq >/dev/null 2>&1; then
+            # jq 路径：用临时文件 + jq -s 合并
+            if jq -s '.[0] * {hooks: .[1].hooks, _mcpowers_marker: .[1]._mcpowers_marker}' \
+                "$settings" "$rendered_hooks" > "$settings.tmp" 2>/dev/null; then
+                mv "$settings.tmp" "$settings"
+                merge_ok=true
+            fi
+        else
+            # 兜底：纯 bash — 仅在 settings.json 无 hooks 段时追加
+            if ! grep -q '"hooks"' "$settings" 2>/dev/null; then
+                # 在文件末尾追加 hooks 段
+                local hooks_payload
+                hooks_payload=$(grep -A 1000 '"hooks"' "$rendered_hooks" | head -n -1)
+                if echo "," >> "$settings" && echo "$hooks_payload" >> "$settings"; then
+                    merge_ok=true
+                fi
+            else
+                echo "  ⚠ 已有 hooks 段但无 python3/node/jq，跳过合并（请手动处理）"
+            fi
+        fi
+    fi
+
+    # 4. 结果处理
+    rm -f "$rendered_hooks"
+    if [ "$merge_ok" = true ]; then
+        echo "  ✓ hooks 已注册到 $settings"
+        [ -n "$backup" ] && rm -f "$backup"
+    else
+        echo "  ✗ hooks 合并失败"
+        if [ -n "$backup" ] && [ -f "$backup" ]; then
+            cp "$backup" "$settings"
+            echo "  ↻ 已从备份回滚"
+            rm -f "$backup"
+        fi
+        return 1
+    fi
+}
+
 # ============== 1. 主入口 ==============
-echo "[1/3] 安装主入口 mcpowers/"
+echo "[1/4] 安装主入口 mcpowers/"
 install_item "$REPO_DIR/mcpowers" "$SKILLS_DIR/mcpowers" "mcpowers"
 
 # ============== 2. 18 个技能（扁平化） ==============
-echo "[2/3] 安装技能（scene + method，共 18 个）"
+echo "[2/4] 安装技能（scene + method，共 18 个）"
 for skill_dir in "$REPO_DIR/skills/scene"/* "$REPO_DIR/skills/method"/*; do
     [ -d "$skill_dir" ] || continue
     name=$(basename "$skill_dir")
@@ -117,8 +250,16 @@ for skill_dir in "$REPO_DIR/skills/scene"/* "$REPO_DIR/skills/method"/*; do
 done
 
 # ============== 3. 规范库 ==============
-echo "[3/3] 安装规范库 mcpowers-shared/"
+echo "[3/4] 安装规范库 mcpowers-shared/"
 install_item "$REPO_DIR/mcpowers-shared" "$SKILLS_DIR/mcpowers-shared" "mcpowers-shared"
+
+# ============== 4. 注册 Claude Code Hooks ==============
+if [ "$INSTALL_HOOKS" = true ]; then
+    echo "[4/4] 注册 Claude Code Hooks 到 ~/.claude/settings.json"
+    register_hooks
+else
+    echo "[4/4] 跳过 hooks 注册（--no-hooks）"
+fi
 
 # ============== 收尾 ==============
 echo
@@ -138,3 +279,7 @@ fi
 echo
 echo "请重启 Claude Code 使技能生效。"
 echo "验证: 在任意项目说\"加个功能\"，看 AI 是否自动调 mcpowers-feat"
+if [ "$INSTALL_HOOKS" = true ]; then
+    echo "Hooks: SessionStart + PreToolUse(Bash) 已注册，重启后生效"
+    echo "  跳过: bash install.sh --no-hooks"
+fi

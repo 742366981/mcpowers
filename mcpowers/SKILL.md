@@ -153,3 +153,42 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 **核心 3 目录保护**（PreToolUse/Write 范围）：`mcpowers-shared/`、`mcpowers/`、`hooks/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。
 
 **安全逃生**：安装时用 `bash install.sh --no-hooks` 跳过 hooks 注册。
+
+---
+
+## 6. mcpowers 自身维护（开发者模式）
+
+> ⚠️ **当用户要修改 mcpowers 自身（不是用 mcpowers 改用户项目）时，本路由器识别"维护意图"并路由到对应流程。**
+
+### 6.1 维护意图识别
+
+用户说以下关键词时，进入"维护模式"——不调外部技能，直接读 `README.md` 的"## 维护指南"段执行：
+
+| 维护意图（关键词） | 路由到 | 详见 README 场景 |
+|:-------------------|:-------|:-----------------|
+| 加/新增/写 规范、规范文件、spec | 维护模式场景 2 | 新增规范文件 |
+| 删/移除 规范、规范文件 | 维护模式场景 3 | 删除规范文件 |
+| 改/更新/补充 规范内容 | 维护模式场景 1 | 修改规范文件 |
+| 加/新增/写 技能、场景 | 维护模式场景 4 | 新增场景技能 |
+| 加/新增/写 hook、钩子 | 维护模式场景 5 | 新增 hook |
+| 升级/git pull/更新版本 | 维护模式场景 6 | 升级流程 |
+| 改铁律/改措辞/改禁止 | 维护模式场景 7 | 铁律双源同步 |
+| 跑测试/校验/检查 | 直接执行 `bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh` | 自动化保障清单 |
+
+### 6.2 维护模式默认流程
+
+每次进入维护模式：
+
+1. **先 Read** `README.md` 的"## 维护指南"段（已包含 7 个场景的完整步骤）
+2. **按场景的 5 步操作**逐步执行
+3. **改完必跑** `bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh`
+4. **commit** 前再看一眼本节 6.3 的铁律
+
+### 6.3 维护铁律
+
+- ❌ **不**直接修改 `~/.claude/skills/` 下的 symlink 内容（symlink 模式下改了无效）
+- ❌ **不**跳过"自动化保障清单"里的 2 个脚本（commit 前必跑）
+- ❌ **不**漏改 spec-index 查表（新增/删除规范时必查 `mcpowers-shared/mcpowers-spec-index/SKILL.md`）
+- ✅ **必**同步更新 frontmatter 的 `last_updated` 字段
+- ✅ **必**保持铁律双源一致（先改 `mcpowers-shared/docs/AI操作规范.md` 再改 `hooks/session-start.sh`）
+- ✅ **必**改完即 commit（沿用项目铁律第 3 条）

@@ -257,6 +257,187 @@ bash install.sh --no-hooks      # macOS / Linux / Git Bash
 
 ---
 
+## 维护指南
+
+mcpowers 的设计目标是**让维护者能低成本演进**：基于 superpowers 思想 + 你自己的规范文件。下面是高频维护场景的操作清单。
+
+### 场景 1：修改某个规范文件的内容
+
+**步骤**（1 分钟）：
+
+1. 直接编辑 `mcpowers-shared/docs/技术规范/<name>规范.md`
+2. 更新文件顶部 frontmatter 的 `last_updated: <今天日期>`
+3. 跑 `bash scripts/check-readme-sync.sh` 确认通过
+
+**不需要改**：spec-index、README、其他规范文件。
+
+---
+
+### 场景 2：新增一个规范文件
+
+**步骤**（5 步，约 10 分钟）：
+
+| # | 文件 | 改动 |
+|:-:|:-----|:-----|
+| 1 | `mcpowers-shared/docs/技术规范/<新规范名>规范.md` | **新建**，顶部插入 frontmatter 模板（见下方） |
+| 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 第 12-33 行查表 | **加一行**："任务/文件类型" → "必读规范" |
+| 3 | `README.md` 技能结构图的 `mcpowers-shared/docs/技术规范/` 块 | **加一行** |
+| 4 | 跑 `bash scripts/check-readme-sync.sh` | **必须通过**（不通过 = 漏改了某处） |
+| 5 | `git add . && git commit -m "docs(specs): 新增 <X>规范"` | 提交 |
+
+**frontmatter 模板**（必填 6 字段）：
+
+```markdown
+---
+title: <规范名>
+type: tech-spec
+applies_to: [<适用栈1>, <适用栈2>]
+priority: required   # required / recommended / reference
+version: 1.0
+last_updated: 2026-07-08
+---
+
+# <规范名>
+
+正文...
+```
+
+**字段说明**：
+- `title`：与文件名（去掉 `.md`）保持一致
+- `type`：固定 `tech-spec`（产品类用 `product-spec`，全局规则用 `global-rule`）
+- `applies_to`：数组，例 `[Flask后端]` / `[所有]` / `[涉及缓存]`
+- `priority`：`required` = 必读基线 / `recommended` = 推荐 / `reference` = 参考
+
+---
+
+### 场景 3：删除一个规范文件
+
+**步骤**（5 步反向，约 5 分钟）：
+
+| # | 文件 | 改动 |
+|:-:|:-----|:-----|
+| 1 | `rm mcpowers-shared/docs/技术规范/<X>规范.md` | 删除文件 |
+| 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表 | **删一行** |
+| 3 | `README.md` 技能结构图 | **删一行** |
+| 4 | `bash scripts/check-readme-sync.sh` | 必须通过 |
+| 5 | 跑 `bash tests/install-smoke.sh` 确认 ≥18 规范断言仍通过（如规范数 < 18 需要更新 install-smoke 的断言阈值） |  |
+
+---
+
+### 场景 4：新增一个场景技能
+
+**步骤**（约 15 分钟）：
+
+1. 创建 `skills/scene/mcpowers-<name>/SKILL.md`
+2. **复制 mcpowers-feat 的 "## 编排" 模板**（最完整的版本），修改表格内容
+3. 在 `mcpowers/SKILL.md` 路由表（## 1 段）**加一行**："触发关键词" → `mcpowers-<name>`
+4. `README.md` 触发条件表（## 触发条件 段）**加一行**
+5. `README.md` 技能结构图的 `skills/scene/` 块**加一行**
+6. 跑 `bash scripts/check-readme-sync.sh` 通过
+7. 跑 `bash tests/install-smoke.sh` 通过（断言 "技能数=20" 会失败，需要更新为 21）
+
+---
+
+### 场景 5：新增一个 Claude Code hook
+
+**步骤**（约 20 分钟）：
+
+1. 创建 `hooks/<hook-name>.sh`，头部加 `#!/usr/bin/env bash`，可执行
+2. `hooks/hooks.json` 追加对应事件段（不动现有段）
+3. `mcpowers/SKILL.md` "## 5. 硬约束完整覆盖" 表**加一行**
+4. `hooks/README.md` 加一段说明
+5. `bash tests/install-smoke.sh` 跑过（确认 hooks 资产可被发现）
+
+**hooks.json 模板**（根据事件类型选一种）：
+
+```json
+{
+  "matcher": "Bash",        // 或 "Write" / "Write|Edit"
+  "hooks": [
+    {
+      "type": "command",
+      "command": "bash \"__HOOKS_DIR__/<hook-name>.sh\""
+    }
+  ]
+}
+```
+
+---
+
+### 场景 6：升级 = 同步上游改动
+
+**symlink 模式**下升级极简：
+
+```bash
+cd ~/mcpowers
+git pull                                  # 拉最新
+# 完成！~/.claude/skills/mcpowers/* 是 symlink，自动指向新文件
+# 重启 Claude Code 让新 hooks 生效
+```
+
+**copy 模式**（如果安装时用了 `--copy`）：
+
+```bash
+cd ~/mcpowers
+git pull
+bash install.sh --copy                    # 重新复制
+```
+
+---
+
+### 场景 7：铁律措辞更新
+
+**铁律有 2 处**（**必须保持一致**）：
+
+1. `hooks/session-start.sh` —— SessionStart 启动时输出
+2. 路由器 SKILL.md 历史上引用过（commit 1 之后已删除，但 `mcpowers-shared/docs/AI操作规范.md` 仍是权威源）
+
+**修改步骤**：
+1. 先改 `mcpowers-shared/docs/AI操作规范.md`（权威源）
+2. 再改 `hooks/session-start.sh` 的对应条目
+3. 跑 `bash session-start.sh` 确认输出正确
+
+---
+
+## 自动化保障清单
+
+| 工具 | 用途 | 跑法 |
+|:-----|:-----|:-----|
+| `tests/install-smoke.sh` | 验证安装流程完整 | `bash tests/install-smoke.sh`（17 断言） |
+| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（4 类断言） |
+| `bash session-start.sh` | 验证铁律输出正确 | 直接跑，看输出是否完整 |
+
+**建议**：每次 commit 前跑 2 个脚本：
+
+```bash
+bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh
+```
+
+---
+
+## 维护陷阱（容易踩的坑）
+
+| 坑 | 现象 | 预防 |
+|:---|:-----|:-----|
+| ① 改了场景技能调用的方法层，忘了同步"## 编排"段 | 调用关系对不上 | 修改方法层时，**grep 反查**：`grep -r "mcpowers-<被改名>" skills/scene/` |
+| ② 忘了更新 `last_updated` | 规范过期无感知 | 写个 git pre-commit hook（见下方） |
+| ③ frontmatter 字段填错粒度 | 路由不准确 | 严格按 frontmatter 模板填，参考 `mcpowers-spec-index` 查表行 |
+| ④ 路由器铁律 vs session-start.sh 双源不一致 | 铁律"精神分裂" | 永远先改 AI操作规范.md（权威源），再同步 hooks |
+| ⑤ superpowers 上游升级未同步 | 设计理念漂移 | 定期访问 https://github.com/obra/superpowers 查更新 |
+
+**可选：git pre-commit hook**（自动跑 check-readme-sync）：
+
+```bash
+# .git/hooks/pre-commit
+#!/usr/bin/env bash
+bash scripts/check-readme-sync.sh || {
+  echo "✗ README 同步校验失败，请先修复再 commit"
+  exit 1
+}
+```
+
+---
+
 ## 仓库地址
 
 git@github.com:742366981/mcpowers.git

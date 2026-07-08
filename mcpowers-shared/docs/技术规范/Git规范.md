@@ -1,3 +1,12 @@
+---
+title: Git规范
+type: tech-spec
+applies_to: [所有]
+priority: required
+version: 1.0
+last_updated: 2026-07-08
+---
+
 # Git 规范
 
 ## 1. 忽略文件检测（强制）

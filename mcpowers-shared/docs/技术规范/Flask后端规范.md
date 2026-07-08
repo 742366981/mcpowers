@@ -1,3 +1,12 @@
+---
+title: Flask后端规范
+type: tech-spec
+applies_to: [Flask后端]
+priority: required
+version: 1.0
+last_updated: 2026-07-08
+---
+
 # Flask后端项目规范
 
 本文档定义 Flask 后端项目的特定规范，Flask 特有的内容（如应用工厂、蓝图、装饰器等）详见本章。

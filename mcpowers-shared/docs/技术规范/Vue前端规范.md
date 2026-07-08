@@ -1,3 +1,12 @@
+---
+title: Vue前端规范
+type: tech-spec
+applies_to: [Vue前端]
+priority: required
+version: 1.0
+last_updated: 2026-07-08
+---
+
 # Vue 3 前端项目规范
 
 本文档定义 Vue 3 前端项目的通用规范，适用于所有 Vue 3 项目。

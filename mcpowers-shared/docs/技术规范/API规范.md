@@ -1,3 +1,12 @@
+---
+title: API规范
+type: tech-spec
+applies_to: [后端]
+priority: required
+version: 1.0
+last_updated: 2026-07-08
+---
+
 # API 设计规范
 
 本文档定义通用的 API 设计规范，适用于所有后端框架（Flask、Node.js、Go、Java 等）。

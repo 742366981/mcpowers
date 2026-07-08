@@ -10,6 +10,23 @@ description: 用户要"修 bug/报错/不生效/异常/失败/排查"时触发�
 
 ---
 
+## 编排
+
+本技能按顺序调用以下方法层技能 + 规范：
+
+| 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
+|:-----|:---------|:-----|:---------|:-------|
+| 1 | `mcpowers-tdd`（最小复现测试） | 方法 | 必走 | RED 缺失不进入修复 |
+| 2 | 规范组（`mcpowers-spec-index`） | 规范 | 涉及栈规范时 | 中断，提示加载失败 |
+| 3 | `mcpowers-tdd`（回归测试） | 方法 | 修复完成后 | 阻断合入 |
+| 4 | `mcpowers-git-commit` | 场景 | 测试全绿 | 阻断提交 |
+
+**保护路径**：`mcpowers-shared/`、`mcpowers/`、`hooks/` 三个目录的写操作触发前确认。
+
+**铁律**：没找到根因，禁止进入修复（NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST）。
+
+---
+
 ## 触发即执行（4 步强制流程）
 
 ### Step 1：复现 Bug

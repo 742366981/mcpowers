@@ -27,6 +27,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **新项目/初始化/脚手架** → `mcpowers-init`
 - **写需求/PRD/文档** → `mcpowers-prd`
 - **任务拆解/列计划** → `mcpowers-plan`
+- **按计划执行/实施计划/开始执行** → `mcpowers-execute`
 - **代码审查/自审** → `mcpowers-code-review`
 - **写测试/TDD** → `mcpowers-tdd`
 - **需求不清/澄清** → `mcpowers-brainstorm`

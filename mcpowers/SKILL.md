@@ -10,28 +10,8 @@ description: mcpowers 技能体系总入口。每次对话自动注入，识别�
 
 ---
 
-## 0. 全局硬约束（强制红线）
-
-> ⚠️ **AI 每次响应前必须自检，违反任何一条视为不合格**。
-
-### 必须做
-1. **修改前**先分析影响、询问用户确认
-2. **修改时**遵守 `mcpowers-shared/docs/技术规范/代码同步修改规范.md`
-3. **完成时**立即 commit（禁止多个独立任务后才 commit）
-4. **接口开发**先写 docstring，再写实现
-5. **代码注释**完整（函数 docstring + 类注释 + 复杂逻辑注释）
-6. **临时文件**放 `temp/` 目录，用完即删
-7. **改完同步**更新 README / 文档（代码和文档必须同 commit）
-
-### 禁止做
-1. ❌ 未经用户确认直接修改任何代码/文档
-2. ❌ 先写代码后补文档
-3. ❌ 只 commit 代码不 commit 文档
-4. ❌ 多处重复定义同一内容
-5. ❌ 在项目根目录创建临时文件
-6. ❌ 违反 SOLID/KISS/DRY/YAGNI 原则
-
-完整规范见 `mcpowers-shared/docs/AI操作规范.md`，**仅在需要时按需 Read**。
+> 铁律已由 SessionStart hook 自动注入，详见会话启动时的 `[mcpowers] 铁律` 段。
+> 完整规范见 `mcpowers-shared/docs/AI操作规范.md`（按需 Read）。
 
 ---
 
@@ -78,6 +58,39 @@ description: mcpowers 技能体系总入口。每次对话自动注入，识别�
 - 拆分为多个任务，依次执行
 - 第一个任务优先（用户后续可追加）
 
+### 2.4 多意图裁决规则
+
+当用户输入命中多个场景层技能时，按以下顺序裁决：
+
+**优先级矩阵**（数字越小越优先）：
+
+| 优先级 | 类别 | 说明 |
+|:-------|:-----|:-----|
+| 1 | 危险修复类 | `mcpowers-git-rollback`（回滚）压倒一切 |
+| 2 | 元操作类 | `mcpowers-git-*` 4 个（commit/worktree/cleanBranches/rollback） |
+| 3 | 修 bug 类 | `mcpowers-bugfix` 优先于 `mcpowers-feat` |
+| 4 | 新增类 | `mcpowers-feat` > `mcpowers-refactor` > `mcpowers-optimize` |
+| 5 | 部署 / 需求变更 | `mcpowers-deploy`、`mcpowers-requirement-change` |
+| 6 | 初始化 | `mcpowers-init`（只在空仓库或新会话触发） |
+| 7 | 方法层 | 由场景层按需编排，单独触发需用户明确指令 |
+
+**冲突矩阵**（典型组合的裁决）：
+
+| 用户输入 | 命中技能 | 裁决 |
+|:---------|:---------|:-----|
+| "修了 bug 后 commit" | bugfix + git-commit | 先 bugfix（Step 1-4），再 git-commit |
+| "重构代码并加测试" | refactor + tdd | tdd 先补测试（铁律），再 refactor |
+| "优化数据库查询并部署" | optimize + deploy | optimize 先，deploy 在用户确认后 |
+| "初始化项目并 commit" | init + git-commit | init 完成，git-commit 收尾 |
+| "改个字段后 commit" | requirement-change + git-commit | requirement-change 先，commit 收尾 |
+| "部署出问题回滚" | deploy + rollback | rollback 优先（紧急修复类） |
+
+**灰色地带处理**：
+- 用户说"加个功能顺便 commit" → 视为单一任务，`mcpowers-feat` 在 Step 8 自动调 `mcpowers-git-commit`，不拆
+- 用户说"我也不知道要做什么" → 直接进 `mcpowers-brainstorm`，不查路由表
+- 命中 ≥ 3 个意图 → 中断并调 AskUserQuestion，让用户选择先做哪个
+- 关键词同时命中"重构"和"加功能" → 默认 `mcpowers-refactor`（行为不变优先），如行为变化则切 `mcpowers-feat`
+
 ---
 
 ## 3. 技能清单（按需 Read）
@@ -123,3 +136,20 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 ---
 
 **使用方式**：本路由器会在每次对话自动加载。AI 收到用户输入后，先查路由表命中场景技能，再由场景技能按需 Read 规范文件。不要一开始就 Read 所有规范（会爆上下文）。
+
+---
+
+## 5. 硬约束完整覆盖（4 个 hooks）
+
+铁律从"软提示"升级为"硬约束"由以下 hooks 实现（详见 `hooks/README.md`）：
+
+| 钩子 | 时机 | 对应铁律 | 退出码 |
+|:-----|:-----|:---------|:-------|
+| `SessionStart/startup` | 启动时 | 7 条必做 + 6 条禁止（铁律全文注入） | 0（注入） |
+| `PreToolUse/Bash` | Bash 前 | 阻断 `rm -rf /` 等危险命令 | 2 = 阻断 / 0 = 放行 |
+| `PreToolUse/Write` | Write 前 | 改前确认（仅保护核心 3 目录） | 2 = 阻断 / 0 = 放行 |
+| `PostToolUse/Write\|Edit\|MultiEdit` | 写完后 | 改完即 commit 提醒 | 0（仅提醒） |
+
+**核心 3 目录保护**（PreToolUse/Write 范围）：`mcpowers-shared/`、`mcpowers/`、`hooks/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。
+
+**安全逃生**：安装时用 `bash install.sh --no-hooks` 跳过 hooks 注册。

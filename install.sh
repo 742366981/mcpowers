@@ -124,6 +124,16 @@ register_hooks() {
         return 1
     fi
 
+    # 关键：Windows 下 Python 是 Windows 原生进程，认不到 Git Bash 的 /c/Users/...
+    # 必须把路径转成 Windows 形式 (C:\Users\...) 才能被 Python 看到
+    local settings_py settings_w
+    if is_windows; then
+        settings_w=$(cygpath -w "$settings" 2>/dev/null || echo "$settings")
+    else
+        settings_w="$settings"
+    fi
+    settings_py="$settings_w"
+
     # 1. 备份已有 settings.json
     local backup=""
     if [ -f "$settings" ]; then
@@ -135,8 +145,15 @@ register_hooks() {
     fi
 
     # 2. 渲染 hooks.json（替换 __HOOKS_DIR__ 占位符）
-    local rendered_hooks
+    # 关键：Windows 下 Python 看不到 Git Bash 的 /tmp 路径，必须用 cygpath -w 转换
+    local rendered_hooks rendered_hooks_py
     rendered_hooks=$(mktemp)
+    if is_windows; then
+        # 把 /tmp/xxx 转成 C:\Users\...\Temp\xxx 供 Python 使用
+        rendered_hooks_py=$(cygpath -w "$rendered_hooks" 2>/dev/null || echo "$rendered_hooks")
+    else
+        rendered_hooks_py="$rendered_hooks"
+    fi
     if ! sed "s|__HOOKS_DIR__|$hooks_install_dir|g" "$hooks_file" > "$rendered_hooks" 2>/dev/null; then
         echo "  ✗ 渲染 hooks.json 失败"
         [ -n "$backup" ] && cp "$backup" "$settings" && rm -f "$backup"
@@ -167,13 +184,13 @@ register_hooks() {
             if $py_bin -c "
 import json, sys
 try:
-    with open(r'$settings', 'r', encoding='utf-8') as f:
+    with open(r'$settings_py', 'r', encoding='utf-8') as f:
         data = json.load(f)
-    with open(r'$rendered_hooks', 'r', encoding='utf-8') as f:
+    with open(r'$rendered_hooks_py', 'r', encoding='utf-8') as f:
         hooks = json.load(f)
     data['hooks'] = hooks['hooks']
     data['_mcpowers_marker'] = hooks.get('_mcpowers_marker', True)
-    with open(r'$settings', 'w', encoding='utf-8') as f:
+    with open(r'$settings_py', 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     print('ok')
 except Exception as e:
@@ -186,11 +203,11 @@ except Exception as e:
             if node -e "
 const fs = require('fs');
 try {
-  const data = JSON.parse(fs.readFileSync('$settings', 'utf8'));
-  const hooks = JSON.parse(fs.readFileSync('$rendered_hooks', 'utf8'));
+  const data = JSON.parse(fs.readFileSync('$settings_py', 'utf8'));
+  const hooks = JSON.parse(fs.readFileSync('$rendered_hooks_py', 'utf8'));
   data.hooks = hooks.hooks;
   data._mcpowers_marker = hooks._mcpowers_marker || true;
-  fs.writeFileSync('$settings', JSON.stringify(data, null, 2));
+  fs.writeFileSync('$settings_py', JSON.stringify(data, null, 2));
   console.log('ok');
 } catch (e) {
   console.error('err: ' + e.message);
@@ -237,9 +254,15 @@ try {
     fi
 }
 
-# ============== 1. 主入口 ==============
+# ============== 1. 主入口 + hooks 资产 ==============
 echo "[1/4] 安装主入口 mcpowers/"
 install_item "$REPO_DIR/mcpowers" "$SKILLS_DIR/mcpowers" "mcpowers"
+
+# hooks 资产在仓库根 hooks/ 目录，但 settings.json 指向 ~/.claude/skills/mcpowers/hooks/
+# 在这里 symlink 一下，让两边对齐
+if [ -d "$REPO_DIR/hooks" ]; then
+    install_item "$REPO_DIR/hooks" "$SKILLS_DIR/mcpowers/hooks" "mcpowers/hooks (hooks assets)"
+fi
 
 # ============== 2. 18 个技能（扁平化） ==============
 echo "[2/4] 安装技能（scene + method，共 18 个）"

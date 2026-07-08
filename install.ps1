@@ -231,9 +231,15 @@ try {
     }
 }
 
-# ============== 1. 主入口 ==============
+# ============== 1. 主入口 + hooks 资产 ==============
 Write-Host '[1/4] 安装主入口 mcpowers/' -ForegroundColor Cyan
 Install-Item -Src "$RepoDir\mcpowers" -Dst "$SkillsDir\mcpowers" -Name "mcpowers"
+
+# hooks 资产在仓库根 hooks/ 目录，但 settings.json 指向 ~/.claude/skills/mcpowers/hooks/
+# 在这里 symlink 一下，让两边对齐（保持和 install.sh 行为一致）
+if (Test-Path "$RepoDir\hooks") {
+    Install-Item -Src "$RepoDir\hooks" -Dst "$SkillsDir\mcpowers\hooks" -Name "mcpowers/hooks (hooks assets)"
+}
 
 # ============== 2. 18 个技能（扁平化） ==============
 Write-Host '[2/4] 安装技能（scene + method，共 18 个）' -ForegroundColor Cyan

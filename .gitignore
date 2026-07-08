@@ -18,3 +18,8 @@ temp/
 
 # Skills (local only)
 .claude/
+
+# mcpowers/hooks/ 是 install.sh 在 Windows 下创建的 junction/symlink
+# （实际 hooks 资产在仓库根 /hooks/，这里只是方便链接）
+# 避免 Windows 下 git 把 junction 解引用并把 4 个 hooks 文件当成新文件
+mcpowers/hooks/

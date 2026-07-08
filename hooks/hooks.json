@@ -1,6 +1,6 @@
 {
   "_mcpowers_marker": true,
-  "_mcpowers_version": "1.0.0",
+  "_mcpowers_version": "1.1.0",
   "hooks": {
     "SessionStart": [
       {
@@ -20,6 +20,26 @@
           {
             "type": "command",
             "command": "bash \"__HOOKS_DIR__/pre-bash-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__HOOKS_DIR__/pre-write-confirm.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"__HOOKS_DIR__/post-write-commit-reminder.sh\""
           }
         ]
       }

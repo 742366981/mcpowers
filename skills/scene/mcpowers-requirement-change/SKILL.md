@@ -5,7 +5,7 @@ description: 用户要"改需求/调整逻辑/加字段/改流程/需求变更"�
 
 # mcpowers-requirement-change（需求变更）
 
-> 借鉴自旧 workflow Step 6（保持更新）+ `代码同步修改规范.md`。
+> **mcpowers 自身设计**，基于 `代码同步修改规范.md` + `细节记录规范.md`。
 > **核心**：一次变更找全所有引用点，避免系统不一致。
 
 ---

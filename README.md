@@ -276,6 +276,54 @@ bash install.sh --no-hooks      # macOS / Linux / Git Bash
 
 ---
 
+## 支持范围
+
+> ⚠️ **当前版本（v1.x）仅针对 Claude Code 优化**，其他 AI 工具暂不官方支持。
+
+| AI 工具 | 支持状态 | 说明 |
+|:--------|:--------:|:-----|
+| **Claude Code** | ✅ **完全支持** | 路由器 + 18 技能 + 21 规范 + 3 类 hooks 全功能 |
+| 其他 AI 工具 | ⏳ 暂不支持 | 当前未适配，等待社区需求再启动扩展 |
+
+### 为什么当前只支持 Claude Code
+
+| 依赖项 | Claude Code | 其他 AI 工具 |
+|:-------|:-----------:|:------------:|
+| Skills 调用机制 | ✅ 原生支持 | ⚠️ 需适配 |
+| `~/.claude/skills/` 路径 | ✅ 原生支持 | ❌ 路径不存在 |
+| SessionStart / PreToolUse / PostToolUse hooks | ✅ 原生支持 | ❌ 多数工具无钩子机制 |
+| `CLAUDE.md` 自动加载 | ✅ 原生支持 | ⚠️ 多数工具不识别 |
+
+> 其中 **hooks 体系** 是 Claude Code 的差异化能力，移植成本最高。
+
+### 规范层的迁移友好性
+
+即使不官方支持其他工具，`mcpowers-shared/docs/` 下的**规范文档是纯 Markdown**，可以被任何能读取文件的 AI 直接使用：
+
+```
+~/.claude/skills/mcpowers-shared/docs/   ← 安装后位置
+├── AI操作规范.md
+├── 产品设计/产品设计规范.md
+└── 技术规范/   ← 21 个文件
+```
+
+如果你的 AI 工具支持读取 Markdown 规范文件，可以**手动指定这个目录**让 AI 遵循规范（只是用不上路由器和 hooks）。
+
+### 未来的扩展可能性
+
+技术上**完全可以扩展**，主要改造点：
+
+| # | 改造项 | 难度 | 适用工具 |
+|:-:|:-------|:----:|:---------|
+| 1 | 安装脚本参数化（`--target {claude\|cursor\|cline}`） | 🟢 半天 | 大多数工具 |
+| 2 | 技能 SKILL.md → 各工具格式的转换器 | 🟢 1 天 | Cline / Continue.dev / Cursor |
+| 3 | 路由器改为纯系统提示（去掉 Skill 调用依赖） | 🟡 1-2 天 | Aider / Cody 等 |
+| 4 | hooks 抽象层（各工具各自实现） | 🔴 1-2 周 | 仅少数有钩子的 IDE |
+
+> 💬 **如果你有其他 AI 工具的强需求**（如 Cursor / Cline / Windsurf / Aider），欢迎提 [Issue](https://github.com/742366981/mcpowers/issues) 讨论优先级。
+
+---
+
 ## 借鉴来源
 
 mcpowers 的设计参考了以下优秀项目：

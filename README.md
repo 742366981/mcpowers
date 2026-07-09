@@ -167,7 +167,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 ### 升级
 
 ```bash
-/plugin update mcpowers@mcpowers
+/plugin update mcpowers
 # 重启 Claude Code 让新 hooks 生效
 ```
 
@@ -375,7 +375,7 @@ last_updated: 2026-07-08
 
 ```bash
 # 在 Claude Code 内执行
-/plugin update mcpowers@mcpowers
+/plugin update mcpowers
 # 重启 Claude Code 让新 hooks 生效
 ```
 

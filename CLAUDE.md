@@ -6,12 +6,12 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 | 目录 | 用途 |
 |:-----|:-----|
-| `mcpowers/` | **主入口路由器**（< 150 行，每次对话注入） |
-| `skills/scene/` | **场景层**（11 个：feat/bugfix/refactor/optimize/deploy/requirement-change/init + 4 个 git 技能） |
-| `skills/method/` | **方法层**（7 个：brainstorm/prd/plan/execute/tdd/code-review/subagent） |
-| `mcpowers-shared/` | 规范资产库（含 `mcpowers-spec-index` 导航 + 18 个规范文件） |
-| `hooks/` | Claude Code hooks 资产（SessionStart + PreToolUse + PostToolUse） |
-| `tests/` | 冒烟测试（`install-smoke.sh`） |
+| `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
+| `skills/mcpowers/` | **主入口路由器**（< 150 行，每次对话注入） |
+| `skills/mcpowers-*` | **18 个技能**（场景层 11 + 方法层 7，扁平化） |
+| `skills/mcpowers-shared/` | 规范资产库（21 个规范文件 + `mcpowers-spec-index` 导航） |
+| `hooks/` | Claude Code hooks 资产（4 个 hook + `hooks.json`） |
+| `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
 
 ## 触发条件
@@ -54,26 +54,33 @@ git@github.com:742366981/mcpowers.git
 修改本技能时，请遵循以下流程：
 
 1. **先改本项目**：在当前工作目录下修改
-2. **symlink 模式无需重装**：直接重启 Claude Code 即可生效（除非是首次安装）
+2. **插件市场模式无需重装**：直接重启 Claude Code 即可生效（除非是首次安装）
 3. **最后推送**：commit 并 push 到 git 仓库
 
-**禁止**直接修改 `~/.claude/skills/` 下的技能源码（symlink 模式下改了也无效；除非是临时调试）。
+**禁止**直接修改 `${CLAUDE_PLUGIN_ROOT}` 下的安装副本（插件市场模式下改了会被覆盖）。所有修改在源码仓库根目录进行。
 
 ## 技能安装（首次/重装）
 
+通过 Claude Code 插件市场：
+
 ```bash
-bash install.sh            # macOS / Linux / Git Bash on Windows
-# 或 Windows PowerShell:
-.\install.ps1
+/plugin marketplace add https://github.com/742366981/mcpowers
+/plugin install mcpowers@mcpowers
 ```
 
-如需 `--copy` / `-Copy` 模式（无 symlink 权限时），见 README。
+本地开发模式（指向本地路径）：
+
+```bash
+/plugin marketplace add /d/document/my/workspace/mcpowers
+/plugin install mcpowers@mcpowers
+```
 
 ## 设计维度
 
-- **精准路由**：单入口路由器（mcpowers/）+ 场景/方法分层，按意图关键词精准分流
+- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（18 个），按意图关键词精准分流
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **资产零损耗**：20+ 规范文件原地保留，路径不重组、不重命名
+- **资产零损耗**：21+ 规范文件原地保留，路径不重组、不重命名
 - **完全独立**：不依赖任何外部技能，Git 操作由 4 个 `mcpowers-git-*` 技能自包含
+- **零安装脚本**：依赖 Claude Code 插件系统管理安装/卸载/升级，仓库零维护成本

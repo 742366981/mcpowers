@@ -96,30 +96,31 @@ description: mcpowers 技能体系总入口。每次对话自动注入，识别�
 ## 3. 技能清单（按需 Read）
 
 ### 3.1 场景层（Layer 1）—— 用户输入直接命中
-- `skills/scene/mcpowers-feat/SKILL.md`
-- `skills/scene/mcpowers-bugfix/SKILL.md`
-- `skills/scene/mcpowers-refactor/SKILL.md`
-- `skills/scene/mcpowers-optimize/SKILL.md`
-- `skills/scene/mcpowers-deploy/SKILL.md`
-- `skills/scene/mcpowers-requirement-change/SKILL.md`
-- `skills/scene/mcpowers-init/SKILL.md`
-- `skills/scene/mcpowers-git-commit/SKILL.md`
-- `skills/scene/mcpowers-git-worktree/SKILL.md`
-- `skills/scene/mcpowers-git-rollback/SKILL.md`
-- `skills/scene/mcpowers-git-cleanBranches/SKILL.md`
+- `skills/mcpowers-feat/SKILL.md`
+- `skills/mcpowers-bugfix/SKILL.md`
+- `skills/mcpowers-refactor/SKILL.md`
+- `skills/mcpowers-optimize/SKILL.md`
+- `skills/mcpowers-deploy/SKILL.md`
+- `skills/mcpowers-requirement-change/SKILL.md`
+- `skills/mcpowers-init/SKILL.md`
+- `skills/mcpowers-git-commit/SKILL.md`
+- `skills/mcpowers-git-worktree/SKILL.md`
+- `skills/mcpowers-git-rollback/SKILL.md`
+- `skills/mcpowers-git-cleanBranches/SKILL.md`
 
 ### 3.2 方法层（Layer 2）—— 被编排，也可单独触发
-- `skills/method/mcpowers-brainstorm/SKILL.md`
-- `skills/method/mcpowers-prd/SKILL.md`
-- `skills/method/mcpowers-plan/SKILL.md`
-- `skills/method/mcpowers-execute/SKILL.md`
-- `skills/method/mcpowers-tdd/SKILL.md`
-- `skills/method/mcpowers-code-review/SKILL.md`
-- `skills/method/mcpowers-subagent/SKILL.md`
+- `skills/mcpowers-brainstorm/SKILL.md`
+- `skills/mcpowers-prd/SKILL.md`
+- `skills/mcpowers-plan/SKILL.md`
+- `skills/mcpowers-execute/SKILL.md`
+- `skills/mcpowers-tdd/SKILL.md`
+- `skills/mcpowers-code-review/SKILL.md`
+- `skills/mcpowers-subagent/SKILL.md`
 
 ### 3.3 规范层（Layer 3）—— 资产库，按需 Read
-- **导航**：`mcpowers-shared/mcpowers-spec-index/SKILL.md`（查"做什么 → 读哪个规范"）
-- **规范文件**：`mcpowers-shared/docs/技术规范/*.md`（13+ 个文件，原地保留）
+- **入口**：`skills/mcpowers-shared/SKILL.md`（规范库入口 skill）
+- **导航**：`skills/mcpowers-shared/mcpowers-spec-index/SKILL.md`（查"做什么 → 读哪个规范"）
+- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（21 个文件，原地保留）
 
 ---
 
@@ -131,7 +132,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 - ✅ **规范文件**：`mcpowers-shared/docs/...` 路径不变
 - ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 16 个场景/方法技能
 
-只需安装 `mcpowers/` + `skills/` + `mcpowers-shared/` 三个目录即可完整使用。
+只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（18 技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
 
 ---
 
@@ -150,9 +151,9 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 | `PreToolUse/Write` | Write 前 | 改前确认（仅保护核心 3 目录） | 2 = 阻断 / 0 = 放行 |
 | `PostToolUse/Write\|Edit\|MultiEdit` | 写完后 | 改完即 commit 提醒 | 0（仅提醒） |
 
-**核心 3 目录保护**（PreToolUse/Write 范围）：`mcpowers-shared/`、`mcpowers/`、`hooks/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。
+**核心 4 目录保护**（PreToolUse/Write 范围）：`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。
 
-**安全逃生**：安装时用 `bash install.sh --no-hooks` 跳过 hooks 注册。
+**无需手动配置**：v2.0 插件市场模式下，hooks 由 `${CLAUDE_PLUGIN_ROOT}` 环境变量自动定位，跨平台零适配。
 
 ---
 
@@ -173,7 +174,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 | 加/新增/写 hook、钩子 | 维护模式场景 5 | 新增 hook |
 | 升级/git pull/更新版本 | 维护模式场景 6 | 升级流程 |
 | 改铁律/改措辞/改禁止 | 维护模式场景 7 | 铁律双源同步 |
-| 跑测试/校验/检查 | 直接执行 `bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh` | 自动化保障清单 |
+| 跑测试/校验/检查 | 直接执行 `bash tests/plugin-verify.sh && bash scripts/check-readme-sync.sh` | 自动化保障清单 |
 
 ### 6.2 维护模式默认流程
 
@@ -181,14 +182,14 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 1. **先 Read** `README.md` 的"## 维护指南"段（已包含 7 个场景的完整步骤）
 2. **按场景的 5 步操作**逐步执行
-3. **改完必跑** `bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh`
+3. **改完必跑** `bash tests/plugin-verify.sh && bash scripts/check-readme-sync.sh`
 4. **commit** 前再看一眼本节 6.3 的铁律
 
 ### 6.3 维护铁律
 
-- ❌ **不**直接修改 `~/.claude/skills/` 下的 symlink 内容（symlink 模式下改了无效）
+- ❌ **不**直接修改 `${CLAUDE_PLUGIN_ROOT}` 下的安装副本（插件系统会覆盖）
 - ❌ **不**跳过"自动化保障清单"里的 2 个脚本（commit 前必跑）
-- ❌ **不**漏改 spec-index 查表（新增/删除规范时必查 `mcpowers-shared/mcpowers-spec-index/SKILL.md`）
+- ❌ **不**漏改 spec-index 查表（新增/删除规范时必查 `skills/mcpowers-shared/mcpowers-spec-index/SKILL.md`）
 - ✅ **必**同步更新 frontmatter 的 `last_updated` 字段
 - ✅ **必**保持铁律双源一致（先改 `mcpowers-shared/docs/AI操作规范.md` 再改 `hooks/session-start.sh`）
 - ✅ **必**改完即 commit（沿用项目铁律第 3 条）

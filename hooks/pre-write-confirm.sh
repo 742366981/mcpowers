@@ -71,35 +71,56 @@ if [ -z "$FILE_PATH" ]; then
 fi
 
 # ============== 路径转换 ==============
-# 兼容 Windows 绝对路径（D:\...）和 Unix 绝对路径（/...）
-# 提取路径中 mcpowers/ 之后的部分作为相对路径
-# 例：D:\document\my\workspace\mcpowers\mcpowers\SKILL.md → mcpowers/SKILL.md
-#     /home/user/mcpowers/hooks/pre-bash-guard.sh → hooks/pre-bash-guard.sh
+# v2.0 修复：使用 CLAUDE_PLUGIN_ROOT（插件系统自动注入）计算仓库内相对路径
+# 避免 sed 贪婪匹配错误（如把 skills/mcpowers/foo.md 误提取为 mcpowers/foo.md）
+# 兼容两种 CLAUDE_PLUGIN_ROOT 形式：
+#   - POSIX: /d/document/my/workspace/mcpowers
+#   - Windows: D:/document/my/workspace/mcpowers
 
-# 把反斜杠转成正斜杠（Windows 兼容）
-NORMALIZED=$(echo "$FILE_PATH" | tr '\\' '/')
-
-# 尝试提取 mcpowers/ 之后的部分
-# 关键：用 sed 只匹配最后一次出现的 mcpowers/（避免贪婪匹配）
-# 路径 D:\...\mcpowers\mcpowers\SKILL.md 应提取为 mcpowers/SKILL.md（不是 SKILL.md）
 REL_PATH=""
-if echo "$NORMALIZED" | grep -q 'mcpowers/'; then
-    # 用 sed 反向引用，匹配最后一个 mcpowers/
-    REL_PATH=$(echo "$NORMALIZED" | sed 's|.*\(mcpowers/[^}]*\).*|\1|' 2>/dev/null || true)
-    # 清理 JSON 残留（如果 file_path 后面有 "}} 等）
+
+# 把 file_path 转成正斜杠
+FILE_NORM=$(echo "$FILE_PATH" | tr '\\' '/')
+
+if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
+    # 准备三种可能的插件根形式
+    PLUGIN_ROOT_NORM=$(echo "$CLAUDE_PLUGIN_ROOT" | tr '\\' '/')
+    PLUGIN_ROOT_WIN=""
+    if command -v cygpath >/dev/null 2>&1; then
+        PLUGIN_ROOT_WIN=$(cygpath -w "$CLAUDE_PLUGIN_ROOT" 2>/dev/null | tr '\\' '/')
+    fi
+
+    # 依次尝试 POSIX 前缀、Windows 前缀
+    for prefix in "$PLUGIN_ROOT_NORM" "$PLUGIN_ROOT_WIN"; do
+        if [ -n "$prefix" ] && [[ "$FILE_NORM" == "${prefix}/"* ]]; then
+            REL_PATH="${FILE_NORM#${prefix}/}"
+            break
+        fi
+    done
+fi
+
+# 兜底：旧逻辑（用 sed 找最后一个 mcpowers/），仅在 CLAUDE_PLUGIN_ROOT 不可用时
+if [ -z "$REL_PATH" ] && echo "$FILE_NORM" | grep -q 'mcpowers/'; then
+    REL_PATH=$(echo "$FILE_NORM" | sed 's|.*\(mcpowers/[^}]*\).*|\1|' 2>/dev/null || true)
     REL_PATH=$(echo "$REL_PATH" | sed 's|["'"'"'}].*||' 2>/dev/null || true)
 fi
 
-# 如果没匹配到 mcpowers/，用原路径（说明路径不在仓库内，放行）
+# 如果没匹配到插件根或 mcpowers/，说明路径不在仓库内，放行
 if [ -z "$REL_PATH" ]; then
     exit 0
 fi
 
 # ============== 受保护路径检查 ==============
+# v2.0（插件市场格式）：白名单改为新结构
+#   - skills/mcpowers/         （路由器，原 mcpowers/）
+#   - skills/mcpowers-shared/  （规范库，原 mcpowers-shared/）
+#   - hooks/                   （hooks 资产）
+#   - .claude-plugin/          （插件元数据，必须保护）
 PROTECTED_PREFIXES=(
-    "mcpowers-shared/"
-    "mcpowers/"
+    "skills/mcpowers/"
+    "skills/mcpowers-shared/"
     "hooks/"
+    ".claude-plugin/"
 )
 
 PROTECTED=false
@@ -119,7 +140,7 @@ fi
 cat >&2 <<EOF
 [mcpowers 铁律] 检测到修改核心资产：
    路径: $REL_PATH
-   原因: 命中受保护目录白名单（mcpowers-shared/、mcpowers/、hooks/）
+   原因: 命中受保护目录白名单（skills/mcpowers/、skills/mcpowers-shared/、hooks/、.claude-plugin/）
 
 [确认] 继续操作前请先向用户报告：
    1. 修改影响范围（哪些技能/规范会受影响）

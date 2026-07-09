@@ -140,187 +140,114 @@ mcpowers/
 
 ## 快速安装
 
-### 一键安装（推荐，symlink 模式，参考 superpowers）
+### 一键安装（Claude Code 插件市场）
+
+mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude.com/en/docs/claude-code/plugins) 格式。**零脚本安装**，由 Claude Code 插件系统管理：
 
 ```bash
-# 1. 克隆仓库
-git clone git@github.com:742366981/mcpowers.git ~/mcpowers
-cd ~/mcpowers
+# 1. 添加市场源（GitHub 公开仓库）
+/plugin marketplace add https://github.com/742366981/mcpowers
 
-# 2. 运行安装脚本
-bash install.sh            # macOS / Linux / Git Bash on Windows
-# 或 Windows PowerShell:
-.\install.ps1
+# 2. 安装插件
+/plugin install mcpowers@mcpowers
+
+# 3. 重启 Claude Code
 ```
 
-**安装内容**：
+**安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 18 个场景/方法技能（`mcpowers-feat` 等）
-- ✅ 规范库（`mcpowers-shared/docs/`）
+- ✅ 21 个技术规范（`mcpowers-shared`）
+- ✅ 4 个 Claude Code hooks（自动注册，无需改 `settings.json`）
 
-> **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。本技能不额外注册 `~/.claude/commands/` 下的传统命令文件，避免命令重名冲突。
+> **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
 
-**symlink 模式的好处**（superpowers 风格）：
-- 📝 编辑源文件后**立即生效**（无需重装）
-- 🔄 升级 = `git pull`（无需重装）
-- 💾 仓库本身就是 source of truth
-
-> mcpowers **完全独立**：Git 操作由自有 `mcpowers-git-*` 4 个技能处理，无需依赖任何外部技能。
-
-### 手动安装（不用脚本）
-
-```bash
-# macOS / Linux / Git Bash
-mkdir -p ~/.claude/skills
-cp -r mcpowers ~/.claude/skills/
-cp -r skills/scene/* skills/method/* ~/.claude/skills/
-cp -r mcpowers-shared ~/.claude/skills/
-
-# Windows PowerShell（等价命令）
-```
+**与 superpowers 一致**：本项目方法论借鉴 superpowers，安装机制也对齐——同样走 Claude Code 插件市场。
 
 ### 升级
 
 ```bash
-cd ~/mcpowers
-git pull
-# symlink 模式：升级完成，无需重装
-# copy 模式（如安装时用了 --copy / -Copy）：重新跑 install.sh
+/plugin update mcpowers@mcpowers
+# 重启 Claude Code 让新 hooks 生效
 ```
 
 ### 卸载
 
 ```bash
-bash uninstall.sh         # macOS / Linux / Git Bash
-# 或 Windows:
-.\uninstall.ps1
-# 跳过确认：bash uninstall.sh --yes   /   .\uninstall.ps1 -Yes
+/plugin uninstall mcpowers@mcpowers
+# 可选：从市场源中移除
+/plugin marketplace remove https://github.com/742366981/mcpowers
 ```
 
 ### 验证安装
 
-装完后：
-
-1. **重启 Claude Code**
-2. 直接说"加个用户登录接口"，AI 应自动调 mcpowers-feat
-3. 路径应是 `~/.claude/skills/mcpowers-feat/SKILL.md`（无 `skills/skills/`）
-
-### 安装后目录结构
-
-```
-~/.claude/
-├── settings.json                       # hooks 自动注册（含 _mcpowers_marker）
-└── skills/                              # Claude Code 扫描根
-    ├── mcpowers/                        # 路由器 + hooks 资产
-    │   ├── SKILL.md
-    │   └── hooks/                       # symlink 到本仓库 hooks/
-    │       ├── hooks.json
-    │       ├── session-start.sh
-    │       └── pre-bash-guard.sh
-    ├── mcpowers-feat/SKILL.md           # 18 个技能扁平
-    ├── mcpowers-bugfix/SKILL.md
-    ├── mcpowers-brainstorm/SKILL.md
-    ├── ... (15 more)
-    └── mcpowers-shared/                 # 规范库
-        ├── SKILL.md
-        ├── mcpowers-spec-index/SKILL.md
-        └── docs/...
-```
-
-> 无 `~/.claude/commands/mcpowers/` —— 本技能不注册传统命令文件，但技能本身支持斜杠调用（`/mcpowers-feat`），也可自然语言自动触发。
-
-### Windows PowerShell 执行策略
-
-首次运行 `.\install.ps1` 若被拦截，先执行：
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
-
-或绕过策略：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1
-```
+1. 重启 Claude Code
+2. 直接说"加个用户登录接口"，AI 应自动调 `mcpowers-feat`
+3. 输入 `/mcpowers-feat` 也可直接触发
 
 ---
 
 ## Hooks 行为
 
-mcpowers 安装时会自动在 `~/.claude/settings.json` 注册两个 Claude Code hooks，让铁律从"软提示"升级为"硬约束"。
+mcpowers 通过 `.claude-plugin/plugin.json` 的 `hooks` 字段声明 4 个 Claude Code hooks，由插件系统自动注册（**无需修改 `settings.json`**），让铁律从"软提示"升级为"硬约束"。
 
 | 钩子 | 触发时机 | 作用 |
 |:-----|:---------|:-----|
 | `SessionStart` | 每次 Claude Code 启动 | 注入路由器铁律摘要（改前确认 / TDD 先行 / 改完即 commit 等），AI 每轮对话开始就知道 mcpowers 流程 |
 | `PreToolUse (Bash)` | 每次执行 Bash 命令前 | 阻断 `rm -rf /`、`git push --force main` 等危险操作 |
+| `PreToolUse (Write)` | 每次 Write 文件前 | 保护核心资产（`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`），需用户确认 |
+| `PostToolUse (Write/Edit/MultiEdit)` | 每次修改后 | 改完即 commit 提醒（仅在已暂存且工作区干净时触发） |
 
-### 跳过 hooks 安装
-
-不需要 hooks 的用户可以：
-
-```bash
-bash install.sh --no-hooks      # macOS / Linux / Git Bash
-.\install.ps1 -NoHooks          # Windows PowerShell
-```
-
-跳过安装后 `~/.claude/settings.json` 不会被修改；卸载时也不会清理（因为没有 mcpowers 标记）。
+> Hooks 通过 `${CLAUDE_PLUGIN_ROOT}` 环境变量定位脚本，跨平台零适配（Windows / macOS / Linux 统一）。
 
 ### 故障排查与详细说明
 
 见 [`hooks/README.md`](hooks/README.md)：
 
 - Hooks 资产位置和升级机制
-- 跨平台说明（依赖 Git Bash / WSL）
 - 误伤正常命令时如何调整白名单
-- 卸载失败的恢复方法
+- 误伤正常文件写入时如何调整受保护路径
 
 ---
 
-## 支持范围
+## 支持的 AI 工具
 
-> ⚠️ **当前版本（v1.x）仅针对 Claude Code 优化**，其他 AI 工具暂不官方支持。
+mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.json`），不同 AI 工具的支持情况如下：
 
-| AI 工具 | 支持状态 | 说明 |
-|:--------|:--------:|:-----|
-| **Claude Code** | ✅ **完全支持** | 路由器 + 18 技能 + 21 规范 + 3 类 hooks 全功能 |
-| 其他 AI 工具 | ⏳ 暂不支持 | 当前未适配，等待社区需求再启动扩展 |
+| AI 工具 | 支持状态 | 安装方式 | 说明 |
+|:--------|:--------:|:---------|:-----|
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 18 技能 + 21 规范 + 4 个 hooks 全功能 |
+| **Cursor** | ✅ 完全支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | 同上，Cursor 兼容 Claude Code 插件规范 |
+| **Codex CLI** | ✅ 完全支持 | 复制 `skills/` 到 Codex skills 目录 | 规范 + 技能可读，hooks 需手动配置 |
+| **OpenCode** | ✅ 完全支持 | `opencode.json` 引用本仓库 | 通过 git 引用，自动加载 |
+| **GitHub Copilot CLI** | ✅ 完全支持 | `/plugin install` 同 Claude Code | 完整支持 |
+| **Gemini CLI** | ✅ 完全支持 | 通过插件市场加载 | 完整支持 |
+| **Claude.ai 网页版** | ⚠️ 部分支持 | 手动复制 `skills/*.md` | 路由器可读，hooks 不可用 |
+| 其他 AI 工具 | ⚠️ 规范可用 | 手动复制 `skills/mcpowers-shared/docs/*.md` | 规范是纯 Markdown 通用 |
 
-### 为什么当前只支持 Claude Code
+### 工具特定说明
 
-| 依赖项 | Claude Code | 其他 AI 工具 |
-|:-------|:-----------:|:------------:|
-| Skills 调用机制 | ✅ 原生支持 | ⚠️ 需适配 |
-| `~/.claude/skills/` 路径 | ✅ 原生支持 | ❌ 路径不存在 |
-| SessionStart / PreToolUse / PostToolUse hooks | ✅ 原生支持 | ❌ 多数工具无钩子机制 |
-| `CLAUDE.md` 自动加载 | ✅ 原生支持 | ⚠️ 多数工具不识别 |
+#### Claude Code（主推）
 
-> 其中 **hooks 体系** 是 Claude Code 的差异化能力，移植成本最高。
+- 完整支持 4 个 hooks（`SessionStart` + `PreToolUse` + `PostToolUse`）
+- 路由器自动加载，用户输入自然语言路由到对应技能
+- 安装命令：`/plugin marketplace add https://github.com/742366981/mcpowers && /plugin install mcpowers@mcpowers`
 
-### 规范层的迁移友好性
+#### Cursor
 
-即使不官方支持其他工具，`mcpowers-shared/docs/` 下的**规范文档是纯 Markdown**，可以被任何能读取文件的 AI 直接使用：
+- Cursor 已支持 Claude Code 插件格式
+- 通过 Cursor 的插件市场加载 `.claude-plugin/marketplace.json`
+- 差异：Cursor 用 `~/.cursor/skills/` 而非 `~/.claude/skills/`，路径自动转换
 
-```
-~/.claude/skills/mcpowers-shared/docs/   ← 安装后位置
-├── AI操作规范.md
-├── 产品设计/产品设计规范.md
-└── 技术规范/   ← 21 个文件
-```
+#### Codex CLI / OpenCode / GitHub Copilot CLI
 
-如果你的 AI 工具支持读取 Markdown 规范文件，可以**手动指定这个目录**让 AI 遵循规范（只是用不上路由器和 hooks）。
+- 复制 `skills/` 目录到对应工具的 skills 根目录
+- 例如 Codex：`cp -r skills/ ~/.codex/skills/`
+- hooks 需参照各工具文档手动配置（mcpowers 的 hooks 是 Claude Code 特有）
 
-### 未来的扩展可能性
+### 规范层（通用）
 
-技术上**完全可以扩展**，主要改造点：
-
-| # | 改造项 | 难度 | 适用工具 |
-|:-:|:-------|:----:|:---------|
-| 1 | 安装脚本参数化（`--target {claude\|cursor\|cline}`） | 🟢 半天 | 大多数工具 |
-| 2 | 技能 SKILL.md → 各工具格式的转换器 | 🟢 1 天 | Cline / Continue.dev / Cursor |
-| 3 | 路由器改为纯系统提示（去掉 Skill 调用依赖） | 🟡 1-2 天 | Aider / Cody 等 |
-| 4 | hooks 抽象层（各工具各自实现） | 🔴 1-2 周 | 仅少数有钩子的 IDE |
-
-> 💬 **如果你有其他 AI 工具的强需求**（如 Cursor / Cline / Windsurf / Aider），欢迎提 [Issue](https://github.com/742366981/mcpowers/issues) 讨论优先级。
+`mcpowers-shared/docs/技术规范/*.md` 是**纯 Markdown 文档**，可以被任何能读取文件的 AI 工具直接使用——不依赖任何特定 IDE 或插件机制。
 
 ---
 
@@ -398,7 +325,7 @@ last_updated: 2026-07-08
 | 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表 | **删一行** |
 | 3 | `README.md` 技能结构图 | **删一行** |
 | 4 | `bash scripts/check-readme-sync.sh` | 必须通过 |
-| 5 | 跑 `bash tests/install-smoke.sh` 确认 ≥18 规范断言仍通过（如规范数 < 18 需要更新 install-smoke 的断言阈值） |  |
+| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥18 规范断言仍通过（如规范数 < 18 需要更新 plugin-verify 的断言阈值） |  |
 
 ---
 
@@ -406,13 +333,13 @@ last_updated: 2026-07-08
 
 **步骤**（约 15 分钟）：
 
-1. 创建 `skills/scene/mcpowers-<name>/SKILL.md`
+1. 创建 `skills/mcpowers-<name>/SKILL.md`
 2. **复制 mcpowers-feat 的 "## 编排" 模板**（最完整的版本），修改表格内容
-3. 在 `mcpowers/SKILL.md` 路由表（## 1 段）**加一行**："触发关键词" → `mcpowers-<name>`
+3. 在 `skills/mcpowers/SKILL.md` 路由表（## 1 段）**加一行**："触发关键词" → `mcpowers-<name>`
 4. `README.md` 触发条件表（## 触发条件 段）**加一行**
-5. `README.md` 技能结构图的 `skills/scene/` 块**加一行**
+5. `README.md` 技能结构图的 `skills/` 块**加一行**
 6. 跑 `bash scripts/check-readme-sync.sh` 通过
-7. 跑 `bash tests/install-smoke.sh` 通过（断言 "技能数=20" 会失败，需要更新为 21）
+7. 跑 `bash tests/plugin-verify.sh` 通过（断言 "技能数=20" 会失败，需要更新为 21）
 
 ---
 
@@ -444,21 +371,12 @@ last_updated: 2026-07-08
 
 ### 场景 6：升级 = 同步上游改动
 
-**symlink 模式**下升级极简：
+**插件市场模式**下升级极简：
 
 ```bash
-cd ~/mcpowers
-git pull                                  # 拉最新
-# 完成！~/.claude/skills/mcpowers/* 是 symlink，自动指向新文件
+# 在 Claude Code 内执行
+/plugin update mcpowers@mcpowers
 # 重启 Claude Code 让新 hooks 生效
-```
-
-**copy 模式**（如果安装时用了 `--copy`）：
-
-```bash
-cd ~/mcpowers
-git pull
-bash install.sh --copy                    # 重新复制
 ```
 
 ---
@@ -497,7 +415,7 @@ bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh
 
 | 坑 | 现象 | 预防 |
 |:---|:-----|:-----|
-| ① 改了场景技能调用的方法层，忘了同步"## 编排"段 | 调用关系对不上 | 修改方法层时，**grep 反查**：`grep -r "mcpowers-<被改名>" skills/scene/` |
+| ① 改了场景技能调用的方法层，忘了同步"## 编排"段 | 调用关系对不上 | 修改方法层时，**grep 反查**：`grep -r "mcpowers-<被改名>" skills/` |
 | ② 忘了更新 `last_updated` | 规范过期无感知 | 写个 git pre-commit hook（见下方） |
 | ③ frontmatter 字段填错粒度 | 路由不准确 | 严格按 frontmatter 模板填，参考 `mcpowers-spec-index` 查表行 |
 | ④ 路由器铁律 vs session-start.sh 双源不一致 | 铁律"精神分裂" | 永远先改 AI操作规范.md（权威源），再同步 hooks |

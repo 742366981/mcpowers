@@ -1,6 +1,4 @@
 {
-  "_mcpowers_marker": true,
-  "_mcpowers_version": "1.1.0",
   "hooks": {
     "SessionStart": [
       {
@@ -8,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"__HOOKS_DIR__/session-start.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\""
           }
         ]
       }
@@ -19,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"__HOOKS_DIR__/pre-bash-guard.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-bash-guard.sh\""
           }
         ]
       },
@@ -28,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"__HOOKS_DIR__/pre-write-confirm.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-confirm.sh\""
           }
         ]
       }
@@ -39,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"__HOOKS_DIR__/post-write-commit-reminder.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-commit-reminder.sh\""
           }
         ]
       }

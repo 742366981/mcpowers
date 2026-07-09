@@ -419,44 +419,87 @@ def json_to_markdown(spec, output_file, login_path=None):
         f.write('\n'.join(lines))
 
 
+def find_project_root(start_dir=None):
+    """向上查找包含 apps/__init__.py 的项目根目录
+
+    策略：从 start_dir 出发，逐级向上查找，找到第一个包含 apps/ 的目录即返回
+    """
+    current = start_dir or os.getcwd()
+    while True:
+        if os.path.isdir(os.path.join(current, 'apps')):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:  # 已到根目录
+            return None
+        current = parent
+
+
 def main():
-    print("开始导出 API 文档...")
+    """主入口：解析参数 → 加载 Flask app → 导出文档"""
+    import argparse
+    parser = argparse.ArgumentParser(description='一键导出 API 文档（JSON + Markdown）')
+    parser.add_argument('--project', '-p', help='Flask 项目根目录（默认自动向上查找）')
+    parser.add_argument('--output', '-o', help='输出目录（默认 <project>/docs/API文档/）')
+    args = parser.parse_args()
 
-    # 确保可以导入应用
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 1. 解析项目根目录
+    if args.project:
+        project_root = os.path.abspath(args.project)
+        if not os.path.isdir(os.path.join(project_root, 'apps')):
+            print(f"❌ 错误：{project_root} 不包含 apps/ 目录")
+            sys.exit(1)
+    else:
+        project_root = find_project_root()
+        if not project_root:
+            print("❌ 错误：未找到 Flask 项目（向上查找均无 apps/ 目录）")
+            print("   请使用 --project 指定项目根目录")
+            sys.exit(1)
+
+    print(f"📁 项目根目录: {project_root}")
+
+    # 2. 加载 Flask 应用
     sys.path.insert(0, project_root)
-
-    from apps import create_app
+    try:
+        from apps import create_app
+    except ImportError as e:
+        print(f"❌ 错误：无法导入 apps 模块: {e}")
+        print("   请确认项目结构符合 Flask后端规范.md 第 1 章")
+        sys.exit(1)
 
     app = create_app(protect_swagger=False)
 
+    # 3. 通过 test_client 拉取 swagger spec
     with app.test_client() as client:
         response = client.get('/apispec_1.json')
-        if response.status_code == 200:
-            spec = response.get_json()
+        if response.status_code != 200:
+            print(f"❌ 导出失败：HTTP {response.status_code}")
+            print("   请检查 Flasgger 是否正确注册（详见 Flask后端规范.md 第 11 章）")
+            sys.exit(1)
 
-            # 保存 JSON
-            json_file = os.path.join(project_root, 'docs', 'API文档', 'swagger_spec.json')
-            os.makedirs(os.path.dirname(json_file), exist_ok=True)
-            with open(json_file, 'w', encoding='utf-8') as f:
-                json.dump(spec, f, ensure_ascii=False, indent=2)
-            print(f"JSON 规范已保存: {json_file}")
+        spec = response.get_json()
 
-            # 自动识别登录路径
-            login_path, _ = find_auth_paths(spec)
+    # 4. 输出文件
+    output_dir = args.output or os.path.join(project_root, 'docs', 'API文档')
+    os.makedirs(output_dir, exist_ok=True)
 
-            # 生成 Markdown
-            md_file = os.path.join(project_root, 'docs', 'API文档', 'API文档.md')
-            json_to_markdown(spec, md_file, login_path)
-            print(f"Markdown 文档已保存: {md_file}")
+    json_file = os.path.join(output_dir, 'swagger_spec.json')
+    with open(json_file, 'w', encoding='utf-8') as f:
+        json.dump(spec, f, ensure_ascii=False, indent=2)
+    print(f"✅ JSON 规范: {json_file}")
 
-            # 统计
-            path_count = len(spec.get('paths', {}))
-            method_count = sum(len([m for m in methods if m.upper() in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']])
-                          for methods in spec.get('paths', {}).values())
-            print(f"共导出 {path_count} 个路径，{method_count} 个接口")
-        else:
-            print(f"导出失败: {response.status_code}")
+    login_path, _ = find_auth_paths(spec)
+    md_file = os.path.join(output_dir, 'API文档.md')
+    json_to_markdown(spec, md_file, login_path)
+    print(f"✅ Markdown:  {md_file}")
+
+    # 5. 统计
+    path_count = len(spec.get('paths', {}))
+    method_count = sum(
+        len([m for m in methods if m.upper() in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']])
+        for methods in spec.get('paths', {}).values()
+    )
+    print(f"\n📊 共导出 {path_count} 个路径，{method_count} 个接口")
+    print(f"💡 提示：dev 环境可在 http://localhost:{{端口}}/apidocs/ 查看交互式文档")
 
 
 if __name__ == '__main__':

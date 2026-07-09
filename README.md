@@ -4,6 +4,28 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 ---
 
+## 核心功能
+
+mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工作：
+
+| # | 功能 | 说明 |
+|:-:|:-----|:-----|
+| 1 | **🎯 场景化技能路由** | 18 个技能（11 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 2 | **📋 21 个技术规范** | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查等，按需加载避免爆上下文 |
+| 3 | **🗂️ 13 类接口速查表** | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload，AI 写接口前必查 |
+| 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
+| 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
+| 6 | **🪝 3 类 hooks 资产** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录不可误删 |
+| 7 | **🔧 完全独立 Git 操作** | 内置 `commit / worktree / rollback / cleanBranches` 4 个 git 技能，无需依赖任何外部技能 |
+
+### 1 句话总结
+
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 21 个可执行技术规范的肉 + 中文友好的壳**
+>
+> 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
+
+---
+
 ## 设计理念
 
 mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，而不是拿到需求就写代码**。
@@ -13,7 +35,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
 - **编排显式化**：11 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
-- **规范元数据化**：18 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **规范元数据化**：21 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器瘦身（105 行）、SessionStart 注入完整铁律、3 类 hooks（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
 ---
@@ -54,7 +76,7 @@ mcpowers/
 │
 ├── mcpowers-shared/                   # 规范资产库（保留不变）
 │   ├── mcpowers-spec-index/           # 规范导航（< 100 行，查表）
-│   └── docs/                          # 20+ 规范文件
+│   └── docs/                          # 21 个规范文件
 │       ├── AI操作规范.md
 │       ├── 产品设计/产品设计规范.md
 │       └── 技术规范/
@@ -75,7 +97,10 @@ mcpowers/
 │           ├── 设计规范.md
 │           ├── 文档编写规范.md
 │           ├── 代码同步修改规范.md
-│           └── 细节记录规范.md
+│           ├── 细节记录规范.md
+│           ├── 安全规范.md
+│           ├── API版本管理规范.md
+│           └── 健康检查规范.md
 │
 ├── tests/                             # 冒烟测试（install-smoke.sh）
 ├── scripts/                           # 工具脚本（check-readme-sync.sh）
@@ -253,13 +278,18 @@ bash install.sh --no-hooks      # macOS / Linux / Git Bash
 
 ## 借鉴来源
 
-- **superpowers**（https://github.com/obra/superpowers）：using-superpowers bootstrap 模式、brainstorming / TDD / debugging 铁律、code-review 流程
+mcpowers 的设计参考了以下优秀项目：
+
+| 项目 | 借鉴内容 |
+|:-----|:---------|
+| [**obra/superpowers**](https://github.com/obra/superpowers) | using-superpowers bootstrap 模式、brainstorming / TDD / debugging 铁律、code-review 流程、specs 规范导航思想 |
+| [**jnMetaCode/superpowers-zh**](https://github.com/jnMetaCode/superpowers-zh) | 中文社区翻译版，部分技能描述借鉴中文措辞与本土化表达 |
 
 ---
 
 ## 维护指南
 
-mcpowers 的设计目标是**让维护者能低成本演进**：基于 superpowers 思想 + 你自己的规范文件。下面是高频维护场景的操作清单。
+mcpowers 的设计目标是**让维护者能低成本演进**：基于 superpowers / superpowers-zh 思想 + 你自己的规范文件。下面是高频维护场景的操作清单。
 
 ### 场景 1：修改某个规范文件的内容
 

@@ -19,6 +19,71 @@ last_updated: 2026-07-08
 
 ---
 
+## 0. 接口类型速查表（最高频使用）
+
+> **目的**：AI 写接口时**先看本表**确定类型，再跳转到对应章节。
+
+### 0.1 标准 CRUD（7 类）
+
+| 接口类型 | HTTP 方法 | 路径 | 请求位置 | 关键参数 | 响应 | 详细章节 |
+|:---------|:----------|:-----|:---------|:---------|:-----|:---------|
+| **list（列表）** | GET | `/{前缀}/{模块}/list` | query | `page_no`, `page_size`, 筛选条件 | 分页结构 | 详见 `API规范.md` 3.2 / 8.1 |
+| **detail（详情）** | GET | `/{前缀}/{模块}/detail` | query | `id` | 本表字段+关联 | 详见 `API规范.md` 8.2 |
+| **create（创建）** | POST | `/{前缀}/{模块}/create` | body | 本表字段 | `{code:0, data:{id:x}}` | 详见 `API规范.md` 8.3 |
+| **update（更新）** | POST | `/{前缀}/{模块}/update` | body | `id` + 待更新字段 | `{code:0, msg:"更新成功"}` | 详见 `API规范.md` 8.3 |
+| **delete（删除）** | POST | `/{前缀}/{模块}/delete` | body | `id` | `{code:0, msg:"删除成功"}` | 详见 `API规范.md` 8.4 |
+| **batch-delete（批量删除）** | POST | `/{前缀}/{模块}/batch-delete` | body | `ids: []` | `{code:0, msg:"删除成功"}` | 详见 `API规范.md` 8.4 |
+| **update-status（状态修改）** | POST | `/{前缀}/{模块}/update-status` | body | `id`, `status` | `{code:0, msg:"修改成功"}` | 详见 `API规范.md` 8.5 |
+
+### 0.2 文件相关（4 类）
+
+| 接口类型 | HTTP 方法 | 路径 | 请求位置 | 关键参数 | 响应 | 详细章节 |
+|:---------|:----------|:-----|:---------|:---------|:-----|:---------|
+| **upload（文件上传）** | POST | `/{前缀}/upload` | formData | `file` | `{code:0, data:{url}}` | 详见 `API规范.md` 8.6 |
+| **import（批量导入）** | POST | `/{前缀}/{模块}/import` | formData | `file` (.xlsx/.csv) | `{total, success, fail, errors[]}` | 详见 `导入导出规范.md` 8 |
+| **export（数据导出）** | GET | `/{前缀}/{模块}/export` | query | 筛选条件 | Excel 文件流 | 详见 `导入导出规范.md` 10 |
+| **template/download（模板下载）** | GET | `/{前缀}/{模块}/template/download` | - | 无 | Excel 模板文件 | 详见 `导入导出规范.md` 11 |
+
+### 0.3 字典相关（2 类）
+
+| 接口类型 | HTTP 方法 | 路径 | 请求位置 | 关键参数 | 响应 | 详细章节 |
+|:---------|:----------|:-----|:---------|:---------|:-----|:---------|
+| **dict（下拉）** | GET | `/{前缀}/{模块}/dict?type={type}` | query | `type`（字典类型） | `[{dictCode, dictLabel, dictValue, ...}]` | 详见 `API规范.md` 3.3 |
+| **dict/cascader（级联下拉）** | GET | `/{前缀}/{模块}/dict/cascader?type={type}` | query | `type` | 树形 `[{label, value, children[]}]` | 详见 `API规范.md` 3.4 |
+
+### 0.4 认证相关（2 类，由 system/auth 子模块负责）
+
+| 接口类型 | HTTP 方法 | 路径 | 请求位置 | 关键参数 | 响应 | 详细章节 |
+|:---------|:----------|:-----|:---------|:---------|:-----|:---------|
+| **login（登录）** | POST | `/{前缀}/auth/login` | body | `username`, `password` | `{token, user_id, username}` | 详见 10.1 |
+| **logout（退出）** | POST | `/{前缀}/auth/logout` | header | `Authorization: Bearer {token}` | `{code:0}` | 详见 10.1 |
+
+### 0.5 健康检查（1 类，新增）
+
+| 接口类型 | HTTP 方法 | 路径 | 响应 | 详细章节 |
+|:---------|:----------|:-----|:-----|:---------|
+| **health（健康检查）** | GET | `/health` | `{status:"ok", db:"ok", redis:"ok"}` | 详见 `健康检查规范.md` |
+
+### 0.6 接口命名反查（看到路径能识别类型）
+
+```
+GET  /xxx/list                    → list 接口
+GET  /xxx/detail?id=1             → detail 接口
+POST /xxx/create                  → create 接口
+POST /xxx/update                  → update 接口
+POST /xxx/delete                  → delete 接口
+POST /xxx/batch-delete            → batch-delete 接口
+POST /xxx/update-status           → update-status 接口
+POST /xxx/import                  → import 接口（formData 上传文件）
+GET  /xxx/export?status=1         → export 接口（下载文件）
+GET  /xxx/template/download       → template/download 接口
+GET  /xxx/dict?type=status        → dict 接口
+GET  /xxx/dict/cascader?type=...  → dict/cascader 接口
+POST /upload                      → upload 接口（无业务模块）
+```
+
+---
+
 ## 1. 目录结构（强制）
 
 ### 1.1 整体目录结构
@@ -291,26 +356,37 @@ config_path = os.path.join(BASE_DIR, 'config', 'config_dev.ini')
 
 ```python
 # apps/__init__.py
+# 应用工厂 + 蓝图/异常/Swagger 注册入口
 
 from flask import Flask
 from flask_compress import Compress
 from flask_migrate import Migrate
 from flask_cors import CORS
+
 from common.settings import config
+from db.mysql.helpers import db  # SQLAlchemy 实例（详见 数据库规范.md 第 2.2 节）
 
 compress = Compress()
 migrate = Migrate()
 
 
 def create_app(protect_swagger=True):
+    """Flask 应用工厂
+
+    Args:
+        protect_swagger: 是否启用 Swagger Basic Auth 保护（生产环境应传 False）
+
+    Returns:
+        Flask: 配置完毕的应用实例
+    """
     app = Flask(__name__)
 
-    # 基础配置
+    # === 基础配置 ===
     app.config['SECRET_KEY'] = config.get('secret_key')
     app.config['DEBUG'] = config.get('debug').lower() == 'true'
-    app.json.ensure_ascii = False
+    app.json.ensure_ascii = False  # 响应中文不转义
 
-    # 数据库配置
+    # === 数据库配置 ===
     from common.settings import admin_mysql_conf
     db_user = admin_mysql_conf.get('username')
     db_pass = admin_mysql_conf.get('password')
@@ -319,41 +395,41 @@ def create_app(protect_swagger=True):
     db_name = admin_mysql_conf.get('db_name')
     db_charset = admin_mysql_conf.get('charset')
 
+    # 密码可空（本地无密码开发环境）
     if db_pass:
         app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}?charset={db_charset}'
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_user}@{db_host}:{db_port}/{db_name}?charset={db_charset}'
 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ECHO'] = app.config['DEBUG']
+    app.config['SQLALCHEMY_ECHO'] = app.config['DEBUG']  # 仅 debug 模式打印 SQL
 
-    # 初始化扩展
-    from db.mysql.helpers import db
+    # === 初始化扩展 ===
     db.init_app(app)
     migrate.init_app(app, db)
     compress.init_app(app)
 
-    # CORS跨域配置
+    # === CORS 跨域配置 ===
     cors_origins = config.get('cors', 'origins')
     cors_origins_list = '*' if cors_origins == '*' else [o.strip() for o in cors_origins.split(',')]
     supports_credentials = config.getboolean('cors', 'supports_credentials')
     CORS(app, resources={r'/*': {'origins': cors_origins_list, 'supports_credentials': supports_credentials}})
 
-    # 中间件
+    # === 中间件（顺序敏感：request_id 必须在 request_log 之前） ===
     from utils.middleware import init_request_id
     init_request_id(app)
 
     from utils.request_log import init_request_log
     init_request_log(app)
 
-    # 注册蓝图
-    register_blueprints(app)
+    # === 注册蓝图 ===
+    register_blueprints(app)  # 本文件内定义，详见第 1.4 节
 
-    # 注册异常处理
-    register_error_handlers(app)
+    # === 注册异常处理 ===
+    register_error_handlers(app)  # 本文件内定义，详见第 7.1 节
 
-    # 注册Swagger文档
-    register_swagger(app, protect=protect_swagger)
+    # === 注册 Swagger 文档 ===
+    register_swagger(app, protect=protect_swagger)  # 本文件内定义，详见第 11.1 节
 
     return app
 ```
@@ -417,16 +493,30 @@ class Config:
         self._config.read(config_path, encoding='utf-8')
 
     def get(self, section, key=None, fallback=None):
+        """读取配置（禁止业务层使用 fallback 默认值！）
+
+        注意：本方法的 `fallback` 参数**仅用于框架内部**，业务代码调用时
+        **禁止传 fallback**，必须让缺失抛异常以保证配置完整性。
+        """
         if key is None:
             key = section
             section = 'app'
+        # fallback=None → configparser 自身在缺失时抛 NoSectionError/NoOptionError
         return self._config.get(section, key, fallback=fallback)
 
-    def getint(self, section, key=None, fallback=0):
-        # ... 类似实现
+    def getint(self, section, key=None, fallback=None):
+        """读取整型配置（禁止使用 fallback 默认值）"""
+        if key is None:
+            key = section
+            section = 'app'
+        return self._config.getint(section, key, fallback=fallback)
 
-    def getboolean(self, section, key=None, fallback=False):
-        # ... 类似实现
+    def getboolean(self, section, key=None, fallback=None):
+        """读取布尔配置（禁止使用 fallback 默认值）"""
+        if key is None:
+            key = section
+            section = 'app'
+        return self._config.getboolean(section, key, fallback=fallback)
 
 
 config = Config()
@@ -448,13 +538,16 @@ app_conf = config
 
 > ⚠️ **环境配置差异原则**
 >
-> 所有环境的配置文件内容**基本一致**，唯一区别是 `[app]` 下的 `debug` 配置：
+> 所有环境的配置文件内容**基本一致**，主差异是 `[app]` 下的 `debug` 配置：
 >
 > | 环境 | debug值 | 说明 |
 > |:-----|:--------|:-----|
 > | dev | `true` | 开发环境开启调试 |
 > | test | `false` | 测试环境关闭调试 |
 > | prod | `false` | 生产环境关闭调试 |
+>
+> **允许的例外**：性能相关参数（如 Gunicorn workers 数、超时时间）允许按环境差异化。
+> 这些参数**不放在 ini 配置文件**，而是在代码中按 `ENV_TYPE` 判断（如 18.2 Gunicorn 启动器）。
 
 ```ini
 # config_dev.ini / config_test.ini / config_prod.ini
@@ -490,6 +583,11 @@ full_response_paths = /auth/login,/auth/logout
 # 允许跨域的域名（逗号分隔，* 表示允许所有）
 origins = *
 supports_credentials = true
+
+[swagger]
+# Swagger 文档保护账号（dev 环境可在配置文件中硬编码，test/prod 建议从环境变量注入）
+user = admin
+password = admin123
 ```
 
 > ⚠️ **配置加载器实现要求**
@@ -533,18 +631,26 @@ SENSITIVE_FIELDS = ['password', 'pwd', 'token', 'secret', 'apiKey', 'api_key']
 
 
 def mask_sensitive(data):
-    """脱敏敏感字段"""
-    if not isinstance(data, dict):
+    """脱敏敏感字段（递归处理 dict 和 list 嵌套）
+
+    Args:
+        data: 任意数据（dict / list / 标量）
+
+    Returns:
+        脱敏后的数据（结构保持一致）
+    """
+    if isinstance(data, dict):
+        masked = {}
+        for k, v in data.items():
+            if k.lower() in SENSITIVE_FIELDS:
+                masked[k] = '******'
+            else:
+                masked[k] = mask_sensitive(v)
+        return masked
+    elif isinstance(data, list):
+        return [mask_sensitive(item) for item in data]
+    else:
         return data
-    masked = {}
-    for k, v in data.items():
-        if k.lower() in SENSITIVE_FIELDS:
-            masked[k] = '******'
-        elif isinstance(v, dict):
-            masked[k] = mask_sensitive(v)
-        else:
-            masked[k] = v
-    return masked
 
 
 def init_request_log(app):
@@ -682,7 +788,12 @@ class Logger:
     def save_log(self, msg, level, exc_info=None):
         if self.is_switch:
             self.set_logger(level)
-            eval(f'self.logger_{level}.{level}({repr(msg)}, exc_info={exc_info})')
+            # 使用 dispatch dict 替代 eval：更安全、易调试
+            logger = getattr(self, f'logger_{level}')
+            log_method = getattr(logger, level, None)
+            if log_method is None:
+                raise ValueError(f'不支持的日志级别: {level}')
+            log_method(msg, exc_info=exc_info)
 
     def save_critical(self, msg):
         self.save_log(msg, 'critical', exc_info=True)
@@ -717,10 +828,22 @@ general_log = Logger('general', 'logs', is_switch=True, is_save_file=True, is_pr
 # apps/__init__.py
 
 def register_error_handlers(app):
+    """注册全局异常处理器
+
+    覆盖：
+    - HTTP 标准错误（404/405/500）
+    - Flask 内置 HTTPException
+    - 数据库完整性错误（IntegrityError → 409）
+    - 参数验证错误（ValidationError → 400）
+    - 所有其他 Exception
+    """
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import IntegrityError
+    from marshmallow import ValidationError
     from utils.responses import api_error
     from utils.loggings import admin_response_log
-    import traceback
     from flask import request, g
+    import traceback
     import json
 
     @app.errorhandler(404)
@@ -731,23 +854,39 @@ def register_error_handlers(app):
     def method_not_allowed(e):
         return api_error(405, '请求方法不允许')
 
-    @app.errorhandler(500)
-    def server_error(e):
-        return api_error(500, '服务器内部错误')
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(e):
+        """参数验证失败（marshmallow）"""
+        return api_error(400, f'参数错误: {e.messages}')
+
+    @app.errorhandler(IntegrityError)
+    def handle_integrity_error(e):
+        """数据库完整性约束失败（唯一索引冲突等）"""
+        from db.mysql.helpers import db
+        db.session.rollback()
+        return api_error(409, '数据已存在或违反约束')
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e):
+        """Flask 内置 HTTP 异常（401/403/400 等）"""
+        return api_error(e.code, e.description)
 
     @app.errorhandler(Exception)
     def handle_exception(e):
-        import traceback
         request_id = getattr(g, 'request_id', '-')
         error_traceback = traceback.format_exc()
         error_info = {
             'request_id': request_id,
             'path': request.path,
+            'method': request.method,
             'error': str(e),
             'traceback': error_traceback
         }
         admin_response_log.save_critical(json.dumps(error_info, ensure_ascii=False))
-        return api_error(500, '服务器内部错误')
+        # 响应中携带 request_id 便于用户反馈排查
+        from flask import jsonify
+        response = jsonify({'code': 500, 'msg': '服务器内部错误', 'request_id': request_id})
+        return response, 500
 ```
 
 ### 7.2 自定义异常（强制）
@@ -975,12 +1114,17 @@ def register_swagger(app, protect=True):
 
     # HTTP Basic Auth保护文档
     if protect:
+        # 账号密码从配置文件读取，禁止硬编码（详见 安全规范.md）
+        from common.settings import app_conf
+        swagger_user = app_conf.get('swagger_user')
+        swagger_pass = app_conf.get('swagger_password')
+
         @app.before_request
         def protect_swagger():
             swagger_paths = ['/apidocs', '/apispec_1.json', '/static/flasgger/']
             if any(request.path.startswith(p) for p in swagger_paths):
                 auth = request.authorization
-                if not auth or not (auth.username == 'admin' and auth.password == 'admin123'):
+                if not auth or not (auth.username == swagger_user and auth.password == swagger_pass):
                     return Response('Login Required', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
 ```
 
@@ -1243,26 +1387,33 @@ Gunicorn 支持多种 worker_class，推荐使用 `GeventWebSocketWorker`。
 
 ```python
 # gunicorn_loader.py
+# Gunicorn 启动器（生产环境推荐使用 geventwebsocket worker）
 
 import multiprocessing
 from gunicorn.app.base import BaseApplication
 from geventwebsocket.gunicorn.workers import GeventWebSocketWorker
 
 from common.settings import app_conf
+from common.constants import ENV_TYPE  # 环境类型（dev/test/prod）
 
 
 def create_application():
+    """创建 WSGI 应用实例"""
     from app import app
     return app
 
 
 class StandaloneApplication(BaseApplication):
+    """Gunicorn 独立应用封装"""
+
     def __init__(self, options=None):
         self.options = options or {}
         super().__init__()
 
     def load_config(self):
-        # 开发环境只启动2个worker，避免内存占用过高
+        """加载 Gunicorn 配置"""
+        # 开发环境只启动 2 个 worker（避免本地内存占用过高）
+        # 其他环境按 CPU 核数 × 2 + 1 启动（生产推荐）
         if ENV_TYPE == 'dev':
             workers = 2
         else:
@@ -1270,22 +1421,32 @@ class StandaloneApplication(BaseApplication):
 
         config = {
             'bind': f'{app_conf.get("host")}:{app_conf.getint("port")}',
-            'worker_class': GeventWebSocketWorker,
+            'worker_class': GeventWebSocketWorker,  # 强制使用 GeventWebSocketWorker
             'workers': workers,
-            'accesslog': '-',
-            'errorlog': '-'
+            'worker_connections': 1000,  # 单 worker 并发连接数（WebSocket 需要较高）
+            'timeout': 60,              # 请求超时（秒）
+            'keepalive': 5,             # keep-alive 超时
+            'max_requests': 1000,       # 处理 N 个请求后重启 worker（防内存泄漏）
+            'max_requests_jitter': 100, # 随机抖动，避免所有 worker 同时重启
+            'graceful_timeout': 30,     # 优雅退出超时
+            'accesslog': '-',           # 访问日志输出到 stdout
+            'errorlog': '-',            # 错误日志输出到 stdout
         }
         for key, value in config.items():
             self.cfg.set(key.lower(), value)
 
     def load(self):
+        """返回 WSGI 应用"""
         return create_application()
 
 
+# 模块级 app 实例（供 gunicorn 导入使用：gunicorn gunicorn_loader:app）
 app = create_application()
 
 
 if __name__ == '__main__':
+    # 启动命令：python -u gunicorn_loader.py
+    # 环境切换：python -u gunicorn_loader.py --test / --prod（详见 19.1）
     StandaloneApplication().run()
 ```
 
@@ -1302,10 +1463,14 @@ if __name__ == '__main__':
 
 import sys
 
+# 默认开发环境；命令行可覆盖（详见 19.2 启动命令）
 ENV_TYPE = 'dev'
 sys_args = sys.argv[1:]
 if sys_args:
-    if '--test' in sys_args:
+    # 三个环境参数都显式识别，顺序：--dev > --test > --prod
+    if '--dev' in sys_args:
+        ENV_TYPE = 'dev'
+    elif '--test' in sys_args:
         ENV_TYPE = 'test'
     elif '--prod' in sys_args:
         ENV_TYPE = 'prod'
@@ -1520,3 +1685,153 @@ docker-compose -f docker-compose.{环境}.yml down
 | container_name | `{项目名}-dev` | `{项目名}-test` | `{项目名}-prod` |
 | config文件 | `config_dev.ini` | `config_test.ini` | `config_prod.ini` |
 | command | `--dev` | `--test` | `--prod` |
+
+---
+
+### 21.7 完整 docker-compose（含 MySQL + Redis 依赖，推荐）
+
+> ⚠️ **本地开发强制**：21.2/21.3/21.4 的极简版只包含 app 服务，适用于"依赖服务外置"的场景。
+> **本地开发默认必须使用本节的完整版**，确保 `bash start_dev.sh` 即可拉起全部依赖。
+>
+> **设计要点**：
+> - MySQL/Redis 数据持久化到 `./docker-data/{mysql,redis}/`
+> - 端口固定：MySQL 3306、Redis 6379
+> - 健康检查：`mysql:3306` 和 `redis:6379` 起来后才启动 app
+> - 跨环境差异仅在 image tag / container_name / command / config
+
+#### 21.7.1 docker-compose.dev.yml（完整版）
+
+```yaml
+version: '2.1'
+services:
+  {项目名}-mysql:
+    image: mysql:8.0
+    container_name: {项目名}-mysql-dev
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_dev
+      MYSQL_DATABASE: {项目名}_dev
+      TZ: Asia/Shanghai
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./docker-data/mysql-dev:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '2'
+
+  {项目名}-redis:
+    image: redis:7.2-alpine
+    container_name: {项目名}-redis-dev
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - ./docker-data/redis-dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '2'
+
+  {项目名}-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: {项目名}:dev
+    container_name: {项目名}-app-dev
+    restart: always
+    ports:
+      - '{端口}:{端口}'
+    volumes:
+      - .:/{项目名}
+    environment:
+      - TZ=Asia/Shanghai
+    command: python -u gunicorn_loader.py --dev
+    depends_on:
+      {项目名}-mysql:
+        condition: service_healthy
+      {项目名}-redis:
+        condition: service_healthy
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '2'
+```
+
+#### 21.7.2 docker-compose.test.yml（完整版）
+
+> 复制 21.7.1，将 `mysql-dev` → `mysql-test`、`redis-dev` → `redis-test`、image tag `:dev` → `:test`、command `--dev` → `--test`、数据库名 `{项目名}_dev` → `{项目名}_test`、MySQL 密码 `root_dev` → `root_test`、容器名加 `-test` 后缀。
+
+#### 21.7.3 docker-compose.prod.yml（完整版）
+
+> ⚠️ **生产环境慎用容器化 DB**：本节仅给出模板。
+> **生产环境推荐**：MySQL 用云数据库 RDS，Redis 用云 Redis；compose 中删除 mysql/redis services，app 改为 `depends_on` 云服务（环境变量配置连接信息）。
+
+#### 21.7.4 一键启动（推荐方式）
+
+```bash
+# macOS / Linux / Git Bash on Windows
+bash mcpowers-shared/scripts/start_dev.sh              # 默认 dev
+bash mcpowers-shared/scripts/start_dev.sh test --build # test 环境强制重建
+
+# Windows PowerShell
+.\mcpowers-shared\scripts\start_dev.ps1
+.\mcpowers-shared\scripts\start_dev.ps1 -Build
+```
+
+启动脚本会自动：
+1. 检查 docker / docker compose
+2. 检查 `config/config_{env}.ini` 是否存在
+3. 首次启动自动 `--build`，后续快速启动
+4. 等待 5s 后验证 `/health` 端点
+
+#### 21.7.5 数据持久化
+
+```
+project-root/
+└── docker-data/
+    ├── mysql-dev/      # MySQL 数据卷（git ignore）
+    ├── mysql-test/
+    ├── redis-dev/      # Redis 数据卷
+    └── redis-test/
+```
+
+`.gitignore` 必须加：
+```
+docker-data/
+```
+
+#### 21.7.6 配置示例（config/config_dev.ini）
+
+```ini
+[admin_mysql]
+host = 127.0.0.1
+port = 3306
+username = root
+password = root_dev
+db_name = {项目名}_dev
+charset = utf8mb4
+
+[admin_redis]
+host = 127.0.0.1
+port = 6379
+password =
+db = 0
+```
+
+> 💡 **关键设计**：app 容器内访问 mysql/redis 用**服务名**（如 `{项目名}-mysql`）作为 host，端口 3306/6379。
+> 本地 `python app.py` 调试时用 `127.0.0.1`，因为宿主机已端口映射。

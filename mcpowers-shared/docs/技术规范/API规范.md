@@ -15,6 +15,30 @@ last_updated: 2026-07-08
 
 ---
 
+## 📋 接口类型速查表（13 类）
+
+> **用法**：AI 写接口时**先看本表**确定类型，再跳转到对应章节。
+
+| 类型 | HTTP | 路径 | 关键参数位置 | 详细章节 |
+|:-----|:-----|:-----|:-------------|:---------|
+| **list** | GET | `/{前缀}/{模块}/list` | query | §3.2 / §8.1 |
+| **detail** | GET | `/{前缀}/{模块}/detail` | query `id` | §8.2 |
+| **create** | POST | `/{前缀}/{模块}/create` | body | §8.3 |
+| **update** | POST | `/{前缀}/{模块}/update` | body `id`+字段 | §8.3 |
+| **delete** | POST | `/{前缀}/{模块}/delete` | body `id` | §8.4 |
+| **batch-delete** | POST | `/{前缀}/{模块}/batch-delete` | body `ids:[]` | §8.4 |
+| **update-status** | POST | `/{前缀}/{模块}/update-status` | body `id`,`status` | §8.5 |
+| **upload** | POST | `/{前缀}/upload` | formData `file` | §8.6 |
+| **import** | POST | `/{前缀}/{模块}/import` | formData `file` | `导入导出规范.md` §8 |
+| **export** | GET | `/{前缀}/{模块}/export` | query 筛选 | `导入导出规范.md` §10 |
+| **template/download** | GET | `/{前缀}/{模块}/template/download` | - | `导入导出规范.md` §11 |
+| **dict** | GET | `/{前缀}/{模块}/dict?type={type}` | query `type` | §3.3 |
+| **dict/cascader** | GET | `/{前缀}/{模块}/dict/cascader?type={type}` | query `type` | §3.4 |
+
+> 完整 docstring 模板见 `docs/API文档/swagger_template.md`
+
+---
+
 ## 1. 错误码规范（强制）
 
 ### 1.1 错误码定义（强制）
@@ -47,6 +71,8 @@ last_updated: 2026-07-08
 
 > 📝 **Python示例参考**
 ```python
+# 错误码常量定义（语言无关，仅展示 Python 风格）
+
 class ErrCode:
     SUCCESS = 0
     PARAM_ERROR = 400
@@ -111,8 +137,10 @@ public enum ErrCode {
 {"code": 0, "msg": "删除成功"}
 ```
 
-> 📝 **Python示例参考**
+> 📝 **Python示例参考（Flask 框架）**
 ```python
+from flask import jsonify
+
 def api_success(data=None, msg='success', code=0):
     response = {'code': code, 'msg': msg}
     if data is not None:
@@ -466,7 +494,17 @@ POST /user/delete {"user_id": 1}
 
 > 📝 **Python示例参考**
 ```python
+import re  # 标准库 import 必须显式写
+
 def validate_phone(phone):
+    """验证手机号格式
+
+    Args:
+        phone: 待验证手机号字符串
+
+    Returns:
+        (is_valid, error_msg): 通过为 (True, None)，失败为 (False, 错误信息)
+    """
     if not phone:
         return False, '手机号不能为空'
     if not re.match(r'^1[3-9]\d{9}$', phone):
@@ -525,9 +563,10 @@ GET /user/list?real_name=张
 GET /user/list?status=1&role_id=1,2&create_time_start=2024-01-01&username=admin
 ```
 
-> 📝 **Python查询构建示例参考**
+> 📝 **Python查询构建示例参考（Flask 框架）**
 ```python
 from typing import Optional
+from flask import request  # Flask 框架导入（使用 request.args 时必须）
 
 
 def parse_multi_ids(value):
@@ -589,6 +628,15 @@ def parse_multi_strings(value):
 
 
 def build_query():
+    """构建查询（Flask 视图函数中使用）
+
+    使用示例（视图函数内）：
+        @user_bp.route('/list', methods=['GET'])
+        def list_users():
+            query = build_query()
+            return api_page(query.paginate(...))
+    """
+    # ⚠️ 必须在视图函数内调用，因为依赖 Flask request 上下文
     query = User.query
 
     # 单选

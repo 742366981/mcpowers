@@ -663,6 +663,56 @@ responses:
 
 ---
 
+## GET 级联下拉接口模板（dict/cascader）
+
+> **新增** - 适用于地区选择、组织架构、分类层级等树形数据
+> **响应规范**：详见 `API规范.md` 第 3.4 节
+
+```python
+@order_bp.route('/dict/cascader', methods=['GET'])
+def cascader_dict():
+    """级联下拉
+---
+tags:
+  - 大模块/子模块
+summary: 级联下拉数据
+description: |
+  返回树形结构数据，适用于 Element UI 的 el-cascader 组件。
+  value 字段建议使用路径格式（如 "0-0-0"）保证唯一性。
+parameters:
+  - in: query
+    name: type
+    type: string
+    required: true
+    description: 字典类型代码
+    example: region
+responses:
+  200:
+    description: 树形数据
+    examples:
+      application/json:
+        code: 0
+        data:
+          - label: 四川省
+            value: "510000"
+            children:
+              - label: 成都市
+                value: "510100"
+                children:
+                  - label: 武侯区
+                    value: "510107"
+              - label: 绵阳市
+                value: "510700"
+                children:
+                  - label: 涪城区
+                    value: "510703"
+                    disabled: true
+        msg: success
+"""
+```
+
+---
+
 ## GET 导出列表接口模板（文件下载）
 
 ```python
@@ -691,7 +741,10 @@ parameters:
     example: 1
 responses:
   200:
-    description: Excel 文件流
+    description: |
+      Excel 文件流（二进制下载）
+      - Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - Content-Disposition: attachment; filename={module}_export_{YYYYMMDD}.xlsx
     examples:
       application/json:
         code: 0
@@ -700,6 +753,19 @@ responses:
       type: file
 """
 ```
+
+> **后端实现要点**（Flask）：
+> ```python
+> from io import BytesIO
+> from flask import make_response
+>
+> response = make_response(output.getvalue())
+> response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+> response.headers['Content-Disposition'] = 'attachment; filename=role_export_20240101.xlsx'
+> return response
+> ```
+> 完整实现见 `导入导出规范.md` §10
+> 大于 1万行建议使用流式导出（§13.4）
 
 ---
 
@@ -740,15 +806,17 @@ def import_():
 tags:
   - 大模块/子模块
 summary: 导入数据
-description: 通过 Excel 文件导入数据，支持批量新增和更新。
-security:
-  - Bearer: []
+description: |
+  通过 Excel 文件导入数据。
+  - 唯一性字段：xxx_code（编码）/xxx_name（名称，模糊匹配不推荐）
+  - 重复策略：失败（详见 导入导出规范.md §14）
+  - 大于 1000 行请使用异步任务接口（/import-task）
 parameters:
   - in: formData
     name: file
     type: file
     required: true
-    description: Excel 文件
+    description: Excel 文件（.xlsx/.csv）
 responses:
   200:
     description: 导入结果
@@ -759,7 +827,12 @@ responses:
           total: 100
           success: 95
           fail: 5
-        msg: "导入成功"
+          errors:
+            - row: 3
+              message: "第3行角色编码 'ADMIN' 已存在"
+            - row: 17
+              message: "第17行部门编码 'DEPT99' 不存在"
+        msg: "导入完成"
     schema:
       type: object
       properties:
@@ -768,7 +841,7 @@ responses:
           example: 0
         msg:
           type: string
-          example: "导入成功"
+          example: "导入完成"
         data:
           type: object
           properties:
@@ -784,6 +857,20 @@ responses:
               type: integer
               description: 失败行数
               example: 5
+            errors:
+              type: array
+              description: 错误详情列表（最多 10 条）
+              items:
+                type: object
+                properties:
+                  row:
+                    type: integer
+                    description: 失败行号（从 2 开始，第 1 行是表头）
+                    example: 3
+                  message:
+                    type: string
+                    description: 错误原因（含字段名+值+已存在信息）
+                    example: "第3行角色编码 'ADMIN' 已存在"
 """
 ```
 

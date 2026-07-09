@@ -166,10 +166,22 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 ### 升级
 
+**插件市场模式下无需手动升级命令**——Claude Code 启动时会**自动**从 GitHub 拉取最新版本。
+
+升级流程：
+
 ```bash
-/plugin update mcpowers
-# 重启 Claude Code 让新 hooks 生效
+# 1. 在仓库里改完代码、commit、push
+cd /path/to/mcpowers
+git add -A
+git commit -m "..."
+git push origin master
+
+# 2. 重启 Claude Code（自动拉取最新版本）
+#    Ctrl+C 退出当前会话 → 重新启动
 ```
+
+**无需**任何 `/plugin update` 命令——Claude Code 内部自动完成。
 
 ### 卸载
 
@@ -371,12 +383,19 @@ last_updated: 2026-07-08
 
 ### 场景 6：升级 = 同步上游改动
 
-**插件市场模式**下升级极简：
+**插件市场模式下无需手动升级命令**——Claude Code 启动时自动从 GitHub 拉取最新版本。
+
+升级流程：
 
 ```bash
-# 在 Claude Code 内执行
-/plugin update mcpowers
-# 重启 Claude Code 让新 hooks 生效
+# 1. 在仓库里改完代码
+# 2. commit + push
+git add -A
+git commit -m "..."
+git push origin master
+
+# 3. 重启 Claude Code（自动拉取最新 hooks 和技能）
+#    Ctrl+C 退出当前会话 → 重新启动
 ```
 
 ---

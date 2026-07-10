@@ -43,67 +43,90 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 ## 技能结构
 
 ```
-mcpowers/
-├── mcpowers/                          # 主入口路由器（< 150 行，每次对话注入）
+mcpowers/                              # 仓库根 = 插件根
+├── .claude-plugin/                    # 插件市场元数据（Claude Code 插件系统读取）
+│   ├── marketplace.json               # 市场清单（对外）
+│   └── plugin.json                    # 插件清单（自身）
 │
 ├── hooks/                             # Claude Code hooks 资产（铁律硬约束）
-│   ├── hooks.json                     # SessionStart + PreToolUse(Bash) 配置
+│   ├── hooks.json                     # SessionStart + PreToolUse + PostToolUse 配置
+│   ├── README.md                      # Hooks 故障排查文档
 │   ├── session-start.sh               # 启动时注入铁律摘要
-│   └── pre-bash-guard.sh              # 阻断 rm -rf / 等危险命令
+│   ├── pre-bash-guard.sh              # 阻断 rm -rf / 等危险命令
+│   ├── pre-write-confirm.sh           # 保护核心资产不可误删
+│   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/
-│   ├── scene/                         # 场景层（11 个，用户输入直接命中）
-│   │   ├── mcpowers-feat/             # 加功能
-│   │   ├── mcpowers-bugfix/           # 修 bug
-│   │   ├── mcpowers-refactor/         # 重构
-│   │   ├── mcpowers-optimize/         # 性能优化
-│   │   ├── mcpowers-deploy/           # 部署
-│   │   ├── mcpowers-requirement-change/  # 需求变更
-│   │   ├── mcpowers-init/             # 项目初始化
-│   │   ├── mcpowers-git-commit/       # 规范化 commit
-│   │   ├── mcpowers-git-worktree/     # worktree 隔离
-│   │   ├── mcpowers-git-rollback/     # 安全回滚
-│   │   └── mcpowers-git-cleanBranches/  # 清理分支
+├── skills/                            # 技能（扁平化：1 路由器 + 18 技能 + 1 规范库）
+│   ├── mcpowers/                      # 主入口路由器（< 150 行，每次对话注入）
 │   │
-│   └── method/                        # 方法层（7 个，被场景层调用）
-│       ├── mcpowers-brainstorm/       # 澄清需求
-│       ├── mcpowers-prd/              # 写 PRD
-│       ├── mcpowers-plan/             # 任务拆解
-│       ├── mcpowers-execute/          # 执行计划
-│       ├── mcpowers-tdd/              # 强制 TDD
-│       ├── mcpowers-code-review/      # 代码审查
-│       └── mcpowers-subagent/         # 子代理并行
+│   │ ── 场景层（11 个，用户输入直接命中）──
+│   ├── mcpowers-feat/                 # 加功能
+│   ├── mcpowers-bugfix/               # 修 bug
+│   ├── mcpowers-refactor/             # 重构
+│   ├── mcpowers-optimize/             # 性能优化
+│   ├── mcpowers-deploy/               # 部署
+│   ├── mcpowers-requirement-change/   # 需求变更
+│   ├── mcpowers-init/                 # 项目初始化
+│   ├── mcpowers-git-commit/           # 规范化 commit
+│   ├── mcpowers-git-worktree/         # worktree 隔离
+│   ├── mcpowers-git-rollback/         # 安全回滚
+│   ├── mcpowers-git-cleanBranches/    # 清理分支
+│   │
+│   │ ── 方法层（7 个，被场景层调用）──
+│   ├── mcpowers-brainstorm/           # 澄清需求
+│   ├── mcpowers-prd/                  # 写 PRD
+│   ├── mcpowers-plan/                 # 任务拆解
+│   ├── mcpowers-execute/              # 执行计划
+│   ├── mcpowers-tdd/                  # 强制 TDD
+│   ├── mcpowers-code-review/          # 代码审查
+│   ├── mcpowers-subagent/             # 子代理并行
+│   │
+│   └── mcpowers-shared/               # 规范资产库（21 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本）
+│       ├── SKILL.md                   # 入口（按需加载导航）
+│       ├── mcpowers-spec-index/       # 规范导航（< 100 行，查表）
+│       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
+│       │   ├── start_dev.sh           # Linux/macOS 启动
+│       │   └── start_dev.ps1          # Windows 启动
+│       ├── tools/
+│       │   └── export_docs.py         # 文档导出工具
+│       └── docs/
+│           ├── AI操作规范.md          # 全局铁律
+│           ├── 产品设计/
+│           │   └── 产品设计规范.md
+│           ├── 技术规范/              # 21 个技术规范
+│           │   ├── API规范.md
+│           │   ├── Flask后端规范.md
+│           │   ├── Vue前端规范.md
+│           │   ├── 爬虫规范.md
+│           │   ├── 爬虫分析规范.md
+│           │   ├── 代码规范.md
+│           │   ├── 数据库规范.md
+│           │   ├── 缓存规范.md
+│           │   ├── 定时任务规范.md
+│           │   ├── 导入导出规范.md
+│           │   ├── Git规范.md
+│           │   ├── 部署规范.md
+│           │   ├── 测试规范.md
+│           │   ├── 开发环境规范.md
+│           │   ├── 设计规范.md
+│           │   ├── 文档编写规范.md
+│           │   ├── 代码同步修改规范.md
+│           │   ├── 细节记录规范.md
+│           │   ├── 安全规范.md
+│           │   ├── API版本管理规范.md
+│           │   └── 健康检查规范.md
+│           ├── API文档/
+│           │   ├── API文档模板.md
+│           │   └── swagger_template.md
+│           └── 工具参考/
+│               └── 交互数据存档.md
 │
-├── mcpowers-shared/                   # 规范资产库（保留不变）
-│   ├── mcpowers-spec-index/           # 规范导航（< 100 行，查表）
-│   └── docs/                          # 21 个规范文件
-│       ├── AI操作规范.md
-│       ├── 产品设计/产品设计规范.md
-│       └── 技术规范/
-│           ├── API规范.md
-│           ├── Flask后端规范.md
-│           ├── Vue前端规范.md
-│           ├── 爬虫规范.md
-│           ├── 爬虫分析规范.md
-│           ├── 代码规范.md
-│           ├── 数据库规范.md
-│           ├── 缓存规范.md
-│           ├── 定时任务规范.md
-│           ├── 导入导出规范.md
-│           ├── Git规范.md
-│           ├── 部署规范.md
-│           ├── 测试规范.md
-│           ├── 开发环境规范.md
-│           ├── 设计规范.md
-│           ├── 文档编写规范.md
-│           ├── 代码同步修改规范.md
-│           ├── 细节记录规范.md
-│           ├── 安全规范.md
-│           ├── API版本管理规范.md
-│           └── 健康检查规范.md
+├── tests/
+│   └── plugin-verify.sh               # 插件结构验证（30+ 断言）
 │
-├── tests/                             # 冒烟测试（install-smoke.sh）
-├── scripts/                           # 工具脚本（check-readme-sync.sh）
+├── scripts/
+│   └── check-readme-sync.sh           # README ↔ 仓库同步校验
+│
 ├── CLAUDE.md
 ├── README.md
 └── .gitignore
@@ -162,26 +185,20 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
 
-**与 superpowers 一致**：本项目方法论借鉴 superpowers，安装机制也对齐——同样走 Claude Code 插件市场。
-
 ### 升级
 
-**插件市场模式下无需手动升级命令**——Claude Code 启动时会**自动**从 GitHub 拉取最新版本。
+**插件市场模式下无需手动升级**——Claude Code 启动时**自动**从 GitHub 拉取最新版本。
 
-升级流程：
+升级方式（用户视角）：
 
 ```bash
-# 1. 在仓库里改完代码、commit、push
-cd /path/to/mcpowers
-git add -A
-git commit -m "..."
-git push origin master
-
-# 2. 重启 Claude Code（自动拉取最新版本）
-#    Ctrl+C 退出当前会话 → 重新启动
+# 完全退出当前 Claude Code 会话，然后重新启动
+# 快捷键：Ctrl+C 退出 → 重新执行 claude
 ```
 
-**无需**任何 `/plugin update` 命令——Claude Code 内部自动完成。
+下次启动时，插件系统会自动从 GitHub 拉取最新版本，**无需任何命令**——`/plugin update` 在 Claude Code 中不存在，所有更新由 mcpowers 维护者推送后自动生效。
+
+> 💡 **维护者**：改完代码 → `git push` → 你的用户在下次启动 Claude Code 时自动收到更新，无需他们做任何事。
 
 ### 卸载
 
@@ -229,13 +246,15 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
 | **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 18 技能 + 21 规范 + 4 个 hooks 全功能 |
-| **Cursor** | ✅ 完全支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | 同上，Cursor 兼容 Claude Code 插件规范 |
-| **Codex CLI** | ✅ 完全支持 | 复制 `skills/` 到 Codex skills 目录 | 规范 + 技能可读，hooks 需手动配置 |
-| **OpenCode** | ✅ 完全支持 | `opencode.json` 引用本仓库 | 通过 git 引用，自动加载 |
-| **GitHub Copilot CLI** | ✅ 完全支持 | `/plugin install` 同 Claude Code | 完整支持 |
-| **Gemini CLI** | ✅ 完全支持 | 通过插件市场加载 | 完整支持 |
+| **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
+| **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
+| **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |
+| **GitHub Copilot CLI** | 🟡 理论支持 | `/plugin install` 同 Claude Code | ⚠️ 未实测 |
+| **Gemini CLI** | 🟡 理论支持 | 通过插件市场加载 | ⚠️ 未实测 |
 | **Claude.ai 网页版** | ⚠️ 部分支持 | 手动复制 `skills/*.md` | 路由器可读，hooks 不可用 |
 | 其他 AI 工具 | ⚠️ 规范可用 | 手动复制 `skills/mcpowers-shared/docs/*.md` | 规范是纯 Markdown 通用 |
+
+> **声明**：除 Claude Code 外，其他 AI 工具的支持情况基于其官方文档推测，**未经实测验证**。如发现兼容性问题欢迎提 Issue。
 
 ### 工具特定说明
 
@@ -271,6 +290,8 @@ mcpowers 的设计参考了以下优秀项目：
 |:-----|:---------|
 | [**obra/superpowers**](https://github.com/obra/superpowers) | using-superpowers bootstrap 模式、brainstorming / TDD / debugging 铁律、code-review 流程、specs 规范导航思想 |
 | [**jnMetaCode/superpowers-zh**](https://github.com/jnMetaCode/superpowers-zh) | 中文社区翻译版，部分技能描述借鉴中文措辞与本土化表达 |
+
+**与 superpowers 一致**：本项目方法论借鉴 superpowers，安装机制也对齐——同样走 Claude Code 插件市场。
 
 ---
 
@@ -363,7 +384,7 @@ last_updated: 2026-07-08
 2. `hooks/hooks.json` 追加对应事件段（不动现有段）
 3. `mcpowers/SKILL.md` "## 5. 硬约束完整覆盖" 表**加一行**
 4. `hooks/README.md` 加一段说明
-5. `bash tests/install-smoke.sh` 跑过（确认 hooks 资产可被发现）
+5. `bash tests/plugin-verify.sh` 跑过（确认 hooks 资产可被发现）
 
 **hooks.json 模板**（根据事件类型选一种）：
 
@@ -381,21 +402,20 @@ last_updated: 2026-07-08
 
 ---
 
-### 场景 6：升级 = 同步上游改动
+### 场景 6：升级（仅维护者视角）
 
-**插件市场模式下无需手动升级命令**——Claude Code 启动时自动从 GitHub 拉取最新版本。
+**用户视角**（绝大多数安装者）：无需任何操作，下次启动 Claude Code 时自动拉取最新版本。详见上方「升级」段。
 
-升级流程：
+**维护者视角**（本仓库开发者）：推送上游改动
 
 ```bash
-# 1. 在仓库里改完代码
-# 2. commit + push
+# 1. 改完代码
+# 2. 提交并推送到 GitHub
 git add -A
 git commit -m "..."
 git push origin master
 
-# 3. 重启 Claude Code（自动拉取最新 hooks 和技能）
-#    Ctrl+C 退出当前会话 → 重新启动
+# 用户下次启动 Claude Code 时，插件系统自动从 GitHub 拉取
 ```
 
 ---
@@ -405,12 +425,12 @@ git push origin master
 **铁律有 2 处**（**必须保持一致**）：
 
 1. `hooks/session-start.sh` —— SessionStart 启动时输出
-2. 路由器 SKILL.md 历史上引用过（commit 1 之后已删除，但 `mcpowers-shared/docs/AI操作规范.md` 仍是权威源）
+2. 路由器 SKILL.md 历史上引用过（提交 `1ad2ac9` 移除：铁律迁移到 SessionStart hook）；权威源始终是 `mcpowers-shared/docs/AI操作规范.md`
 
 **修改步骤**：
 1. 先改 `mcpowers-shared/docs/AI操作规范.md`（权威源）
 2. 再改 `hooks/session-start.sh` 的对应条目
-3. 跑 `bash session-start.sh` 确认输出正确
+3. 跑 `bash hooks/session-start.sh` 确认输出正确
 
 ---
 
@@ -418,14 +438,14 @@ git push origin master
 
 | 工具 | 用途 | 跑法 |
 |:-----|:-----|:-----|
-| `tests/install-smoke.sh` | 验证安装流程完整 | `bash tests/install-smoke.sh`（17 断言） |
+| `tests/plugin-verify.sh` | 插件结构验证 | `bash tests/plugin-verify.sh`（30+ 断言） |
 | `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（4 类断言） |
-| `bash session-start.sh` | 验证铁律输出正确 | 直接跑，看输出是否完整 |
+| `bash hooks/session-start.sh` | 验证铁律输出正确 | `bash hooks/session-start.sh`，看输出是否完整 |
 
 **建议**：每次 commit 前跑 2 个脚本：
 
 ```bash
-bash tests/install-smoke.sh && bash scripts/check-readme-sync.sh
+bash tests/plugin-verify.sh && bash scripts/check-readme-sync.sh
 ```
 
 ---

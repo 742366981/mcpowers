@@ -59,6 +59,67 @@ git@github.com:742366981/mcpowers.git
 
 **禁止**直接修改 `${CLAUDE_PLUGIN_ROOT}` 下的安装副本（插件市场模式下改了会被覆盖）。所有修改在源码仓库根目录进行。
 
+## Skill Description 编写规范（强制）
+
+Claude Code 通过 L1 索引（每个 skill 的 `description` 字段）做语义匹配。**这是触发灵敏度的唯一可调旋钮**。
+
+### 硬约束
+
+| 项 | 要求 | 后果 |
+|:---|:-----|:-----|
+| **字符硬上限** | 1024 字符 | 超过会被 Claude Code 截断，**尾部触发词全部失效** |
+| **字符安全预算** | ≤ 800 字符 | 保留 ~20% 余量，防误判 |
+| **格式** | 单行紧凑（YAML 字符串在一行内） | 多行 `\|` 字面量块浪费 30%+ 字符预算 |
+
+### 4 段式内容（用 `；` `，` 分隔）
+
+```yaml
+# ✅ 推荐
+description: "骨架1 / 骨架2 / 骨架3 → 触发本技能。口语：xxx,xxx。中英：xxx,xxx。边界：邻技能1→A；邻技能2→B。流程一句话。"
+
+# ❌ 禁止
+description: |
+  骨架触发
+  
+  口语：xxx      # ← 多行浪费 30%+ 字符预算
+```
+
+每段作用：
+1. **骨架触发**（3-5 个最高频词） → 一眼命中
+2. **口语变体**（30-50 个口语/倒装/省略） → 长尾覆盖
+3. **中英混输**（3-8 个英文术语） → 兼容开发场景
+4. **边界防误触发**（指向最相似邻技能） → 防止串技能
+
+### 修改 description 后必跑检查
+
+```bash
+python -c "import os, re
+for f in sorted(os.listdir('skills')):
+  p = os.path.join('skills', f, 'SKILL.md')
+  if not os.path.isfile(p): continue
+  c = open(p, encoding='utf-8').read()
+  m = re.search(r'^---\n(.*?)\n---', c, re.DOTALL)
+  if not m: continue
+  d = re.search(r'description:\s+(.+?)\s*$', m.group(1), re.MULTILINE)
+  if not d: continue
+  print(f'{f}: {len(d.group(1))}c {\"⚠\" if len(d.group(1))>800 else \"✓\"}')"
+```
+
+任一文件 > 800c → **立刻压缩**，**不要等截断问题出现再修**。
+
+### 历史教训（v2.0.3 → v2.0.4）
+
+- **v2.0.3**：一次 description 大改版用 `|` 多行块，**3 个文件超 1024c 被截断**（code-review 1091c / brainstorm 1050c / bugfix 1027c），尾部"出错了"、"闪退"、"帮我审"等高频触发词全部失效。
+- **v2.0.4**：全部改为单行紧凑版，**L1 description 总预算从 ~9000c 降到 5986c（-34%）**，**0 个文件超 800c**。
+
+### 反模式（禁止）
+
+- ❌ 多行 `|` 字面量块（截断风险首要元凶）
+- ❌ 单段长句无结构（LLM 难以切片做语义匹配）
+- ❌ 触发词与边界说明混在一起（混淆 L1 匹配方向）
+- ❌ 单个 description < 100 字符（覆盖太窄，命中率低）
+- ❌ 不区分近义技能（refactor / bugfix / requirement-change 极易串技能）
+
 ## 版本管理（强制）
 
 **Claude Code 插件市场以 `plugin.json` 的 `version` 字段为唯一更新触发器**。version 不变，用户（包括你自己）的 Update now / `/plugin install` 都不会拉取新版。

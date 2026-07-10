@@ -59,6 +59,27 @@ git@github.com:742366981/mcpowers.git
 
 **禁止**直接修改 `${CLAUDE_PLUGIN_ROOT}` 下的安装副本（插件市场模式下改了会被覆盖）。所有修改在源码仓库根目录进行。
 
+## 版本管理（强制）
+
+**Claude Code 插件市场以 `plugin.json` 的 `version` 字段为唯一更新触发器**。version 不变，用户（包括你自己）的 Update now / `/plugin install` 都不会拉取新版。
+
+### 修改任何技能后必须做
+
+1. **bump version**：修改 `.claude-plugin/plugin.json` 的 `version` 字段
+   - 修复 bug / 小改 → patch：`2.0.0` → `2.0.1`
+   - 新增技能 / 功能 → minor：`2.0.0` → `2.1.0`
+   - 破坏性改动 → major：`2.0.0` → `3.0.0`
+2. **commit + push**：版本号和代码改动放在同一个 commit（或分两个 commit 都行，但必须一起 push）
+3. **不要**用任何 hack 方式绕过 version 机制（删缓存、自建更新脚本等都禁止）
+
+### 用户侧更新流程
+
+用户收到新版只需：
+- `/plugin` → 选 mcpowers → `Update now`
+- 或 `/plugin uninstall mcpowers@mcpowers` → `/plugin install mcpowers@mcpowers`
+
+两种方式都需要先 bump version 才能生效。
+
 ## 技能安装（首次/重装）
 
 通过 Claude Code 插件市场：

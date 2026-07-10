@@ -6,6 +6,5 @@
     "name": "742366981",
     "url": "https://github.com/742366981/mcpowers"
   },
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }

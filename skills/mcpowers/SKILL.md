@@ -1,6 +1,13 @@
 ---
 name: mcpowers
-description: mcpowers 技能体系总入口。每次对话自动注入，识别用户意图后路由到对应的场景/方法技能，避免加载过重的工作流。覆盖产品→开发→测试→部署全生命周期。
+description: |
+  mcpowers 内部路由器（不直接面向用户触发，避免抢触发）。
+
+  收到用户输入时立即分流到具体技能（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/...），禁止先调用本 skill 再判断。
+
+  路由优先级：bugfix > git-rollback > feat > refactor > optimize > deploy > requirement-change > init > git-commit/git-worktree/git-cleanBranches > 方法层（plan/execute/tdd/code-review/subagent/prd/brainstorm）。
+
+  完整路由表见本 skill 的 "强制分流表" 段。
 ---
 
 # mcpowers 路由器
@@ -10,12 +17,14 @@ description: mcpowers 技能体系总入口。每次对话自动注入，识别�
 
 ---
 
-> 铁律已由 SessionStart hook 自动注入，详见会话启动时的 `[mcpowers] 铁律` 段。
 > 完整规范见 `mcpowers-shared/docs/AI操作规范.md`（按需 Read）。
 
 ---
 
-## 1. 场景路由表
+## 1. 强制分流表（命中即调，禁止二次判断）
+
+> **硬规则**：表中关键词命中**必须立即调**对应技能，**禁止**先调本 skill 思考一遍再路由。
+> 多关键词同时命中时按表底"多意图裁决"段优先级处理。
 
 根据用户意图关键词，路由到对应技能：
 

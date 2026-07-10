@@ -1,6 +1,11 @@
 ---
 name: mcpowers-git-worktree
-description: 用户要"worktree/分支隔离/并行开发/独立工作区"时触发。利用 Git worktree 在不同目录并行开发多个分支，避免频繁切换。覆盖 create / list / switch / remove 四种操作。
+description: |
+  我要并行开发两个分支 / 想在不同目录同时改 / 切分支太麻烦了 / 帮我用 worktree / 在新目录开一个新分支 → 触发本技能。
+
+  也覆盖："并行开发"、"分支隔离"、"独立工作区"、"git worktree"、"多分支并行"、"新目录开发"、"开 worktree"、"另一个分支开发"、"worktree 一下"、"隔离分支"。
+
+  利用 Git worktree 在不同目录并行开发多个分支，避免频繁切换。覆盖 create / list / switch / remove 四种操作。
 ---
 
 # mcpowers-git-worktree（worktree 隔离开发）

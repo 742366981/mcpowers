@@ -1,6 +1,12 @@
 ---
 name: mcpowers-tdd
-description: 写代码 / 修 bug 时强制 TDD 循环：先写失败的测试 → 写最少的代码使测试通过 → 重构。被 `mcpowers-feat` / `mcpowers-bugfix` 调用。
+description: |
+  用 TDD 写代码 / 先写测试再写实现 / 走测试驱动开发 / 按红绿循环做 / 强制 TDD 流程 → 触发本技能。
+
+  也覆盖："TDD"、"测试驱动开发"、"先写测试"、"红绿重构"、"红绿循环"、"先测试后代码"、"写测试再实现"、"单测先行"、"test first"、"测试驱动"。
+
+  先写失败的测试 → 写最少的代码使测试通过 → 重构。
+  **铁律**：NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST。
 ---
 
 # mcpowers-tdd（强制 TDD）

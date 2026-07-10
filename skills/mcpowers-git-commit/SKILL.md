@@ -1,6 +1,11 @@
 ---
 name: mcpowers-git-commit
-description: 用户要"提交/commit"时触发。按 Git 规范执行：检查 .gitignore → 明确文件 → 类型前缀 → 立即 commit。覆盖所有代码/文档/配置变更。被 `mcpowers-feat` / `mcpowers-bugfix` 等场景技能在收尾时调用。
+description: |
+  帮我提交一下 / git commit / 把刚才的改动提交了 / 保存一下当前进度 / 记录这次改动 → 触发本技能。
+
+  也覆盖："commit 一下"、"提交代码"、"提交改动"、"归档这次修改"、"git 提交"、"提交保存"、"记一下这次的改动"、"推到本地仓库"、"帮我 commit"。
+
+  按 Git 规范执行：检查 .gitignore → 明确文件 → 类型前缀 → 立即 commit。覆盖所有代码/文档/配置变更。
 ---
 
 # mcpowers-git-commit（规范化 commit）

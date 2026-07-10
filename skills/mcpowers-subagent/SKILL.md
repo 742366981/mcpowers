@@ -1,6 +1,11 @@
 ---
 name: mcpowers-subagent
-description: 复杂任务 / 大任务 / 可并行的多模块改动时触发。拆解任务并启动多个子代理并行执行，最后汇总结果。借鉴 superpowers `subagent-driven-development`。
+description: |
+  这个任务太复杂了 / 拆成多个 agent 并行做 / 帮我用多 agent / 多个模块一起改 / 并行开发几个模块 → 触发本技能。
+
+  也覆盖："复杂任务"、"大任务拆解"、"并行处理"、"多代理"、"subagent"、"多 AI 并行"、"拆给多个 agent"、"并行改造"、"fan-out"、"并行执行多个任务"。
+
+  拆解任务并启动多个子代理并行执行，最后汇总结果。借鉴 superpowers `subagent-driven-development`。
 ---
 
 # mcpowers-subagent（子代理并行执行）

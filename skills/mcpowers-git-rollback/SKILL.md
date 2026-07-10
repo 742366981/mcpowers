@@ -1,6 +1,11 @@
 ---
 name: mcpowers-git-rollback
-description: 用户要"回滚/rollback/撤销/恢复"时触发。安全回滚代码版本，区分 `git revert`（保留历史，**安全**）和 `git reset`（改历史，**危险**）。默认推荐 revert，避免破坏共享历史。
+description: |
+  刚才的改动有问题想撤回 / 回退到上一版 / 撤销这次的提交 / 恢复之前的状态 / 这版代码有 bug 要回滚 → 触发本技能。
+
+  也覆盖："git revert"、"git reset"、"revert 一下"、"reset 到上一版"、"回退代码"、"撤销改动"、"回退到某个版本"、"恢复历史版本"、"撤销 commit"、"回退提交"。
+
+  安全回滚代码版本，区分 `git revert`（保留历史，**安全**）和 `git reset`（改历史，**危险**）。默认推荐 revert，避免破坏共享历史。
 ---
 
 # mcpowers-git-rollback（安全回滚）

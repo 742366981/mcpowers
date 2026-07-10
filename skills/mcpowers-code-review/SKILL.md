@@ -1,6 +1,11 @@
 ---
 name: mcpowers-code-review
-description: PR 前 / 自审 / "审一下代码" 时触发。多维并行审查：正确性、规范、安全、性能、可维护性。Critical 问题阻塞提交，Important 评估后处理。
+description: |
+  帮我 review 一下这段代码 / 看看有没有问题 / 检视一下 / 帮我 CR 一下 / PR 要提交了 / 我准备提 PR 了 / 自审一下 → 触发本技能。
+
+  也覆盖："过一遍代码"、"代码质量怎么样"、"检查一下这段代码"、"看看有没有 bug"、"review 一下"、"code review"、"帮我审一下"、"审一下我的代码"、"这段代码有什么问题"、"帮我把把关"。
+
+  多维并行审查：正确性、规范、安全、性能、可维护性。Critical 问题阻塞提交，Important 评估后处理。
 ---
 
 # mcpowers-code-review（代码审查）

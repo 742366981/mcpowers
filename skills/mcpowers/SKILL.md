@@ -1,15 +1,6 @@
 ---
 name: mcpowers
-description: |
-  mcpowers 内部路由器（**不直接面向用户触发，避免抢触发**，仅作为 L1 索引提供路由）。
-
-  收到用户输入时**立即**按强制分流表路由到具体技能（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd...），**禁止**先调用本 skill 的完整正文再判断。
-
-  路由优先级：bugfix > git-rollback > feat > refactor > optimize > deploy > requirement-change > init > git-commit/git-worktree/git-cleanBranches > 方法层（plan/execute/tdd/code-review/subagent/prd/brainstorm）。
-
-  完整路由表（19 项精确映射）见本 skill 的 "强制分流表" 段；每个场景/方法技能的 description 都列出了**完整自然语言触发词清单**和**边界防误触发说明**，是 L1 语义匹配的主要依据。
-
-  **触发风格**：本路由器的 description **不应**出现在 L1 触发竞争中——只在其他技能描述都没命中时（兜底）才作为最后手段。
+description: "mcpowers 内部路由器（不直接面向用户触发，避免抢触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd），禁止先调用本 skill 完整正文再判断。完整路由表（18 行骨架）见「强制分流表」段；每个场景/方法技能的 description 列出完整自然语言触发词清单和边界防误触发说明，是 L1 语义匹配的主要依据。"
 ---
 
 # mcpowers 路由器

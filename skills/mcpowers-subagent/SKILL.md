@@ -1,15 +1,6 @@
 ---
 name: mcpowers-subagent
-description: |
-  多 agent / 并行 / subagent / 拆给多个 AI 并行 / 帮我并行做 → 触发本技能。
-
-  也覆盖口语："这个任务太复杂了"、"任务太复杂"、"这个任务太大了"、"任务量太大"、"工作量太大"、"活儿太多"、"太多东西要改"、"拆成多个 agent 并行做"、"拆成多个 agent 并行"、"拆给多个 agent"、"拆给多个 AI 并行做"、"拆给多个 AI 并行处理"、"拆给多个 AI 同时做"、"拆给多个 AI 一起做"、"拆给多个 AI 干"、"我要用多 agent"、"用多 agent 做"、"用多 agent 并行"、"帮我用多 agent"、"用 subagent"、"用 subagent 做"、"用多个 subagent"、"用 subagent 并行"、"多个模块一起改"、"多模块并行改"、"多模块一起改"、"多模块并行开发"、"多模块并行做"、"多模块并行调研"、"并行开发几个模块"、"并行做几个模块"、"并行做"、"并行处理"、"并行执行"、"并行改造"、"并行调研"、"并行实现"、"复杂任务"、"大任务拆解"、"大任务并行"、"大任务分流"、"大任务并行做"、"fan-out"、"fan out"、"多 agent 并行"、"subagent 并行"、"多代理"、"多 AI 并行"、"多 AI 同时"、"agent 多"、"开多个 agent"、"多 worker"、"多 worker 并行"。
-
-  中英混输："subagent"、"sub-agent"、"sub agents"、"parallel agent"、"fan-out"、"fan out"、"parallel execution"、"multi-agent"、"multiple agents"、"agent parallel"、"dispatch"、"spawn agents"。
-
-  边界（防误触发）：**任务强依赖（A 必须在 B 之后）** → 串行；**任务很小（改个变量名）** → 不值得调度并行成本；**任务边界模糊需要协商** → 先定接口再并行。
-
-  拆解任务并启动多个子代理并行执行，最后汇总结果。
+description: "多 agent / 并行 / subagent / 拆给多个 AI 并行 → 触发本技能。口语：任务太复杂/太大/工作量大、拆成多个 agent 并行做/拆给多个 AI 同时做、用多 agent/用 subagent/用多个 subagent、多个模块一起改/并行改/并行开发、并行调研/实现/改造、复杂任务/大任务并行、fan-out。中英：subagent, sub-agent, parallel agent, fan-out, multi-agent, dispatch。边界：强依赖→串行；小任务不值得并行；边界模糊先定接口再并行。"
 ---
 
 # mcpowers-subagent（子代理并行执行）

@@ -1,15 +1,6 @@
 ---
 name: mcpowers-git-rollback
-description: |
-  回滚 / 回退 / 撤销改动 / 恢复到上一版 / revert → 触发本技能。
-
-  也覆盖口语："刚才的改动有问题想撤回"、"刚才的改动撤回"、"把这版撤回"、"撤回到上一版"、"回退到上一版"、"回退到上一版代码"、"回退上一版"、"回退代码"、"撤销这次的提交"、"撤销这次提交"、"撤销这个提交"、"撤销提交"、"撤销刚才的改动"、"撤销改动"、"撤销刚才的提交"、"撤销 commit"、"撤销这次 commit"、"撤销提交记录"、"恢复之前的状态"、"恢复历史状态"、"恢复上一版"、"恢复到上一版"、"恢复到上一个版本"、"回到上一个版本"、"回到上一版"、"回到之前的状态"、"这版代码有 bug 要回滚"、"这版代码有问题回滚"、"代码有问题回滚"、"代码有问题要回滚"、"回退提交"、"回退这次的提交"、"回退到某个版本"、"回到某个版本"、"回到旧版本"、"恢复历史版本"、"回滚这版"、"回滚这一版"、"revert 一下"、"revert 这个 commit"、"revert 一下 commit"、"reset 一下"、"reset 到上一版"、"reset 到某个版本"、"撤销这次改动"、"撤销改动回滚"。
-
-  中英混输："revert"、"reset"、"rollback"、"undo"、"git revert"、"git reset"、"revert commit"、"revert this"、"undo commit"。
-
-  边界（防误触发）：**部署出问题但已发布版本无法回滚代码 → 走 `mcpowers-deploy` 里的紧急回滚**；**只是想"恢复上次改动"但还没 commit → `git checkout` 不需要本技能**。
-
-  安全回滚代码版本，区分 `git revert`（保留历史，**安全**）和 `git reset`（改历史，**危险**）。默认推荐 revert，避免破坏共享历史。
+description: "回滚 / 回退 / 撤销改动 / 恢复到上一版 / revert → 触发本技能。口语：刚才的改动有问题想撤回、撤回到上一版/回退上一版、回退/撤销 commit/撤销提交、恢复上一版/上一个版本/之前的状态、这版代码有问题要回滚、回退到某个版本/回到旧版本、revert 一下/reset 一下。中英：revert, reset, rollback, undo, git revert, git reset, undo commit。默认 revert（安全），reset 二次确认（破坏共享历史）。"
 ---
 
 # mcpowers-git-rollback（安全回滚）

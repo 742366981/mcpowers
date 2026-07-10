@@ -1,13 +1,6 @@
 ---
 name: mcpowers-git-commit
-description: |
-  提交 / commit / 帮我提交 / git commit / 提交一下 → 触发本技能。
-
-  也覆盖口语："帮我提交一下"、"帮我 commit 一下"、"帮我 commit"、"帮我提个交"、"帮我提交代码"、"帮我提交一下"、"帮我提交改动"、"帮我把改动提交了"、"帮我把这些提交了"、"把这改动提交了"、"把刚才的改动提交了"、"把这次改动提交了"、"提交一下"、"提交代码"、"提交改动"、"提交这次的改动"、"提交保存"、"提交一下改动"、"git commit"、"git 提交"、"git 提交一下"、"commit 一下"、"commit 这"、"commit 这次"、"commit 这些"、"保存一下当前进度"、"保存一下"、"保存这次的改动"、"保存下来"、"记录这次改动"、"归档这次修改"、"归档改动"、"记一下这次的改动"、"记一下"、"记一笔"、"推到本地仓库"、"推到本地"、"提个交"、"提一下"、"提交吧"、"提交到 git"、"提交到仓库"、"commit 吧"、"commit 一下"。
-
-  中英混输："commit"、"git commit"、"git"、"stash"、"save changes"、"commit it"、"commit code"、"commit this"、"commit the change"。
-
-  按 Git 规范执行：检查 .gitignore → 明确文件 → 类型前缀 → 立即 commit。覆盖所有代码/文档/配置变更。
+description: "提交 / commit / 帮我提交 / git commit / 提交一下 → 触发本技能。口语：帮我提交/提交一下、帮我 commit、帮我把改动/刚才的改动提交了、提交代码/改动、git commit/提交一下、commit 一下/这/这些、保存一下当前进度/记录这次改动、归档改动、记一下、推到本地仓库、提交到 git。中英：commit, git commit, stash, save changes, commit it, commit this。检查 .gitignore→明确文件→类型前缀→立即 commit。"
 ---
 
 # mcpowers-git-commit（规范化 commit）

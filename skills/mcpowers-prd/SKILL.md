@@ -1,13 +1,6 @@
 ---
 name: mcpowers-prd
-description: |
-  写 PRD / 写需求文档 / 帮我梳理需求 / 写产品需求文档 → 触发本技能。
-
-  也覆盖口语："帮我写个 PRD"、"帮我写 PRD"、"帮我写一份 PRD"、"写个 PRD"、"写一下 PRD"、"写一份 PRD"、"整理一下需求文档"、"整理一下需求"、"整理需求文档"、"写产品需求"、"写产品需求文档"、"写 BRD"、"写一下 BRD"、"写一份 BRD"、"梳理一下这个需求"、"梳理需求"、"梳理一下需求"、"梳理下需求"、"把这个需求理一下"、"把这个需求写一下"、"把需求写出来"、"写个用户故事"、"写用户故事"、"写一下用户故事"、"写一份用户故事"、"写 use case"、"写一下 use case"、"写一份 use case"、"需求说明书"、"需求说明文档"、"需求文档"、"需求评审文档"、"产品需求梳理"、"产品需求文档"、"产品需求文档怎么写"、"PRD 文档"、"PRD 怎么写"、"PRD 模板"、"需求规格"、"写需求规格"、"写一下需求规格"、"功能需求文档"、"写功能需求文档"、"写功能需求"、"帮我把需求写一下"、"帮我把需求写出来"、"帮我写一下需求"、"产品设计"、"产品设计文档"、"写产品设计"、"写个需求"、"需求怎么写"、"写需求"、"写一下需求"、"写需求文档"、"需求整理"、"需求汇总"、"需求列表"、"需求清单"、"需求规范化"、"MRD"、"FRD"、"spec"、"specification"、"requirement"、"requirement doc"、"requirements"。
-
-  中英混输："PRD"、"MRD"、"BRD"、"FRD"、"spec"、"specification"、"requirement doc"、"requirements doc"、"requirements specification"、"user story"、"use case"。
-
-  产出结构化的需求文档，覆盖目标/用户/功能/边界/异常/验收标准六要素。
+description: "写 PRD / 写需求文档 / 帮我梳理需求 / 写产品需求文档 → 触发本技能。口语：帮我写 PRD/写需求文档/写产品需求、写一下 PRD/BRD/用户故事/use case、整理需求文档/需求说明书、梳理一下需求、PRD 文档/PRD 模板、写功能需求/产品设计文档、需求怎么写/写需求/需求整理/需求汇总。中英：PRD, MRD, BRD, FRD, spec, specification, requirement doc, user story, use case。覆盖目标/用户/功能/边界/异常/验收六要素。"
 ---
 
 # mcpowers-prd（写需求文档）

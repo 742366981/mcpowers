@@ -1,13 +1,15 @@
 ---
 name: mcpowers
 description: |
-  mcpowers 内部路由器（不直接面向用户触发，避免抢触发）。
+  mcpowers 内部路由器（**不直接面向用户触发，避免抢触发**，仅作为 L1 索引提供路由）。
 
-  收到用户输入时立即分流到具体技能（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/...），禁止先调用本 skill 再判断。
+  收到用户输入时**立即**按强制分流表路由到具体技能（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd...），**禁止**先调用本 skill 的完整正文再判断。
 
   路由优先级：bugfix > git-rollback > feat > refactor > optimize > deploy > requirement-change > init > git-commit/git-worktree/git-cleanBranches > 方法层（plan/execute/tdd/code-review/subagent/prd/brainstorm）。
 
-  完整路由表见本 skill 的 "强制分流表" 段。
+  完整路由表（19 项精确映射）见本 skill 的 "强制分流表" 段；每个场景/方法技能的 description 都列出了**完整自然语言触发词清单**和**边界防误触发说明**，是 L1 语义匹配的主要依据。
+
+  **触发风格**：本路由器的 description **不应**出现在 L1 触发竞争中——只在其他技能描述都没命中时（兜底）才作为最后手段。
 ---
 
 # mcpowers 路由器
@@ -25,29 +27,30 @@ description: |
 
 > **硬规则**：表中关键词命中**必须立即调**对应技能，**禁止**先调本 skill 思考一遍再路由。
 > 多关键词同时命中时按表底"多意图裁决"段优先级处理。
+> **完整自然语言变体**见每个技能自己的 `description`（L1 索引，本表只是路由表的"骨架"）。
 
 根据用户意图关键词，路由到对应技能：
 
-| 用户意图（关键词） | 路由到 | 技能类型 |
-|:-------------------|:-------|:---------|
-| 加/新增/做一个 功能、页面、接口、模块 | `mcpowers-feat` | 场景层 |
-| bug/报错/不生效/异常/失败/修一下 | `mcpowers-bugfix` | 场景层 |
-| 重构/抽离/拆分/太乱/抽象 | `mcpowers-refactor` | 场景层 |
-| 慢/卡/性能/优化/查询慢 | `mcpowers-optimize` | 场景层 |
-| 部署/上线/发布/构建 | `mcpowers-deploy` | 场景层 |
-| 需求改了/调整逻辑/加字段/改流程 | `mcpowers-requirement-change` | 场景层 |
-| 初始化/新项目/脚手架/搭建 | `mcpowers-init` | 场景层 |
-| 写需求/写 PRD/整理需求 | `mcpowers-prd` | 方法层 |
-| 任务拆解/列计划/排期 | `mcpowers-plan` | 方法层 |
-| 按计划执行/实施计划/开始执行 | `mcpowers-execute` | 方法层 |
-| 审查/审一下/review/自审 | `mcpowers-code-review` | 方法层 |
-| 写测试/TDD/单测 | `mcpowers-tdd` | 方法层 |
-| 不清楚要做什么/需求不清 | `mcpowers-brainstorm` | 方法层 |
-| 复杂任务/并行/多代理 | `mcpowers-subagent` | 方法层 |
-| commit/提交 | `mcpowers-git-commit` | 场景层（Git） |
-| worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` | 场景层（Git） |
-| 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` | 场景层（Git） |
-| 清理分支/删除分支/整理分支 | `mcpowers-git-cleanBranches` | 场景层（Git） |
+| 用户意图（关键词，骨架版） | 路由到 | 技能类型 | 详情见 |
+|:--------------------------|:-------|:---------|:-------|
+| 加 / 新增 / 做一个 / 实现 / 写个 / create / add feature / implement / feat | `mcpowers-feat` | 场景层 | `mcpowers-feat/SKILL.md` description |
+| bug / 报错 / 不生效 / 异常 / 失败 / 崩了 / 挂了 / 闪退 / debug / fix / exception / 修一下 / 修个 bug | `mcpowers-bugfix` | 场景层 | `mcpowers-bugfix/SKILL.md` description |
+| 需求改了 / 调整逻辑 / 改字段 / 改流程 / 调整业务规则 / change requirement | `mcpowers-requirement-change` | 场景层 | `mcpowers-requirement-change/SKILL.md` description |
+| 重构 / 抽离 / 拆分 / 太乱 / 抽象 / 整理代码 / refactor / clean up | `mcpowers-refactor` | 场景层 | `mcpowers-refactor/SKILL.md` description |
+| 慢 / 卡 / 性能 / 优化 / 查询慢 / 提速 / performance / optimize / perf | `mcpowers-optimize` | 场景层 | `mcpowers-optimize/SKILL.md` description |
+| 部署 / 上线 / 发布 / 构建 / deploy / release / 推到生产 / 打 tag 发布 | `mcpowers-deploy` | 场景层 | `mcpowers-deploy/SKILL.md` description |
+| 初始化 / 新项目 / 脚手架 / 搭建 / 从零开始 / init / bootstrap / scaffold | `mcpowers-init` | 场景层 | `mcpowers-init/SKILL.md` description |
+| commit / 提交 / git commit / 提交一下 | `mcpowers-git-commit` | 场景层（Git） | `mcpowers-git-commit/SKILL.md` description |
+| worktree / 分支隔离 / 并行工作区 / git worktree | `mcpowers-git-worktree` | 场景层（Git） | `mcpowers-git-worktree/SKILL.md` description |
+| 回滚 / rollback / 撤销 / 恢复 / revert / reset / 回退 | `mcpowers-git-rollback` | 场景层（Git） | `mcpowers-git-rollback/SKILL.md` description |
+| 清理分支 / 删除分支 / 整理分支 / clean branches / delete branch | `mcpowers-git-cleanBranches` | 场景层（Git） | `mcpowers-git-cleanBranches/SKILL.md` description |
+| 写需求 / 写 PRD / 整理需求 / MRD / BRD / spec | `mcpowers-prd` | 方法层 | `mcpowers-prd/SKILL.md` description |
+| 任务拆解 / 列计划 / 排期 / 规划 / plan / planning | `mcpowers-plan` | 方法层 | `mcpowers-plan/SKILL.md` description |
+| 按计划执行 / 实施计划 / 开始执行 / execute / kick off / go | `mcpowers-execute` | 方法层 | `mcpowers-execute/SKILL.md` description |
+| 审查 / 审一下 / review / 自审 / CR / PR review | `mcpowers-code-review` | 方法层 | `mcpowers-code-review/SKILL.md` description |
+| TDD / 测试驱动 / 先写测试 / 红绿循环 / test first | `mcpowers-tdd` | 方法层 | `mcpowers-tdd/SKILL.md` description |
+| 需求不清 / 想法模糊 / 不知道怎么开始 / brainstorm | `mcpowers-brainstorm` | 方法层 | `mcpowers-brainstorm/SKILL.md` description |
+| 并行 / 多 agent / subagent / 复杂任务 / fan-out | `mcpowers-subagent` | 方法层 | `mcpowers-subagent/SKILL.md` description |
 
 ---
 

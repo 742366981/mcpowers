@@ -1,9 +1,13 @@
 ---
 name: mcpowers-tdd
 description: |
-  用 TDD 写代码 / 先写测试再写实现 / 走测试驱动开发 / 按红绿循环做 / 强制 TDD 流程 → 触发本技能。
+  TDD / 测试驱动 / 先写测试 / 红绿循环 / 测试先行 → 触发本技能。
 
-  也覆盖："TDD"、"测试驱动开发"、"先写测试"、"红绿重构"、"红绿循环"、"先测试后代码"、"写测试再实现"、"单测先行"、"test first"、"测试驱动"。
+  也覆盖口语："用 TDD 写代码"、"用 TDD 做"、"走测试驱动开发"、"走 TDD"、"走 TDD 流程"、"按红绿循环做"、"按 TDD 来"、"按 TDD 流程来"、"先写测试再写实现"、"先测试后代码"、"先写测试"、"先写测试再写实现"、"写测试再实现"、"单测先行"、"测试先行"、"test first"、"test-first"、"测试驱动"、"测试驱动开发"、"写测试先"、"RED-GREEN-REFACTOR"、"红绿重构"、"红绿循环"、"按红绿循环"、"强制 TDD"、"强制走 TDD"、"TDD 模式"、"TDD 流"、"先测试"、"先写单测"、"写测试用例先"、"先写测试再写代码"、"test driven"、"test-driven development"、"写测试"、"测试代码先写"、"先写测试代码"。
+
+  中英混输："TDD"、"test-driven"、"test first"、"test driven development"、"red green refactor"、"RED-GREEN-REFACTOR"、"BDD"、"specification by example"。
+
+  边界（防误触发）：**纯文档/配置/UI 文案修改** → 跳 TDD；**已有 bug 要修 → 仍走 TDD 但先写复现测试**（参见 `mcpowers-bugfix` 的 bug 修复专用流程）；**纯补测试（无新功能）** → 不走 TDD，走 `mcpowers-code-review` 验证覆盖。
 
   先写失败的测试 → 写最少的代码使测试通过 → 重构。
   **铁律**：NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST。

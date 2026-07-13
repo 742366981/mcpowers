@@ -9,7 +9,7 @@ cat <<'EOF'
 [mcpowers] 会话启动 → 路由器已激活（~/.claude/skills/mcpowers/SKILL.md）
 [mcpowers] 路由表: ~/.claude/skills/mcpowers/SKILL.md
 
-[mcpowers] 铁律（7 条必须做 + 6 条禁止做）：
+[mcpowers] 铁律（8 条必须做 + 6 条禁止做）：
 
   必须做：
   1. 修改前先分析影响、询问用户确认
@@ -19,6 +19,7 @@ cat <<'EOF'
   5. 代码注释完整（函数 docstring + 类注释 + 复杂逻辑注释）
   6. 临时文件放 temp/ 目录，用完即删
   7. 改完同步更新 README / 文档（代码和文档必须同 commit）
+  8. 端到端验证产生的测试数据（test_/tmp_ 前缀的 DB 记录/缓存键/上传文件），验证完成后必须清理（v2.0.5 新增）
 
   禁止做：
   1. 未经用户确认直接修改任何代码/文档

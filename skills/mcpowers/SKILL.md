@@ -111,6 +111,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，避免抢
 - `skills/mcpowers-git-worktree/SKILL.md`
 - `skills/mcpowers-git-rollback/SKILL.md`
 - `skills/mcpowers-git-cleanBranches/SKILL.md`
+- `skills/mcpowers-autoTest/SKILL.md`
 
 ### 3.2 方法层（Layer 2）—— 被编排，也可单独触发
 - `skills/mcpowers-brainstorm/SKILL.md`

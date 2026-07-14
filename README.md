@@ -10,8 +10,8 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 18 个技能（11 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
-| 2 | **📋 21 个技术规范** | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查等，按需加载避免爆上下文 |
+| 1 | **🎯 场景化技能路由** | 19 个技能（12 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 2 | **📋 22 个技术规范** | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试等，按需加载避免爆上下文 |
 | 3 | **🗂️ 13 类接口速查表** | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload，AI 写接口前必查 |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
@@ -59,7 +59,7 @@ mcpowers/                              # 仓库根 = 插件根
 ├── skills/                            # 技能（扁平化：1 路由器 + 18 技能 + 1 规范库）
 │   ├── mcpowers/                      # 主入口路由器（< 150 行，每次对话注入）
 │   │
-│   │ ── 场景层（11 个，用户输入直接命中）──
+│   │ ── 场景层（12 个，用户输入直接命中）──
 │   ├── mcpowers-feat/                 # 加功能
 │   ├── mcpowers-bugfix/               # 修 bug
 │   ├── mcpowers-refactor/             # 重构
@@ -71,6 +71,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-git-worktree/         # worktree 隔离
 │   ├── mcpowers-git-rollback/         # 安全回滚
 │   ├── mcpowers-git-cleanBranches/    # 清理分支
+│   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增）
 │   │
 │   │ ── 方法层（7 个，被场景层调用）──
 │   ├── mcpowers-brainstorm/           # 澄清需求
@@ -80,7 +81,6 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-tdd/                  # 强制 TDD
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
-│   ├── mcpowers-autoTest/              # 自动化测试（v2.1.0 新增）
 │   │
 │   └── mcpowers-shared/               # 规范资产库（21 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本）
 │       ├── SKILL.md                   # 入口（按需加载导航）
@@ -182,8 +182,8 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 18 个场景/方法技能（`mcpowers-feat` 等）
-- ✅ 21 个技术规范（`mcpowers-shared`）
+- ✅ 19 个场景/方法技能（`mcpowers-feat` 等）
+- ✅ 22 个技术规范（`mcpowers-shared`）
 - ✅ 4 个 Claude Code hooks（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。

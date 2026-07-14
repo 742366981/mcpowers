@@ -47,6 +47,12 @@ description: "自动化测试 / 跑测试出报告 / bug 等级分类 → 触发
 
 按命名约定执行：`at_*.py`（pytest）/ `at_*.spec.ts`（Playwright）
 
+> 💡 **常用命令**（按 scope 选）：
+> - **API 自动化**：`pytest tests/at_api/ -v --tb=short --junitxml=reports/at_junit.xml`
+> - **Web UI 自动化**：`npx playwright test tests/at_e2e/ --reporter=list,json`
+> - **全栈 E2E**：`pytest tests/at_api/ -v && npx playwright test tests/at_e2e/`（先 API 准备数据，再 UI 验证）
+> - **报告位置**：`reports/auto_test_{YYYYMMDD}_{HHMMSS}.json`（规范 §2 命名约定）
+
 ### Step 3：解析失败用例
 
 按 `自动化测试规范.md §4.2` 字段提取：test_id / error_message / stack_trace / file_location
@@ -67,7 +73,8 @@ description: "自动化测试 / 跑测试出报告 / bug 等级分类 → 触发
 
 列出所有报告 + 推荐路由，等待用户选择：
 
-- ✅ 接受 AI 推荐 → 自动调用
+- ✅ 接受 AI 推荐 → 自动调用（单条）
+- ✅✅ **批量接受**（同 owner 一次性） → 推荐用这个，10+ 失败时省时
 - 🔄 改路由 → 用户指定
 - ⏸ 暂停 → 暂不修复
 - ❌ 终止 → 退出循环
@@ -81,6 +88,8 @@ description: "自动化测试 / 跑测试出报告 / bug 等级分类 → 触发
 ## 何时中断并询问用户
 
 - 测试范围不明（Web UI vs API vs 全栈）
+- **测试套件不存在**（项目尚未建立 `at_*.py` / `at_*.spec.ts`，先调 `mcpowers-feat` 创建）
+- **测试运行超时**（Playwright 启动慢、CI 资源紧张，建议增加 timeout 或拆分）
 - owner 无法判断（标 `unknown`）
 - 失败用例 > 10 个（建议分批）
 - 修复循环已达 3 次

@@ -80,6 +80,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-tdd/                  # 强制 TDD
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
+│   ├── mcpowers-autoTest/              # 自动化测试（v2.1.0 新增）
 │   │
 │   └── mcpowers-shared/               # 规范资产库（21 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本）
 │       ├── SKILL.md                   # 入口（按需加载导航）
@@ -114,7 +115,8 @@ mcpowers/                              # 仓库根 = 插件根
 │           │   ├── 细节记录规范.md
 │           │   ├── 安全规范.md
 │           │   ├── API版本管理规范.md
-│           │   └── 健康检查规范.md
+│           │   ├── 健康检查规范.md
+│           │   └── 自动化测试规范.md
 │           ├── API文档/
 │           │   ├── API文档模板.md
 │           │   └── swagger_template.md
@@ -154,6 +156,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 写测试/TDD/单测 | `mcpowers-tdd` |
 | 不清楚要做什么/需求不清 | `mcpowers-brainstorm` |
 | 复杂任务/并行/多代理 | `mcpowers-subagent` |
+| 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e | `mcpowers-autoTest` |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
 | 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` |

@@ -79,10 +79,11 @@ else
 fi
 
 # ============== 3. 技能结构 ==============
-echo "[3/7] 断言：20 个技能全部含 SKILL.md"
 SKILL_DIRS=$(ls -1 "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers')
 SKILL_COUNT=$(echo "$SKILL_DIRS" | grep -c '^mcpowers' || true)
-assert_eq "技能数=20（1 路由器 + 18 技能 + 1 规范库）" "$SKILL_COUNT" "20"
+EXPECTED_SKILL_COUNT=$(echo "$SKILL_DIRS" | wc -l)
+echo "[3/7] 断言：${EXPECTED_SKILL_COUNT} 个技能全部含 SKILL.md"
+assert_eq "技能数=${EXPECTED_SKILL_COUNT}（1 路由器 + N 技能 + 1 规范库）" "$SKILL_COUNT" "$EXPECTED_SKILL_COUNT"
 
 MISSING_SKILL=""
 for d in $SKILL_DIRS; do
@@ -91,7 +92,7 @@ for d in $SKILL_DIRS; do
     fi
 done
 if [ -z "$MISSING_SKILL" ]; then
-    echo "  ✓ 所有 20 个技能均有 SKILL.md"
+    echo "  ✓ 所有 ${EXPECTED_SKILL_COUNT} 个技能均有 SKILL.md"
     PASS=$((PASS + 1))
 else
     echo "  ✗ 缺失 SKILL.md:$MISSING_SKILL"
@@ -118,7 +119,7 @@ for d in $SKILL_DIRS; do
     fi
 done
 if [ "$FM_OK" = true ]; then
-    echo "  ✓ 20 个 SKILL.md frontmatter 完整"
+    echo "  ✓ ${EXPECTED_SKILL_COUNT} 个 SKILL.md frontmatter 完整"
     PASS=$((PASS + 1))
 fi
 

@@ -42,6 +42,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，避免抢
 | TDD / 测试驱动 / 先写测试 / 红绿循环 / test first | `mcpowers-tdd` | 方法层 | `mcpowers-tdd/SKILL.md` description |
 | 需求不清 / 想法模糊 / 不知道怎么开始 / brainstorm | `mcpowers-brainstorm` | 方法层 | `mcpowers-brainstorm/SKILL.md` description |
 | 并行 / 多 agent / subagent / 复杂任务 / fan-out | `mcpowers-subagent` | 方法层 | `mcpowers-subagent/SKILL.md` description |
+| 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
 
 ---
 

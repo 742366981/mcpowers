@@ -56,10 +56,10 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── pre-write-confirm.sh           # 保护核心资产不可误删
 │   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/                            # 技能（扁平化：1 路由器 + 18 技能 + 1 规范库）
+├── skills/                            # 技能（扁平化：1 路由器 + 19 技能 + 1 规范库）
 │   ├── mcpowers/                      # 主入口路由器（< 150 行，每次对话注入）
 │   │
-│   │ ── 场景层（12 个，用户输入直接命中）──
+│   │ ── 场景层（13 个，用户输入直接命中）──
 │   ├── mcpowers-feat/                 # 加功能
 │   ├── mcpowers-bugfix/               # 修 bug
 │   ├── mcpowers-refactor/             # 重构
@@ -72,6 +72,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-git-rollback/         # 安全回滚
 │   ├── mcpowers-git-cleanBranches/    # 清理分支
 │   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增）
+│   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   │
 │   │ ── 方法层（7 个，被场景层调用）──
 │   ├── mcpowers-brainstorm/           # 澄清需求
@@ -82,7 +83,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
 │   │
-│   └── mcpowers-shared/               # 规范资产库（21 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本）
+│   └── mcpowers-shared/               # 规范资产库（21 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0）
 │       ├── SKILL.md                   # 入口（按需加载导航）
 │       ├── mcpowers-spec-index/       # 规范导航（< 100 行，查表）
 │       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
@@ -120,6 +121,11 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── API文档/
 │           │   ├── API文档模板.md
 │           │   └── swagger_template.md
+│           ├── API契约（前后端联调）/   # 🆕 v2.2.0（4 份资产 + 复用 API文档 模板 + tools/export_docs.py）
+│           │   ├── 集成方案对比.md
+│           │   ├── 加密方案对比.md
+│           │   ├── 前端对接流程.md
+│           │   └── API测试自动生成.md
 │           └── 工具参考/
 │               └── 交互数据存档.md
 │
@@ -157,6 +163,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 不清楚要做什么/需求不清 | `mcpowers-brainstorm` |
 | 复杂任务/并行/多代理 | `mcpowers-subagent` |
 | 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e | `mcpowers-autoTest` |
+| 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
 | 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` |

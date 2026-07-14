@@ -7,7 +7,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 
 > **用法**：上层技能命中后，先 Read 本表确定要加载的规范文件路径，再按需 Read 命中的规范。**不要跳过本表去猜**。
 >
-> **当前索引 22 个规范文件**（按需加载，避免爆上下文）
+> **当前索引 26 个规范文件**（22 原有 + 4 API契约新增 v2.2.0，按需加载避免爆上下文）
 
 ---
 
@@ -27,6 +27,10 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **写测试 / 单测** | `测试规范.md` |
 | **端到端验证 / 数据清理**（v2.0.5） | `测试规范.md`（§7.1.1 测试数据生命周期 + §9.6 Step 6 清理测试数据） |
 | **自动化测试 / E2E**（v2.1.0） | `自动化测试规范.md` + `测试规范.md` |
+| **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约（前后端联调）/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `API文档/API文档模板.md` + `swagger_template.md` + `tools/export_docs.py` |
+| **前端自动生成 TS 类型**（v2.2.0） | `API契约（前后端联调）/前端对接流程.md` |
+| **基于 spec 自动生成 API 测试**（v2.2.0） | `API契约（前后端联调）/API测试自动生成.md` |
+| **导出 Markdown 接口文档**（已有工具，Flask §11.4） | `tools/export_docs.py`（一键导出 `swagger_spec.json` + `API文档.md`） |
 | **部署 / 上线** | `部署规范.md` + `开发环境规范.md` + **`健康检查规范.md`** |
 | **安全 / SQL注入 / XSS / 限流 / 幂等** | `安全规范.md` |
 | **API 版本管理** | `API版本管理规范.md` |
@@ -96,6 +100,16 @@ mcpowers-shared/docs/
     ├── API版本管理规范.md   # 🆕 版本策略/breaking change/废弃
     ├── 健康检查规范.md      # 🆕 /health/liveness/readiness
     └── 自动化测试规范.md    # 🆕 工具选型/bug 二维分类/报告 JSON schema/修复路由/循环机制
+├── API文档/
+│   ├── API文档模板.md
+│   └── swagger_template.md
+├── API契约（前后端联调）/   # 🆕 v2.2.0
+│   ├── 集成方案对比.md        # Flasgger / apispec / flask-openapi3 对比
+│   ├── 加密方案对比.md        # Basic Auth / JWT / IP 白名单 / 限流对比
+│   ├── 前端对接流程.md        # openapi-typescript-codegen + CI 校验
+│   └── API测试自动生成.md     # schemathesis / dredd
+└── 工具参考/
+    └── 交互数据存档.md
 ```
 
 > 💡 安装到 `~/.claude/skills/` 后，相对路径需调整为对应的本地路径。

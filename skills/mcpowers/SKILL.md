@@ -43,6 +43,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，避免抢
 | 需求不清 / 想法模糊 / 不知道怎么开始 / brainstorm | `mcpowers-brainstorm` | 方法层 | `mcpowers-brainstorm/SKILL.md` description |
 | 并行 / 多 agent / subagent / 复杂任务 / fan-out | `mcpowers-subagent` | 方法层 | `mcpowers-subagent/SKILL.md` description |
 | 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
+| 前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 / swagger / openapi / 接口文档怎么自动生成 / 前端怎么拿到接口类型 | `mcpowers-api-contract` | 场景层 | `mcpowers-api-contract/SKILL.md` description |
 
 ---
 
@@ -112,6 +113,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，避免抢
 - `skills/mcpowers-git-rollback/SKILL.md`
 - `skills/mcpowers-git-cleanBranches/SKILL.md`
 - `skills/mcpowers-autoTest/SKILL.md`
+- `skills/mcpowers-api-contract/SKILL.md`（v2.2.0 新增）
 
 ### 3.2 方法层（Layer 2）—— 被编排，也可单独触发
 - `skills/mcpowers-brainstorm/SKILL.md`
@@ -177,6 +179,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 | 改/更新/补充 规范内容 | 维护模式场景 1 | 修改规范文件 |
 | 加/新增/写 技能、场景 | 维护模式场景 4 | 新增场景技能 |
 | 加/新增/写 hook、钩子 | 维护模式场景 5 | 新增 hook |
+| 加/新增/写技能、场景（含 API契约场景技能） | 维护模式场景 4 | 新增场景技能 |
 | 升级/git pull/更新版本 | 维护模式场景 6 | 升级流程 |
 | 改铁律/改措辞/改禁止 | 维护模式场景 7 | 铁律双源同步 |
 | 跑测试/校验/检查 | 直接执行 `bash tests/plugin-verify.sh && bash scripts/check-readme-sync.sh` | 自动化保障清单 |

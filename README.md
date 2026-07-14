@@ -343,7 +343,7 @@ last_updated: 2026-07-08
 **字段说明**：
 - `title`：与文件名（去掉 `.md`）保持一致
 - `type`：固定 `tech-spec`（产品类用 `product-spec`，全局规则用 `global-rule`）
-- `applies_to`：数组，例 `[Flask后端]` / `[所有]` / `[涉及缓存]`
+- `applies_to`：数组，例 `[Flask后端]` / `[所有]` / `[涉及缓存]` / `[Flask后端, Vue前端]`（多栈组合：规范同时覆盖前后端）
 - `priority`：`required` = 必读基线 / `recommended` = 推荐 / `reference` = 参考
 
 ---

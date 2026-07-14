@@ -1,10 +1,10 @@
 ---
 title: API版本管理规范
 type: tech-spec
-applies_to: [后端]
+applies_to: [Flask后端]
 priority: required
-version: 1.0
-last_updated: 2026-07-09
+version: 1.1
+last_updated: 2026-07-14
 ---
 
 # API 版本管理规范

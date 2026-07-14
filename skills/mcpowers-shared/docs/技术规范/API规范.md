@@ -1,17 +1,17 @@
 ---
 title: API规范
 type: tech-spec
-applies_to: [后端]
+applies_to: [Flask后端]
 priority: required
-version: 1.0
-last_updated: 2026-07-08
+version: 1.1
+last_updated: 2026-07-14
 ---
 
 # API 设计规范
 
-本文档定义通用的 API 设计规范，适用于所有后端框架（Flask、Node.js、Go、Java 等）。
+本文档定义 API 设计规范。**当前以 Flask 后端（Python）为参考栈**；其他技术栈（Node/Go/Django/Spring 等）可参考本规范的通用原则，或生成对应技术栈的专属规范。
 
-> **核心原则**：规范内容语言无关，代码示例仅作参考
+> **核心原则**：规范内容栈无关（13 类接口模式、错误码、响应结构通用），具体代码示例以 Flask 后端为主
 
 ---
 

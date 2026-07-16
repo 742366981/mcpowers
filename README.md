@@ -121,7 +121,7 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── API文档/
 │           │   ├── API文档模板.md
 │           │   └── swagger_template.md
-│           ├── API契约（前后端联调）/   # 🆕 v2.2.0（4 份资产 + 复用 API文档 模板 + tools/export_docs.py）
+│           ├── API契约/   # 🆕 v2.2.0（4 份资产 + 复用 API文档 模板 + tools/export_docs.py）
 │           │   ├── 集成方案对比.md
 │           │   ├── 加密方案对比.md
 │           │   ├── 前端对接流程.md

@@ -76,7 +76,7 @@ description: "前后端联调 / 接口对接 / API文档 / 自动生成接口规
 
 **默认行为**：现有 Flask 项目 → **直接走 Flasgger**（无需选择）。
 
-**仅新建项目**才需要 AskUserQuestion，参考 `mcpowers-shared/docs/API契约（前后端联调）/集成方案对比.md`：
+**仅新建项目**才需要 AskUserQuestion，参考 `mcpowers-shared/docs/API契约/集成方案对比.md`：
 
 | 候选方案 | 适用场景 | 与 Flask §11 关系 |
 |:---------|:---------|:------------------|
@@ -88,7 +88,7 @@ description: "前后端联调 / 接口对接 / API文档 / 自动生成接口规
 
 **默认行为**：**完全沿用 Flask §11.1**（HTTP Basic Auth + 仅开发/测试环境，生产环境自动禁用）。
 
-**仅当用户明确要求变更时**，才通过 AskUserQuestion 选其他方案。参考 `mcpowers-shared/docs/API契约（前后端联调）/加密方案对比.md`：
+**仅当用户明确要求变更时**，才通过 AskUserQuestion 选其他方案。参考 `mcpowers-shared/docs/API契约/加密方案对比.md`：
 
 | 候选方案 | 适用场景 | 与 Flask §11 关系 |
 |:---------|:---------|:------------------|
@@ -161,8 +161,8 @@ python tools/export_docs.py --project /path/to/flask-project
 ### Step 7：派生下游（前端 TS + API 测试）
 
 参考：
-- 前端：`mcpowers-shared/docs/API契约（前后端联调）/前端对接流程.md`
-- 测试：`mcpowers-shared/docs/API契约（前后端联调）/API测试自动生成.md`
+- 前端：`mcpowers-shared/docs/API契约/前端对接流程.md`
+- 测试：`mcpowers-shared/docs/API契约/API测试自动生成.md`
 
 输出：
 1. 前端自动生成命令（如 `npx openapi-typescript-codegen`）

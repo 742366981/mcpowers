@@ -27,9 +27,9 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **写测试 / 单测** | `测试规范.md` |
 | **端到端验证 / 数据清理**（v2.0.5） | `测试规范.md`（§7.1.1 测试数据生命周期 + §9.6 Step 6 清理测试数据） |
 | **自动化测试 / E2E**（v2.1.0） | `自动化测试规范.md` + `测试规范.md` |
-| **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约（前后端联调）/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `API文档/API文档模板.md` + `swagger_template.md` + `tools/export_docs.py` |
-| **前端自动生成 TS 类型**（v2.2.0） | `API契约（前后端联调）/前端对接流程.md` |
-| **基于 spec 自动生成 API 测试**（v2.2.0） | `API契约（前后端联调）/API测试自动生成.md` |
+| **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `API文档/API文档模板.md` + `swagger_template.md` + `tools/export_docs.py` |
+| **前端自动生成 TS 类型**（v2.2.0） | `API契约/前端对接流程.md` |
+| **基于 spec 自动生成 API 测试**（v2.2.0） | `API契约/API测试自动生成.md` |
 | **导出 Markdown 接口文档**（已有工具，Flask §11.4） | `tools/export_docs.py`（一键导出 `swagger_spec.json` + `API文档.md`） |
 | **部署 / 上线** | `部署规范.md` + `开发环境规范.md` + **`健康检查规范.md`** |
 | **安全 / SQL注入 / XSS / 限流 / 幂等** | `安全规范.md` |
@@ -103,7 +103,7 @@ mcpowers-shared/docs/
 ├── API文档/
 │   ├── API文档模板.md
 │   └── swagger_template.md
-├── API契约（前后端联调）/   # 🆕 v2.2.0
+├── API契约/   # 🆕 v2.2.0（前后端联调：4 份资产）
 │   ├── 集成方案对比.md        # Flasgger / apispec / flask-openapi3 对比
 │   ├── 加密方案对比.md        # Basic Auth / JWT / IP 白名单 / 限流对比
 │   ├── 前端对接流程.md        # openapi-typescript-codegen + CI 校验

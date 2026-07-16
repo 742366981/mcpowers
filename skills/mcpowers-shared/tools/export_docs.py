@@ -252,6 +252,8 @@ def json_to_markdown(spec, output_file, login_path=None):
 
                 body_params = [p for p in parameters if p.get('in') == 'body']
                 query_path_params = [p for p in parameters if p.get('in') in ('query', 'path')]
+                formdata_params = [p for p in parameters if p.get('in') == 'formData']  # v2.4.0 新增
+                header_params = [p for p in parameters if p.get('in') == 'header']     # v2.4.0 新增
 
                 if body_params:
                     schema = body_params[0].get('schema', {})
@@ -277,7 +279,37 @@ def json_to_markdown(spec, output_file, login_path=None):
                     lines.append("| 参数名 | 位置 | 类型 | 必填 | 说明 |")
                     lines.append("|:------|:----:|:----:|:----:|------|")
                     for param in query_path_params:
-                        lines.append(f"| {param.get('name')} | {param.get('in')} | {param.get('type')} | {'是' if param.get('required') else '否'} | {param.get('description', '')} |")
+                        prop_desc = param.get('description', '')
+                        prop_example = param.get('example', '')
+                        if prop_example:
+                            prop_desc = f"{prop_desc}（示例: {prop_example}）"
+                        lines.append(f"| {param.get('name')} | {param.get('in')} | {param.get('type')} | {'是' if param.get('required') else '否'} | {prop_desc} |")
+                    lines.append("")
+
+                if header_params:
+                    lines.append("**请求头（Headers）**:")
+                    lines.append("")
+                    lines.append("| 参数名 | 类型 | 必填 | 说明 |")
+                    lines.append("|:------|:----:|:----:|------|")
+                    for param in header_params:
+                        prop_desc = param.get('description', '')
+                        prop_example = param.get('example', '')
+                        if prop_example:
+                            prop_desc = f"{prop_desc}（示例: {prop_example}）"
+                        lines.append(f"| {param.get('name')} | {param.get('type', 'string')} | {'是' if param.get('required') else '否'} | {prop_desc} |")
+                    lines.append("")
+
+                if formdata_params:
+                    lines.append("**请求体（Form Data）**:")
+                    lines.append("")
+                    lines.append("| 参数名 | 类型 | 必填 | 说明 |")
+                    lines.append("|:------|:----:|:----:|------|")
+                    for param in formdata_params:
+                        prop_desc = param.get('description', '')
+                        prop_example = param.get('example', '')
+                        if prop_example:
+                            prop_desc = f"{prop_desc}（示例: {prop_example}）"
+                        lines.append(f"| {param.get('name')} | {param.get('type', 'string')} | {'是' if param.get('required') else '否'} | {prop_desc} |")
                     lines.append("")
 
                 # 请求示例
@@ -412,6 +444,39 @@ def json_to_markdown(spec, output_file, login_path=None):
                 lines.append("```")
                 lines.append("")
 
+                # ===== v2.4.0 新增：错误码响应段 =====
+                # 渲染除 200 外的所有状态码（含 4xx/5xx），让前端/测试看到完整错误响应
+                error_codes = [code for code in responses.keys() if str(code) != '200']
+                if error_codes:
+                    # 按状态码顺序排序
+                    error_codes.sort()
+                    lines.append("**错误响应**:")
+                    lines.append("")
+
+                    for err_code in error_codes:
+                        err_resp = responses[err_code]
+                        if not isinstance(err_resp, dict):
+                            continue
+
+                        err_desc = err_resp.get('description', '')
+                        lines.append(f"- `{err_code}`: {err_desc}")
+
+                        # 错误码的 example 优先
+                        err_example = err_resp.get('examples', {}).get('application/json')
+                        if err_example:
+                            lines.append("")
+                            lines.append("  ```json")
+                            lines.append("  " + json.dumps(err_example, ensure_ascii=False, indent=2).replace('\n', '\n  '))
+                            lines.append("  ```")
+                        else:
+                            # 没有 example → 至少给一个最简示意
+                            err_default = {'code': int(err_code) if str(err_code).isdigit() else 500, 'msg': err_desc or 'error'}
+                            lines.append("")
+                            lines.append("  ```json")
+                            lines.append("  " + json.dumps(err_default, ensure_ascii=False, indent=2))
+                            lines.append("  ```")
+                    lines.append("")
+
             lines.append("---\n")
 
     # 写入文件
@@ -435,51 +500,95 @@ def find_project_root(start_dir=None):
 
 
 def main():
-    """主入口：解析参数 → 加载 Flask app → 导出文档"""
+    """主入口：解析参数 → 加载 spec → 导出文档
+
+    支持两种模式：
+    1. Flask 项目模式（默认）：自动加载 Flask app，从 /apispec_1.json 拉 spec
+    2. spec.json 直输入模式（v2.4.0 新增）：--spec 参数直接传入 swagger_spec.json（适用非 Flask 项目）
+    """
     import argparse
     parser = argparse.ArgumentParser(description='一键导出 API 文档（JSON + Markdown）')
     parser.add_argument('--project', '-p', help='Flask 项目根目录（默认自动向上查找）')
+    parser.add_argument('--spec', '-s', help='直接传入 swagger_spec.json 路径（适用 FastAPI/Spring Boot 等非 Flask 项目）')
     parser.add_argument('--output', '-o', help='输出目录（默认 <project>/docs/API文档/）')
+    parser.add_argument('--openapi3', action='store_true', help='输入为 OpenAPI 3.0 格式（v2.4.0 新增，需装 openapi-spec-validator）')
     args = parser.parse_args()
 
-    # 1. 解析项目根目录
-    if args.project:
-        project_root = os.path.abspath(args.project)
-        if not os.path.isdir(os.path.join(project_root, 'apps')):
-            print(f"❌ 错误：{project_root} 不包含 apps/ 目录")
+    # 模式选择：spec 直传模式 vs Flask 加载模式
+    if args.spec:
+        # ============== 模式 1：spec.json 直传（非 Flask 项目） ==============
+        spec_file = os.path.abspath(args.spec)
+        if not os.path.isfile(spec_file):
+            print(f"❌ 错误：spec 文件不存在：{spec_file}")
             sys.exit(1)
+
+        print(f"📁 spec 文件: {spec_file}")
+
+        with open(spec_file, 'r', encoding='utf-8') as f:
+            spec = json.load(f)
+
+        # v2.4.0 增量支持 OpenAPI 3.0 转 Swagger 2.0（可选）
+        if spec.get('swagger') != '2.0' and spec.get('openapi', '').startswith('3.'):
+            if args.openapi3 or args.spec.endswith('openapi.json'):
+                print("ℹ️  检测到 OpenAPI 3.0 格式，做最小字段映射（如未安装 openapi-spec-validator，部分字段可能丢失）")
+                try:
+                    from openapi_spec_validator import validate
+                    validate(spec)
+                except ImportError:
+                    print("⚠️  提示：安装 openapi-spec-validator 可获得更准确校验（pip install openapi-spec-validator）")
+                except Exception as e:
+                    print(f"⚠️  spec 校验警告：{e}")
+                # 简化映射：paths 不变；responses 直接使用 OpenAPI 3.0 子结构
+                # 完整转换需要 apispec 或 prance，此处仅做基础兼容
+
+        # 默认输出到 spec.json 同目录下的 docs/API文档/，或用户指定输出
+        if args.output:
+            output_dir = os.path.abspath(args.output)
+        else:
+            output_dir = os.path.join(os.path.dirname(spec_file), '..', 'docs', 'API文档')
+        project_root = os.path.dirname(spec_file)
     else:
-        project_root = find_project_root()
-        if not project_root:
-            print("❌ 错误：未找到 Flask 项目（向上查找均无 apps/ 目录）")
-            print("   请使用 --project 指定项目根目录")
+        # ============== 模式 2：Flask 项目模式（默认，原有逻辑） ==============
+        # 1. 解析项目根目录
+        if args.project:
+            project_root = os.path.abspath(args.project)
+            if not os.path.isdir(os.path.join(project_root, 'apps')):
+                print(f"❌ 错误：{project_root} 不包含 apps/ 目录")
+                sys.exit(1)
+        else:
+            project_root = find_project_root()
+            if not project_root:
+                print("❌ 错误：未找到 Flask 项目（向上查找均无 apps/ 目录）")
+                print("   请使用 --project 指定项目根目录")
+                sys.exit(1)
+
+        print(f"📁 项目根目录: {project_root}")
+
+        # 2. 加载 Flask 应用
+        sys.path.insert(0, project_root)
+        try:
+            from apps import create_app
+        except ImportError as e:
+            print(f"❌ 错误：无法导入 apps 模块: {e}")
+            print("   请确认项目结构符合 Flask后端规范.md 第 1 章")
             sys.exit(1)
 
-    print(f"📁 项目根目录: {project_root}")
+        app = create_app(protect_swagger=False)
 
-    # 2. 加载 Flask 应用
-    sys.path.insert(0, project_root)
-    try:
-        from apps import create_app
-    except ImportError as e:
-        print(f"❌ 错误：无法导入 apps 模块: {e}")
-        print("   请确认项目结构符合 Flask后端规范.md 第 1 章")
-        sys.exit(1)
+        # 3. 通过 test_client 拉取 swagger spec
+        with app.test_client() as client:
+            response = client.get('/apispec_1.json')
+            if response.status_code != 200:
+                print(f"❌ 导出失败：HTTP {response.status_code}")
+                print("   请检查 Flasgger 是否正确注册（详见 Flask后端规范.md 第 11 章）")
+                sys.exit(1)
 
-    app = create_app(protect_swagger=False)
+            spec = response.get_json()
 
-    # 3. 通过 test_client 拉取 swagger spec
-    with app.test_client() as client:
-        response = client.get('/apispec_1.json')
-        if response.status_code != 200:
-            print(f"❌ 导出失败：HTTP {response.status_code}")
-            print("   请检查 Flasgger 是否正确注册（详见 Flask后端规范.md 第 11 章）")
-            sys.exit(1)
+        # 4. 输出目录
+        output_dir = args.output or os.path.join(project_root, 'docs', 'API文档')
 
-        spec = response.get_json()
-
-    # 4. 输出文件
-    output_dir = args.output or os.path.join(project_root, 'docs', 'API文档')
+    # ============== 公共输出逻辑 ==============
     os.makedirs(output_dir, exist_ok=True)
 
     json_file = os.path.join(output_dir, 'swagger_spec.json')

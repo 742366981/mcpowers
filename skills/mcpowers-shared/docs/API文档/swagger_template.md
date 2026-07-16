@@ -1,7 +1,38 @@
-# Flasgger 文档模板
+---
+title: Flasgger 文档模板
+type: tech-template
+applies_to: [Flask后端, Flasgger]
+extends_from: 接口契约规范.md
+priority: required
+version: 2.0
+last_updated: 2026-07-16
+---
 
-> **版本声明**：本文档基于 **Swagger 2.0** (OpenAPI 2.0) 规范编写。
-> 当前项目工具链（Flasgger）对此版本有良好支持。
+# Flasgger 文档模板（Flask 实现参考）
+
+> **⚠️ 重定位说明（v2.3.0 起）**：
+>
+> | 你要做什么 | 读哪份文档 |
+> |:----------|:----------|
+> | **设计任何接口的契约**（任何栈）| [`docs/技术规范/接口契约规范.md`](../技术规范/接口契约规范.md) ← **通用层** |
+> | **用 Flask/Flasgger 写 docstring** | **本文档** ← 实现层 |
+> | **业务规范**（路径/错误码/响应） | [`docs/技术规范/API规范.md`](../技术规范/API规范.md) |
+>
+> **本文档是 [`接口契约规范.md`](../技术规范/接口契约规范.md) 的 Flask/Flasgger 实现参考**，不是主规范。
+>
+> **何时读本文档**：
+> - 项目使用 **Flask + Flasgger** 框架，需要在视图函数 docstring 中写 Swagger 注解时
+> - 需要复制现成的 docstring 模板（13 类基础 CRUD）时
+>
+> **何时不读本文档**：
+> - 用 FastAPI / Spring Boot / Express / Gin → 直接看通用层，然后跳到 §3.2-§3.5 语言模板
+> - 只想知道接口设计原则 → 只看通用层即可
+
+---
+
+## 版本声明
+
+本文档基于 **Swagger 2.0** (OpenAPI 2.0) 规范编写。当前项目工具链（Flasgger）对此版本有良好支持。
 
 复制下面的模板到你的视图函数前，根据实际接口修改参数。
 
@@ -1030,6 +1061,419 @@ responses:
         data:
           type: object
           example: {}
+"""
+```
+
+---
+
+## POST 关联表绑定接口模板（bind）
+
+> **新增**（v2.4.0）— 适用于关联表操作（用户角色绑定、用户权限分配等）
+
+```python
+@user_role_bp.route('/bind', methods=['POST'])
+def bind_user_role():
+    """绑定用户角色
+---
+tags:
+  - 系统管理/角色分配
+summary: 绑定用户角色
+description: 为已存在的用户绑定一个或多个角色。
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户 ID
+          example: 1
+        role_ids:
+          type: array
+          items:
+            type: integer
+          description: 角色 ID 列表
+          example: [1, 2, 3]
+      required:
+        - user_id
+        - role_ids
+      example:
+        user_id: 1
+        role_ids: [1, 2, 3]
+responses:
+  200:
+    description: 绑定成功（已绑定则跳过，返回提示）
+    examples:
+      application/json:
+        code: 0
+        msg: "绑定成功"
+    schema:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: "绑定成功"
+"""
+```
+
+---
+
+## POST 关联表解绑接口模板（unbind）
+
+> **新增**（v2.4.0）
+
+```python
+@user_role_bp.route('/unbind', methods=['POST'])
+def unbind_user_role():
+    """解绑用户角色
+---
+tags:
+  - 系统管理/角色分配
+summary: 解绑用户角色
+description: 解绑用户的一个或多个角色。
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户 ID
+          example: 1
+        role_ids:
+          type: array
+          items:
+            type: integer
+          description: 角色 ID 列表
+          example: [1, 2]
+      required:
+        - user_id
+        - role_ids
+      example:
+        user_id: 1
+        role_ids: [1]
+responses:
+  200:
+    description: 解绑成功
+    examples:
+      application/json:
+        code: 0
+        msg: "解绑成功"
+"""
+```
+
+---
+
+## POST 异步任务提交接口模板（submit-task）
+
+> **新增**（v2.4.0）— 长时间任务（如批量导入/导出/报表生成）异步化处理
+
+```python
+@report_bp.route('/generate/submit-task', methods=['POST'])
+def submit_generate_task():
+    """提交报表生成任务
+---
+tags:
+  - 业务模块/报表管理
+summary: 提交报表生成任务
+description: 异步提交报表生成任务，返回 task_id 用于查询进度。
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        report_type:
+          type: string
+          description: 报表类型
+          example: monthly_sales
+        date_range_start:
+          type: string
+          format: date
+          description: 起始日期
+          example: "2024-01-01"
+        date_range_end:
+          type: string
+          format: date
+          description: 结束日期
+          example: "2024-01-31"
+      required:
+        - report_type
+        - date_range_start
+        - date_range_end
+      example:
+        report_type: monthly_sales
+        date_range_start: "2024-01-01"
+        date_range_end: "2024-01-31"
+responses:
+  200:
+    description: 任务提交成功
+    examples:
+      application/json:
+        code: 0
+        data:
+          task_id: "t_20240715_abc123"
+        msg: "已提交"
+    schema:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: "已提交"
+        data:
+          type: object
+          properties:
+            task_id:
+              type: string
+              description: 任务 ID（UUID，用于查询进度）
+              example: t_20240715_abc123
+"""
+```
+
+---
+
+## GET 异步任务进度查询接口模板（progress）
+
+> **新增**（v2.4.0）— 必须与 submit-task 配合使用
+
+```python
+@report_bp.route('/generate/progress', methods=['GET'])
+def query_generate_progress():
+    """查询报表生成进度
+---
+tags:
+  - 业务模块/报表管理
+summary: 查询报表生成进度
+description: 根据 task_id 查询异步任务的当前状态和进度。
+parameters:
+  - in: query
+    name: task_id
+    type: string
+    required: true
+    description: 任务 ID（来自 submit-task 接口的 data.task_id）
+    example: t_20240715_abc123
+responses:
+  200:
+    description: 查询成功
+    examples:
+      application/json:
+        code: 0
+        data:
+          status: running
+          progress: 50
+          result: null
+          error: null
+        msg: success
+    schema:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [pending, running, success, failed, cancelled]
+              description: |
+                任务状态：
+                - pending：等待调度
+                - running：执行中
+                - success：成功（result 有值）
+                - failed：失败（error 有值）
+                - cancelled：已取消
+              example: running
+            progress:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: 进度百分比 0-100
+              example: 50
+            result:
+              type: object
+              description: 任务成功时的结果（status=success 才有值）
+              example: null
+            error:
+              type: string
+              description: 任务失败时的错误信息（status=failed 才有值）
+              example: null
+"""
+```
+
+---
+
+## POST 异步任务取消接口模板（cancel-task）
+
+> **新增**（v2.4.0）
+
+```python
+@report_bp.route('/generate/cancel-task', methods=['POST'])
+def cancel_generate_task():
+    """取消报表生成任务
+---
+tags:
+  - 业务模块/报表管理
+summary: 取消报表生成任务
+description: 取消正在执行的异步任务（终态任务不可取消）。
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        task_id:
+          type: string
+          description: 任务 ID
+          example: t_20240715_abc123
+      required:
+        - task_id
+      example:
+        task_id: t_20240715_abc123
+responses:
+  200:
+    description: 已取消
+    examples:
+      application/json:
+        code: 0
+        msg: "已取消"
+  400:
+    description: 任务已结束，不允许取消
+    examples:
+      application/json:
+        code: 400
+        msg: "任务已结束，不允许取消"
+"""
+```
+
+---
+
+## POST WebHook 回调接口模板（webhook）
+
+> **新增**（v2.4.0）— 第三方回调接收方，必须验签 + 幂等
+>
+> 响应规范：详见 `API规范.md` 第 2.x 节 + `接口契约规范.md` §2.12
+
+```python
+@payment_bp.route('/webhook/payment', methods=['POST'])
+def payment_webhook():
+    """支付回调
+---
+tags:
+  - 业务模块/支付管理
+summary: 支付回调
+description: 接收第三方支付回调，验签后处理订单状态。
+parameters:
+  - in: header
+    name: X-Signature
+    type: string
+    required: true
+    description: HMAC-SHA256 签名（格式 sha256={hex}）
+    example: sha256=a1b2c3d4e5f6g7h8i9j0
+  - in: header
+    name: X-Event-Id
+    type: string
+    required: true
+    description: 事件唯一 ID（用于幂等去重）
+    example: evt_20240715_abc
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        event_id:
+          type: string
+          description: 事件 ID（与 X-Event-Id 一致）
+          example: evt_20240715_abc
+        event_type:
+          type: string
+          description: 事件类型
+          example: payment.success
+        occurred_at:
+          type: string
+          format: date-time
+          description: 事件发生时间（ISO 8601）
+          example: "2024-07-15T10:30:00Z"
+        data:
+          type: object
+          description: 业务数据
+      required:
+        - event_id
+        - event_type
+responses:
+  200:
+    description: 接收成功
+    examples:
+      application/json:
+        code: 0
+        msg: ok
+  401:
+    description: 签名校验失败
+    examples:
+      application/json:
+        code: 401
+        msg: signature invalid
+"""
+```
+
+---
+
+## GET SSE 流式接口模板（stream）
+
+> **新增**（v2.4.0）— Server-Sent Events 长连接推送
+>
+> 响应规范：详见 `接口契约规范.md` §2.13
+
+```python
+@log_bp.route('/stream', methods=['GET'])
+def stream_logs():
+    """实时日志流
+---
+tags:
+  - 运营管理/日志管理
+summary: 实时日志流
+description: 通过 SSE 实时推送系统日志，前端用 EventSource 监听。
+parameters:
+  - in: query
+    name: level
+    type: string
+    required: false
+    description: 日志级别（error/warn/info/debug）
+    example: error
+  - in: query
+    name: task_id
+    type: string
+    required: false
+    description: 任务 ID（仅推送该任务的日志）
+    example: t_20240715_abc
+produces:
+  - text/event-stream
+responses:
+  200:
+    description: SSE 事件流
+    schema:
+      type: string
+      description: |
+        text/event-stream 格式，每条事件格式：
+        ```
+        event: message
+        id: {event_id}
+        data: {"timestamp": "2024-07-15T10:30:00Z", "level": "error", "message": "..."}
+
+        ```
 """
 ```
 

@@ -253,3 +253,45 @@ pip install -U schemathesis
 - ❌ CI 中不执行 fuzz（生产环境才发现 500）
 - ❌ 测试报告不存档（无法追溯历史）
 - ❌ 测试数据不清理（污染数据库）
+
+---
+
+## 9. v2.4.0 增量：一键运行脚本
+
+> **v2.4.0 新增** — 封装了 `scripts/run-api-tests.sh`，避免每个项目重复写启动 + 鉴权 + fuzz 配置。
+
+### 9.1 一键运行（替代手动 schemathesis 命令）
+
+```bash
+# 基础运行（默认 http://localhost:5000，无 token）
+bash scripts/run-api-tests.sh
+
+# 自定义目标 + 鉴权
+bash scripts/run-api-tests.sh \
+    --base-url http://staging.example.com \
+    --token "eyJhbGciOi..."
+
+# 自定义 spec 路径
+bash scripts/run-api-tests.sh --spec path/to/spec.json
+```
+
+> 完整源码见 `mcpowers-shared/scripts/run-api-tests.sh`，**直接复制到项目根目录的 `scripts/` 即可使用**。
+
+### 9.2 在 `mcpowers-autoTest` 中调用
+
+```python
+# 调用 mcpowers-autoTest 时，可选运行：
+subprocess.run(["bash", "scripts/run-api-tests.sh"])
+```
+
+### 9.3 跨项目复用
+
+```bash
+# 项目初始化时，从 mcpowers 复制
+cp path/to/mcpowers/skills/mcpowers-shared/scripts/run-api-tests.sh \
+   my-project/scripts/
+
+# CI 中调用
+- name: API fuzz tests
+  run: bash scripts/run-api-tests.sh --base-url ${{ env.STAGING_URL }}
+```

@@ -11,8 +11,8 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 19 个技能（12 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
-| 2 | **📋 22 个技术规范** | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试等，按需加载避免爆上下文 |
-| 3 | **🗂️ 13 类接口速查表** | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload，AI 写接口前必查 |
+| 2 | **📋 23 个技术规范**（v2.3.0 新增接口契约规范） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试等，按需加载避免爆上下文 |
+| 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
 | 6 | **🪝 3 类 hooks 资产** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录不可误删 |
@@ -20,7 +20,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 21 个可执行技术规范的肉 + 中文友好的壳**
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 22 个可执行技术规范的肉 + 中文友好的壳**（v2.3.0 起规范数+1：新增接口契约规范）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -35,7 +35,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
 - **编排显式化**：11 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
-- **规范元数据化**：21 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **规范元数据化**：22+ 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器瘦身（105 行）、SessionStart 注入完整铁律、3 类 hooks（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
 ---
@@ -83,7 +83,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
 │   │
-│   └── mcpowers-shared/               # 规范资产库（21 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0）
+│   └── mcpowers-shared/               # 规范资产库（22 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层）
 │       ├── SKILL.md                   # 入口（按需加载导航）
 │       ├── mcpowers-spec-index/       # 规范导航（< 100 行，查表）
 │       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
@@ -95,7 +95,8 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── AI操作规范.md          # 全局铁律
 │           ├── 产品设计/
 │           │   └── 产品设计规范.md
-│           ├── 技术规范/              # 21 个技术规范
+│           ├── 技术规范/              # 22 个技术规范（v2.3.0 新增接口契约规范）
+│           │   ├── 接口契约规范.md     # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化参数/响应）
 │           │   ├── API规范.md
 │           │   ├── Flask后端规范.md
 │           │   ├── Vue前端规范.md
@@ -190,7 +191,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 19 个场景/方法技能（`mcpowers-feat` 等）
-- ✅ 22 个技术规范（`mcpowers-shared`）
+- ✅ 23 个技术规范（`mcpowers-shared`，v2.3.0 起 22 → 23：新增接口契约规范）
 - ✅ 4 个 Claude Code hooks（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。

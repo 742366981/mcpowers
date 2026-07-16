@@ -91,4 +91,38 @@ if [ "$STAGED" -gt 0 ] && [ "$UNSTAGED" -eq 0 ]; then
 EOF
 fi
 
+# ============== v2.4.0 接口变更提醒 ==============
+# 检测本次 commit 是否改了 Flask 视图函数/Java Controller/Express route
+# 如改了 → 提醒"必须同步更新 docstring 并重跑 export_docs.py"
+# 仅提醒不阻断（尊重开发者主动权）
+
+# 取出暂存区中的接口类文件
+STAGED_VIEW_FILES=$(git diff --cached --name-only 2>/dev/null | grep -E "(views\.py|views/|\.java$|router\.(py|js|ts)$|controllers?/)" || true)
+
+if [ -n "$STAGED_VIEW_FILES" ]; then
+    VIEW_COUNT=$(echo "$STAGED_VIEW_FILES" | wc -l | tr -d ' ')
+
+    # 检查是否同时改了 docs/API文档/（导出的文档）
+    STAGED_API_DOCS=$(git diff --cached --name-only 2>/dev/null | grep -E "docs/API文档/" || true)
+
+    if [ -z "$STAGED_API_DOCS" ]; then
+        cat >&2 <<EOF
+
+[mcpowers 接口契约提醒 v2.4.0] 检测到 $VIEW_COUNT 个接口文件改动，但暂存区未见 docs/API文档/ 变更：
+
+EOF
+        echo "$STAGED_VIEW_FILES" | head -5 | sed 's/^/   → /' >&2
+        if [ "$VIEW_COUNT" -gt 5 ]; then
+            echo "   ... 还有 $((VIEW_COUNT - 5)) 个文件" >&2
+        fi
+        cat >&2 <<EOF
+
+   建议：
+   1. 如修改了 docstring → 跑 python tools/export_docs.py 重导出 swagger_spec.json + API文档.md
+   2. 跑 bash scripts/check_api_docs_sync.sh 检查一致性
+   3. 确认 docs/API文档/swagger_spec.json 与 API文档.md 也加入本次 commit
+EOF
+    fi
+fi
+
 exit 0

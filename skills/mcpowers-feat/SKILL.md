@@ -44,15 +44,21 @@ description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做
 - **必须** Read `mcpowers-shared/mcpowers-spec-index/SKILL.md`
 - 按查表结果加载对应规范（基线 + 栈规范 + 场景规范）
 - 常见组合：
-  - Flask 后端接口 → `代码规范` + `Flask后端规范` + `API规范`
+  - Flask 后端接口 → `代码规范` + `接口契约规范`（v2.3.0+ 通用层）+ `Flask后端规范` + `API规范`
+  - FastAPI / Spring Boot / Express / Gin → `代码规范` + `接口契约规范` + 对应栈规范
   - Vue 页面 → `代码规范` + `Vue前端规范` + `设计规范`
   - 爬虫 → `代码规范` + `爬虫规范`
   - 涉及 DB → 加上 `数据库规范`
   - 涉及缓存 → 加上 `缓存规范`
 
-### 4. 接口先写文档（强制）
+### 4. 接口先写文档（强制 — v2.3.0 对齐接口契约规范）
 - 接口 / 公共函数 / 类：先写 docstring，再写实现
-- 详见 `mcpowers-shared/docs/技术规范/Flask后端规范.md` 第 13 章（如加载了）
+- **5 字段契约强制**（任何栈）：`tags` + `summary`（≤ 30 字）+ `description`（≤ 100 字简短功能说明）+ `parameters`（每个含 description+example）+ `responses`（每个含 schema+examples）
+- **栈特定写法**：
+  - Flask/Flasgger：详见 `mcpowers-shared/docs/技术规范/Flask后端规范.md` §11 + `swagger_template.md`
+  - FastAPI/Spring/Express/Gin：详见 `mcpowers-shared/docs/技术规范/接口契约规范.md` §3
+- **完整校验清单**：Read `接口契约规范.md` §7 自检清单，**任一项不通过则不提交**
+- **反模式黑名单**：Read `接口契约规范.md` §8 反模式（description 写长篇背景 / 漏 description / 漏 example / responses 只列 200 等）
 
 ### 5. TDD 循环
 - **调 `mcpowers-tdd`**，按 RED-GREEN-REFACTOR 循环
@@ -115,7 +121,15 @@ description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做
 ## 完成后自检清单
 
 - [ ] 规范已按需加载（不是全量）
-- [ ] 接口/函数有完整 docstring
+- [ ] **接口/函数有完整 docstring（v2.4.0 严要求）**
+  - [ ] 5 字段齐全：tags + summary（≤ 30 字）+ description（≤ 100 字简短）+ parameters（含 description+example）+ responses（含 schema+examples）
+  - [ ] responses 含 200 + 至少 1 个错误码
+  - [ ] 已对照 `接口契约规范.md` §7 自检清单逐项过
+  - [ ] 已对照 `接口契约规范.md` §8 反模式清单确认无误
+- [ ] **接口改动已同步**（如改了 Flask 接口）
+  - [ ] docstring 已更新（如改路径/参数/响应）
+  - [ ] 已重跑 `python tools/export_docs.py`（导出 swagger_spec.json + API文档.md）
+  - [ ] 前端 TS 客户端已通知（如有协作前端）
 - [ ] 测试覆盖核心逻辑
 - [ ] 自审通过（无 Critical 问题）
 - [ ] **端到端自检 5 步已通过**（见 Step 8）

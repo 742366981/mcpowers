@@ -35,6 +35,12 @@ description: "重构 / 代码重构 / 整理代码 / 拆分代码 / 重写 → �
   - `mcpowers-shared/docs/技术规范/代码同步修改规范.md`（**必读**）
   - 对应栈规范
 
+**v2.3.0 接口契约补充（条件加载）**：
+- 重构目标**涉及接口**（路由函数 / Controller / WebHook / SSE 等）→ **必读** `docs/技术规范/接口契约规范.md`
+- 重构接口**签名 / 参数 / 路径** → 改完必须**同步更新**视图函数 / Controller 的 docstring（5 字段 + description 简短 ≤ 100 字 + parameters/responses 完整结构化）
+- 重构接口**响应结构** → 同步更新 responses（含 200 + 至少 1 个错误码）
+- **禁止**：重构只改实现不改 docstring（线上文档失真，会被前端投诉）
+
 ### 2. 评估测试覆盖（HARD-GATE）
 - 检查目标代码**是否有测试**
 - 测试覆盖**不足** → 调 `mcpowers-tdd` **先补测试**

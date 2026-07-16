@@ -7,7 +7,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 
 > **用法**：上层技能命中后，先 Read 本表确定要加载的规范文件路径，再按需 Read 命中的规范。**不要跳过本表去猜**。
 >
-> **当前索引 26 个规范文件**（22 原有 + 4 API契约新增 v2.2.0，按需加载避免爆上下文）
+> **当前索引 27 个规范文件**（22 原有 + 4 API契约新增 v2.2.0 + 1 接口契约规范新增 v2.3.0，按需加载避免爆上下文）
 
 ---
 
@@ -16,6 +16,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | 任务 / 文件类型 | 必读规范 |
 |:----------------|:---------|
 | **任何写代码** | `代码规范.md`（SOLID/KISS/DRY/YAGNI，常驻基线） |
+| **任何接口契约设计 / API 设计**（v2.3.0）⭐ | **`接口契约规范.md`**（栈无关通用层：19 类接口 + 简短 description + parameters/responses 完整结构化规则 + 多栈 docstring 模板） |
 | **Flask / 后端 `.py`** | `Flask后端规范.md` + `API规范.md` |
 | **Vue / 前端 `.vue`** | `Vue前端规范.md` + `设计规范.md` |
 | **爬虫（项目骨架）** | `爬虫规范.md` |
@@ -27,7 +28,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **写测试 / 单测** | `测试规范.md` |
 | **端到端验证 / 数据清理**（v2.0.5） | `测试规范.md`（§7.1.1 测试数据生命周期 + §9.6 Step 6 清理测试数据） |
 | **自动化测试 / E2E**（v2.1.0） | `自动化测试规范.md` + `测试规范.md` |
-| **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `API文档/API文档模板.md` + `swagger_template.md` + `tools/export_docs.py` |
+| **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `接口契约规范.md`（v2.3.0）+ `API文档/API文档模板.md` + `tools/export_docs.py` |
 | **前端自动生成 TS 类型**（v2.2.0） | `API契约/前端对接流程.md` |
 | **基于 spec 自动生成 API 测试**（v2.2.0） | `API契约/API测试自动生成.md` |
 | **导出 Markdown 接口文档**（已有工具，Flask §11.4） | `tools/export_docs.py`（一键导出 `swagger_spec.json` + `API文档.md`） |
@@ -44,27 +45,48 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 
 ---
 
-## 2. 接口类型速查（13 类，写接口前必看）
+## 2. 接口类型速查（19 类，写接口前必看 — v2.3.0 起）
 
-> **完整说明**：`Flask后端规范.md` 第 0 章 + `API规范.md` 顶部
+> **栈无关通用契约（任何语言）**：`接口契约规范.md` §0（19 类接口速查表）+ §2.1-§2.13（每类详细契约）
+>
+> **Flask/Flasgger docstring 实现细节**：见 `docs/API文档/swagger_template.md`（仅 13 类基础 CRUD + 登录登出）
+>
+> **业务路径/响应/错误码**：见 `API规范.md`
 
-| 类型 | HTTP | 路径模板 | 详细模板 |
+### 2.1 标准 CRUD + 文件 + 字典（13 类）
+
+| 类型 | HTTP | 路径模板 | 通用契约（任何栈） | Flask docstring 模板 |
+|:-----|:-----|:---------|:-------------------|:---------------------|
+| list | GET | `/{前缀}/{模块}/list` | 接口契约规范 §2.1 | swagger_template §"GET 列表" |
+| detail | GET | `/{前缀}/{模块}/detail` | 接口契约规范 §2.2 | swagger_template §"GET 详情" |
+| create | POST | `/{前缀}/{模块}/create` | 接口契约规范 §2.3 | swagger_template §"POST 创建" |
+| update | POST | `/{前缀}/{模块}/update` | 接口契约规范 §2.4 | swagger_template §"POST 更新" |
+| delete | POST | `/{前缀}/{模块}/delete` | 接口契约规范 §2.5 | swagger_template §"POST 删除" |
+| batch-delete | POST | `/{前缀}/{模块}/batch-delete` | 接口契约规范 §2.5 | swagger_template §"POST 批量删除" |
+| update-status | POST | `/{前缀}/{模块}/update-status` | 接口契约规范 §2.6 | swagger_template §"POST 状态修改" |
+| **dict** | GET | `/{前缀}/{模块}/dict?type=` | 接口契约规范 §2.7 | swagger_template §"GET 数据字典" |
+| **dict/cascader** | GET | `/{前缀}/{模块}/dict/cascader?type=` | 接口契约规范 §2.7 | swagger_template §"GET 级联下拉" |
+| **import** | POST | `/{前缀}/{模块}/import` | 接口契约规范 §2.8 | swagger_template §"POST 导入" |
+| export | GET | `/{前缀}/{模块}/export` | 接口契约规范 §2.8 | swagger_template §"GET 导出" |
+| template/download | GET | `/{前缀}/{模块}/template/download` | 接口契约规范 §2.8 | swagger_template §"GET 模板下载" |
+| upload | POST | `/{前缀}/upload` | 接口契约规范 §2.9 | swagger_template §"POST 文件上传" |
+
+### 2.2 扩展接口类型（6 类，v2.3.0 新增 — 仅通用契约，无 Flask 模板）
+
+| 类型 | HTTP | 路径模板 | 通用契约 |
 |:-----|:-----|:---------|:---------|
-| list | GET | `/{前缀}/{模块}/list` | `swagger_template.md` 第 100-200 行 |
-| detail | GET | `/{前缀}/{模块}/detail` | 第 204-260 行 |
-| create | POST | `/{前缀}/{模块}/create` | 第 264-329 行 |
-| update | POST | `/{前缀}/{模块}/update` | 第 333-391 行 |
-| delete | POST | `/{前缀}/{模块}/delete` | 第 395-443 行 |
-| batch-delete | POST | `/{前缀}/{模块}/batch-delete` | 第 447-497 行 |
-| update-status | POST | `/{前缀}/{模块}/update-status` | 第 501-555 行 |
-| **dict** | GET | `/{前缀}/{模块}/dict?type=` | 第 559-662 行 |
-| **dict/cascader** | GET | `/{前缀}/{模块}/dict/cascader?type=` | **见 `API规范.md` §3.4** |
-| **import** | POST | `/{前缀}/{模块}/import` | 第 733-788 行（响应含 errors 数组） |
-| export | GET | `/{前缀}/{模块}/export` | 第 666-702 行 |
-| template/download | GET | `/{前缀}/{模块}/template/download` | 第 706-729 行 |
-| upload | POST | `/{前缀}/upload` | 第 792-837 行 |
+| **bind / unbind** | POST | `/{前缀}/{关联表}/{bind\|unbind}` | 接口契约规范 §2.10 |
+| **submit-task** | POST | `/{前缀}/{模块}/submit-task` | 接口契约规范 §2.11 |
+| **progress** | GET | `/{前缀}/{模块}/progress?task_id=` | 接口契约规范 §2.11 |
+| **cancel-task** | POST | `/{前缀}/{模块}/cancel-task` | 接口契约规范 §2.11 |
+| **webhook** | POST | `/{前缀}/webhook/{source}` | 接口契约规范 §2.12 |
+| **stream/sse** | GET | `/{前缀}/{模块}/stream` | 接口契约规范 §2.13 |
 
-> 💡 **写接口时**：先看本表确定类型 → 读 `swagger_template.md` 对应区间 → 在视图函数 docstring 中按模板写
+> 💡 **写接口时（v2.3.0 标准流程）**：
+> 1. **先看本表**确定接口类型
+> 2. **任何栈都读** `接口契约规范.md` 对应章节（含 description 简短规则 + parameters/responses 完整结构化强制规则 + 自检清单）
+> 3. **Flask 项目**复制 `swagger_template.md` 的 docstring 模板，按接口契约规范填简短 description + 完整结构化参数/响应
+> 4. **其他栈**用 `接口契约规范 §3.2-§3.6` 对应语言的写法（FastAPI / Spring Boot / Express / Gin）
 
 ---
 
@@ -78,6 +100,7 @@ mcpowers-shared/docs/
 ├── 产品设计/
 │   └── 产品设计规范.md
 └── 技术规范/
+    ├── 接口契约规范.md       # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化 parameters/responses）
     ├── API规范.md
     ├── Flask后端规范.md
     ├── Vue前端规范.md
@@ -102,7 +125,7 @@ mcpowers-shared/docs/
     └── 自动化测试规范.md    # 🆕 工具选型/bug 二维分类/报告 JSON schema/修复路由/循环机制
 ├── API文档/
 │   ├── API文档模板.md
-│   └── swagger_template.md
+│   └── swagger_template.md  # v2.3.0 标记为「Flask 实现参考」（extends 接口契约规范）
 ├── API契约/   # 🆕 v2.2.0（前后端联调：4 份资产）
 │   ├── 集成方案对比.md        # Flasgger / apispec / flask-openapi3 对比
 │   ├── 加密方案对比.md        # Basic Auth / JWT / IP 白名单 / 限流对比
@@ -130,8 +153,8 @@ mcpowers-shared/docs/
 
 **示例 1：用户说"加一个 Flask 接口"**
 1. 命中 `mcpowers-feat`
-2. Read 本表 → 查"Flask/后端 .py" 行
-3. 加载：`代码规范.md` + `Flask后端规范.md` + `API规范.md`
+2. Read 本表 → 查"任何接口契约设计"（⭐ v2.3.0）+ "Flask/后端 .py" 行
+3. 加载：`代码规范.md` + **`接口契约规范.md`** + `Flask后端规范.md` + `API规范.md`
 4. 不加载：Vue/爬虫/设计等无关规范
 
 **示例 2：用户说"列表页查询太慢"**
@@ -142,6 +165,18 @@ mcpowers-shared/docs/
 
 **示例 3：用户说"需求文档里登录方式要改"**
 1. 命中 `mcpowers-requirement-change`
-2. Read 本表 → 查"改动波及多处" + "记录细节"
-3. 加载：`代码同步修改规范.md` + `细节记录规范.md` + 对应栈规范
+2. Read 本表 → 查"改动波及多处" + "记录细节" + "任何接口契约设计"（如涉及接口改动 ⭐ v2.3.0）
+3. 加载：`代码同步修改规范.md` + `细节记录规范.md` + 对应栈规范 + **`接口契约规范.md`**（接口改动时）
 4. 不加载：无关规范
+
+**示例 4：用户说"加一个 FastAPI 接口"（v2.3.0 新增）**
+1. 命中 `mcpowers-feat`
+2. Read 本表 → 查"任何接口契约设计"（⭐ v2.3.0）
+3. 加载：`代码规范.md` + **`接口契约规范.md`**（含 FastAPI docstring 模板 §3.2）
+4. 不加载：Flask 后端规范（栈无关）/ Vue/爬虫/设计等
+
+**示例 5：用户说"加一个 WebHook 回调接口"（v2.3.0 新增）**
+1. 命中 `mcpowers-feat`
+2. Read 本表 → 查"任何接口契约设计"
+3. 加载：`代码规范.md` + `接口契约规范.md §2.12`（webhook 通用契约）+ 栈对应规范
+4. 不加载：WebHook 不属于 §2 的 13 类基础 CRUD，无需 swagger_template.md

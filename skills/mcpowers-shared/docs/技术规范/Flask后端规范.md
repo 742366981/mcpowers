@@ -1092,9 +1092,10 @@ def register_swagger(app, protect=True):
         "static_url_path": "/flasgger_static",
         "swagger_ui": True,
         "specs_route": "/apidocs/",
-        "swagger_ui_bundle_js": "//unpkg.com/swagger-ui-dist@3.52.5/swagger-ui-bundle.js",
-        "swagger_ui_standalone_preset_js": "//unpkg.com/swagger-ui-dist@3.52.5/swagger-ui-standalone-preset.js",
-        "swagger_ui_css": "//unpkg.com/swagger-ui-dist@3.52.5/swagger-ui.css",
+        # v2.4.0 升级：Swagger UI 3.52.5 → 5.17.14（修复 XSS 漏洞 CVE-2023-24998 + 更好的移动适配）
+        "swagger_ui_bundle_js": "//unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js",
+        "swagger_ui_standalone_preset_js": "//unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js",
+        "swagger_ui_css": "//unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css",
     }
 
     Swagger(app, config=swagger_config, sanitizer=NO_SANITIZER, template={
@@ -1126,6 +1127,96 @@ def register_swagger(app, protect=True):
                 auth = request.authorization
                 if not auth or not (auth.username == swagger_user and auth.password == swagger_pass):
                     return Response('Login Required', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+```
+
+### 11.1.4 Header 参数声明示例（v2.4.0 新增，适配 webhook / 签名校验场景）
+
+**Webhook 场景**（如 `/webhook/payment` 接收回调，强制要求签名头）：
+
+```python
+@payment_bp.route('/webhook/payment', methods=['POST'])
+def payment_webhook():
+    """支付回调
+---
+tags:
+  - 业务模块/支付管理
+summary: 支付回调
+description: 接收第三方支付回调，验签后处理订单状态。
+parameters:
+  - in: header
+    name: X-Signature
+    type: string
+    required: true
+    description: HMAC-SHA256 签名（格式 sha256={hex}）
+    example: sha256=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+  - in: header
+    name: X-Event-Id
+    type: string
+    required: true
+    description: 事件唯一 ID（用于幂等去重）
+    example: evt_20240715_xxx
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        event_id:
+          type: string
+          description: 事件 ID（与 X-Event-Id 一致）
+          example: evt_20240715_xxx
+        event_type:
+          type: string
+          description: 事件类型
+          example: payment.success
+        data:
+          type: object
+          description: 业务数据
+responses:
+  200:
+    description: 接收成功
+    examples:
+      application/json:
+        code: 0
+        msg: ok
+  401:
+    description: 签名校验失败
+    examples:
+      application/json:
+        code: 401
+        msg: signature invalid
+"""
+```
+
+### 11.1.5 formData 文件上传参数声明示例（v2.4.0 新增，适配 upload/import 场景）
+
+**文件上传场景**：
+
+```python
+@file_bp.route('/upload', methods=['POST'])
+def upload_file():
+    """上传文件
+---
+tags:
+  - 文件管理/通用上传
+summary: 上传文件
+description: 上传文件到服务器。
+parameters:
+  - in: formData
+    name: file
+    type: file
+    required: true
+    description: 文件（支持图片、文档，单文件 ≤ 10MB）
+responses:
+  200:
+    description: 上传成功
+    examples:
+      application/json:
+        code: 0
+        data:
+          url: /uploads/20240715_xxx.png
+        msg: 上传成功
+"""
 ```
 
 ### 11.2 docstring格式要求（强制）
@@ -1187,19 +1278,113 @@ def login():
 """
 ```
 
-### 11.3 必需字段（强制）
+### 11.3 必需字段（强制 — v2.4.0 对齐接口契约规范）
 
-| 字段 | 必须 | 说明 |
-|:-----|:-----|:-----|
-| summary | ✅ | 接口简短描述 |
-| description | ✅ | 接口详细描述 |
-| parameters | ✅ | 请求参数（位置、名称、类型、必填、说明、示例） |
-| responses | ✅ | 响应格式（状态码、描述、示例） |
+> **本节是 Flasgger docstring 写法的强制基线**。完整通用规则（含 19 类接口、description ≤ 100 字强约束、parameters/responses 完整结构化）见 `接口契约规范.md`。
+>
+> 本节只约束**Flask/Flasgger 栈特有**的字段落地方式，**通用规则完全沿用接口契约规范 §1**。
 
-### 11.4 文档导出（强制）
+| 字段 | 必须 | Flasgger 落地 | 通用规则出处 |
+|:-----|:-----|:--------------|:-------------|
+| `tags` | ✅ | tags: `- 大模块/子模块` | 接口契约规范 §1 |
+| `summary` | ✅ | `summary: 用户登录`（≤ 30 字） | 接口契约规范 §1.D |
+| `description` | ✅ | `description: ...`（≤ 100 字，**简短功能说明**） | 接口契约规范 §1.A |
+| `parameters` | ✅ | `parameters:` 列表，**每个含 `description` + `example`** | 接口契约规范 §1.B |
+| `responses` | ✅ | `responses:` 字典，**每个状态码含 `schema` + `examples`** | 接口契约规范 §1.C |
 
-1. 完成接口开发后，运行 `python tools/export_docs.py` 导出文档
-2. 自动生成 `swagger_spec.json` 和 `API文档.md`
+#### 11.3.1 parameters 子字段强制项（沿用接口契约规范 §1.B）
+
+| 子字段 | 必须 | Flasgger 写法示例 |
+|:-------|:-----|:-----------------|
+| `name` | ✅ | `name: page_no` |
+| `in` | ✅ | `in: query` / `body` / `path` / `formData` / `header` |
+| `required` | ✅ | `required: true` |
+| `type` | ✅ | `type: integer` |
+| `description` | ✅ 强制 | `description: 页码，从 1 开始`（**业务含义，不要复制字段名**） |
+| `example` | ✅ 强制 | `example: 1`（**必填**，前端可直接复制） |
+| `schema` | 条件 | `in: body` 且为复杂对象时必填，嵌套结构用 `schema/properties` |
+
+#### 11.3.2 responses 子字段强制项（沿用接口契约规范 §1.C）
+
+| 子字段 | 必须 | Flasgger 写法示例 |
+|:-------|:-----|:-----------------|
+| **状态码** | ✅ | `200:` / `400:` / `401:` / `500:`（**必含 200 + 至少 1 错误码**） |
+| `description` | ✅ | `description: 登录成功` |
+| `schema` | ✅ 强制 | `schema: {type: object, properties: {...}}`（**Swagger UI 靠它渲染可点击结构**） |
+| `examples` | ✅ 强制 | `examples: {application/json: {code: 0, msg: success, data: {...}}}` |
+
+> **铁律**：
+> - ❌ `responses` 只列 `200:`（禁止）
+> - ❌ `parameters[].description` 或 `example` 漏写（禁止）
+> - ❌ `description` 写成"5 段式背景/前置/字段/错误/副作用"长篇（v1.1 已禁止，应 ≤ 100 字简短）
+> - ✅ 反模式全部见 `接口契约规范.md` §8
+
+#### 11.3.3 description 字段硬约束（v2.4.0 起强制）
+
+| 约束 | 说明 |
+|:-----|:-----|
+| **字数** | ≤ 100 字 |
+| **内容** | 只写接口**功能**（一句话） |
+| **禁止** | 业务背景 / 前置条件 / 字段含义 / 错误码 / 副作用（这些放 `parameters[].description` 和 `responses[error_code].description`） |
+| **禁止** | 写"待补充" / "TBD" / "TODO" |
+
+> ✅ 正确：`description: 使用用户名或手机号和密码登录，返回访问 token。`
+> ❌ 错误：300+ 字的"5 段式背景/前置/字段/错误/副作用"
+
+### 11.4 文档导出（强制 — v2.4.0 加强）
+
+**强制闭环**：改 docstring → 重跑 export_docs.py → 校验输出 → commit spec 文件。
+
+#### 11.4.1 强制出口（v2.4.0 新增）
+
+每次改视图函数 docstring 后**必须**重跑导出：
+
+```bash
+# 在 Flask 项目根目录
+python tools/export_docs.py
+
+# 输出：
+#   docs/API文档/swagger_spec.json   ← 机器消费
+#   docs/API文档/API文档.md          ← 人类阅读
+```
+
+**禁止**只改 docstring 不重跑导出（这是 mcpowers 的接口契约 SSOT 铁律）。
+
+#### 11.4.2 一致性校验（v2.4.0 推荐）
+
+可选运行一致性校验脚本（**v2.4.0 新增** `scripts/check_api_docs_sync.sh`）：
+
+```bash
+bash scripts/check_api_docs_sync.sh
+# 检查项：
+#   - 视图函数 docstring 是否齐全
+#   - 导出的 swagger_spec.json 是否比 .py 文件旧（导出滞后）
+#   - API文档.md 是否已 commit
+```
+
+#### 11.4.3 导出后必须 commit 的文件
+
+- `docs/API文档/swagger_spec.json`
+- `docs/API文档/API文档.md`
+
+#### 11.4.4 现有导出能力（沿用 v2.2.0）
+
+```bash
+# 1. 完成接口开发后，运行 export_docs.py 导出文档
+python tools/export_docs.py
+
+# 2. 自动生成 swagger_spec.json 和 API文档.md（v2.4.0 起支持 formData/header/错误码）
+```
+
+#### 11.4.5 下游派生（v2.4.0 新增一键脚本）
+
+```bash
+# 前端 TypeScript 客户端自动生成（v2.4.0 新增 scripts/generate-frontend-ts.sh）
+bash scripts/generate-frontend-ts.sh
+
+# API 测试自动跑（v2.4.0 新增 scripts/run-api-tests.sh）
+bash scripts/run-api-tests.sh
+```
 
 ---
 

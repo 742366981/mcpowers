@@ -1,6 +1,6 @@
 ---
 name: mcpowers-install-basics-skills
-description: "安装基础技能 / 一键装基础 / 装上所有基础 / 装基础技能 / 装全部技能 → 触发本技能。口语：给我装基础技能、帮我装上技能、装基础环境、装备基础技能、把基础技能都装上、装上 docx/pdf/pptx/xlsx、装上 ui-ux-pro-max、装 find-skills、装 skill-creator、配齐基础技能、安装必要技能、装上常用技能、装上办公技能、装上 UI 设计技能、给我把 AI 工具装好。中英：install basics, install basic skills, setup dependencies, npx skills add, document skills, ui ux pro max, find skills, skill creator, global install。边界：项目初始化/脚手架→mcpowers-init（项目级 vs 环境级）；维护 mcpowers 自身→README 维护指南；查/找技能→find-skills 本身。一键执行 4 条 npx skills add 全局安装 document-skills/ui-ux-pro-max/find-skills/skill-creator 到 ~/.claude/skills/。"
+description: "安装基础技能 / 一键装基础 / 装上所有基础 / 装基础技能 / 装全部基础技能 → 触发本技能。口语：给我装基础技能、帮我装上基础技能、帮我装基础环境、装备基础技能、把基础技能都装上、把所有基础技能都装上、配齐基础技能、安装基础工具、装上基础必备技能、装上全局基础技能、一键配基础技能、装上基础办公技能、装上基础文档技能、装上基础 UI 技能、给我把基础工具装好、把基础环境装好。中英：install basics, install basic skills, setup base skills, basic dependencies, basic setup, npx skills add。边界：项目初始化/脚手架→mcpowers-init（项目级 vs 环境级）；维护 mcpowers 自身→README 维护指南；查/找技能→find-skills 本身。一键执行 4 条 npx skills add 全局安装 document-skills/ui-ux-pro-max/find-skills/skill-creator 等 4 类外部基础技能到 ~/.claude/skills/。"
 ---
 
 # mcpowers-install-basics-skills（安装基础技能）

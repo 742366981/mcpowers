@@ -166,7 +166,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 复杂任务/并行/多代理 | `mcpowers-subagent` |
 | 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e | `mcpowers-autoTest` |
 | 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
-| 装基础技能/一键装基础/装上所有基础/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
+| 装基础技能/一键装基础/装上所有基础/装全部基础技能/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
 | 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` |

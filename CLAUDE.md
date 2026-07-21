@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **21 个可路由技能**（场景层 14 + 方法层 7，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（23 个技术规范 + `mcpowers-spec-index` 导航） |
+| `skills/mcpowers-shared/` | 规范资产库（24 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
@@ -137,6 +137,16 @@ for f in sorted(os.listdir('skills')):
 - **v2.0.3**：一次 description 大改版用 `|` 多行块，**3 个文件超 1024c 被截断**（code-review 1091c / brainstorm 1050c / bugfix 1027c），尾部"出错了"、"闪退"、"帮我审"等高频触发词全部失效。
 - **v2.0.4**：全部改为单行紧凑版，**L1 description 总预算从 ~9000c 降到 5986c（-34%）**，**0 个文件超 800c**。
 
+### 历史教训（v2.6.0 新增顶层规范）
+
+- **v2.6.0**：新增 `日志规范.md` 时，只改 `mcpowers-spec-index` 查表 + CLAUDE.md/README.md 数字声明**不够**。还必须同步改造至少 5 个相关编排：
+  - `mcpowers-init`：注入日志基础设施（`utils/loggings.py` + `utils/request_log.py` + `log/` 目录）
+  - `mcpowers-feat`：常见规范组合 + 架构设计阶段必读 + 完成后自检清单
+  - `mcpowers-bugfix`：调查方法加"按 `request_id` / `trace_id` 串联日志"
+  - `mcpowers-deploy`：上线 checklist 加"日志收集方案 + 大内容策略 + 轮转保留"
+  - 否则规范进了体系但**不触发**，等于没加。
+- **结论**：新增顶层规范是**横跨 9+ 文件**的改动（1 新规范 + 1 spec-index + 5 技能编排 + 2 文档 + 2 版本文件），不能省任何一处。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）
@@ -188,6 +198,6 @@ for f in sorted(os.listdir('skills')):
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **资产零损耗**：23 个技术规范原地保留，路径不重组、不重命名
+- **资产零损耗**：24 个技术规范原地保留，路径不重组、不重命名
 - **完全独立**：不依赖任何外部技能，Git 操作由 4 个 `mcpowers-git-*` 技能自包含
 - **零安装脚本**：依赖 Claude Code 插件系统管理安装/卸载/升级，仓库零维护成本

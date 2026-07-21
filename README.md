@@ -11,7 +11,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 21 个技能（14 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
-| 2 | **📋 23 个技术规范**（v2.3.0 新增接口契约规范） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试等，按需加载避免爆上下文 |
+| 2 | **📋 24 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md`） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
@@ -20,7 +20,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 23 个技术规范的肉 + 中文友好的壳**（v2.3.0 起规范数+1：新增接口契约规范）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 24 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -35,7 +35,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
 - **编排显式化**：14 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
-- **规范元数据化**：23 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **规范元数据化**：24 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 5 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
 ---
@@ -85,7 +85,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
 │   │
-│   └── mcpowers-shared/               # 规范资产库（23 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层）
+│   └── mcpowers-shared/               # 规范资产库（24 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层；v2.6.0 新增日志规范）
 │       ├── SKILL.md                   # 入口（按需加载导航）
 │       ├── mcpowers-spec-index/       # 规范导航（查表）
 │       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
@@ -97,7 +97,7 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── AI操作规范.md          # 全局铁律
 │           ├── 产品设计/
 │           │   └── 产品设计规范.md
-│           ├── 技术规范/              # 23 个技术规范（v2.3.0 新增接口契约规范）
+│           ├── 技术规范/              # 24 个技术规范（v2.3.0 新增接口契约规范；v2.6.0 新增日志规范）
 │           │   ├── 接口契约规范.md     # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化参数/响应）
 │           │   ├── API规范.md
 │           │   ├── Flask后端规范.md
@@ -120,7 +120,8 @@ mcpowers/                              # 仓库根 = 插件根
 │           │   ├── 安全规范.md
 │           │   ├── API版本管理规范.md
 │           │   ├── 健康检查规范.md
-│           │   └── 自动化测试规范.md
+│           │   ├── 自动化测试规范.md
+│           │   └── 日志规范.md        # 🆕 v2.6.0 通用层（栈无关，7 类日志 + JSON 字段 + 大内容默认截断 + 脱敏黑名单）
 │           ├── API文档/
 │           │   ├── API文档模板.md
 │           │   └── swagger_template.md
@@ -194,7 +195,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 21 个场景/方法技能（`mcpowers-feat` 等）
-- ✅ 23 个技术规范（`mcpowers-shared`）
+- ✅ 24 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
@@ -259,7 +260,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 21 技能 + 23 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 21 技能 + 24 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |
@@ -385,7 +386,7 @@ last_updated: 2026-07-08
 | 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表 | **删一行** |
 | 3 | `README.md` 技能结构图、`CLAUDE.md` 规范数量 | **各删一处**，保持用户文档和维护规则一致 |
 | 4 | `bash scripts/check-readme-sync.sh` | 必须通过 |
-| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥23 个规范断言仍通过（如规范数 < 23 需要更新 plugin-verify 的断言阈值） |  |
+| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥24 个规范断言仍通过（如规范数 < 24 需要更新 plugin-verify 的断言阈值） |  |
 
 ---
 

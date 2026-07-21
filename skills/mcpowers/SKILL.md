@@ -129,7 +129,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 ### 3.3 规范层（Layer 3）—— 资产库，按需 Read
 - **入口**：`skills/mcpowers-shared/SKILL.md`（规范库入口 skill）
 - **导航**：`skills/mcpowers-shared/mcpowers-spec-index/SKILL.md`（查"做什么 → 读哪个规范"）
-- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（23 个文件，原地保留）
+- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（24 个文件，原地保留；v2.6.0 新增 `日志规范.md`）
 
 ---
 

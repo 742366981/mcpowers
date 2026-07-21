@@ -5,7 +5,7 @@ description: "安装基础技能 / 一键装基础 / 装上所有基础 / 装基
 
 # mcpowers-install-basics-skills（安装基础技能）
 
-> **mcpowers 自身设计**，封装外部 skills.sh 的 4 条安装命令。
+> **mcpowers 自身设计**，封装外部 `npx skills`（vercel-labs/skills）的 4 条安装命令。
 > **目标**：用户在新环境首次使用 Claude Code 时，一句话装好 document / UI-UX / find / creator 4 类基础技能到全局。
 
 ---
@@ -27,7 +27,7 @@ description: "安装基础技能 / 一键装基础 / 装上所有基础 / 装基
 | 维度 | `mcpowers-init` | `mcpowers-install-basics-skills` |
 |:-----|:----------------|:---------------------------------|
 | 作用对象 | 工作目录（项目级） | `~/.claude/skills/`（环境级） |
-| 装的是 | mcpowers 内部规范 | 外部 skills.sh 生态技能 |
+| 装的是 | mcpowers 内部规范 | 外部 `npx skills`（vercel-labs/skills）生态技能 |
 | 触发时机 | 每个新项目一次 | 首次使用 Claude Code 一次 |
 
 **铁律**：禁止未确认就批量装；禁止跳过现状检测；禁止在断网状态下硬跑。
@@ -52,10 +52,10 @@ description: "安装基础技能 / 一键装基础 / 装上所有基础 / 装基
 
 对下列 4 类技能逐一检测：
 
-- `document-skills:docx` / `:pdf` / `:pptx` / `:xlsx`（一仓库多子技能）
-- `ui-ux-pro-max`
-- `find-skills`
-- `skill-creator`
+- `document-skills`（仓库内含 `docx` / `pdf` / `pptx` / `xlsx` 等 4 个子技能）
+- `ui-ux-pro-max`（`nextlevelbuilder/ui-ux-pro-max-skill` 仓库的子技能）
+- `find-skills`（`vercel-labs/skills` 仓库的子技能）
+- `skill-creator`（`anthropics/skills` 仓库的子技能）
 
 **判定结果**：
 
@@ -68,17 +68,17 @@ description: "安装基础技能 / 一键装基础 / 装上所有基础 / 装基
 **检测方式**（按优先级，任一可用）：
 
 1. `ls ~/.claude/skills/ | grep -E "^(document-skills|ui-ux-pro-max|find-skills|skill-creator)$"`
-2. `npx skills ls 2>/dev/null`（若 skills.sh 提供此命令）
+2. `npx skills ls 2>/dev/null`（若 vercel-labs/skills CLI 提供此命令）
 
 ### 3. 与用户确认
 
 打印将执行的命令清单：
 
 ```bash
-npx skills add appautomaton/document-skills
-npx skills add https://github.com/nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max
-npx skills add https://github.com/vercel-labs/skills --skill find-skills
-npx skills add https://github.com/anthropics/skills --skill skill-creator
+npx skills add appautomaton/document-skills -g
+npx skills add https://github.com/nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max -g
+npx skills add https://github.com/vercel-labs/skills --skill find-skills -g
+npx skills add https://github.com/anthropics/skills --skill skill-creator -g
 ```
 
 使用 `AskUserQuestion` 让用户选择执行范围（4 条都装 / 只装缺失的 / 取消）。
@@ -141,20 +141,23 @@ ls ~/.claude/skills/ 2>/dev/null
 
 本技能默认只装到 Claude Code 全局目录（`~/.claude/skills/`）。**任何兼容 Agent Skills 规范（SKILL.md 格式）的 AI 工具**用户，可通过 `npx skills add -a <agent>` 自助安装到对应工具目录。
 
-### 已知支持的 agent（截至 v2.5.2）
+### 已知支持的 agent（截至 v2.5.3）
 
-| AI 工具 | `-a` 参数 | 安装目录 |
-|:--------|:----------|:---------|
-| Claude Code | `claude-code` | `~/.claude/skills/`（本技能默认） |
-| Cursor | `cursor` | `.cursor/skills/` |
-| Cline / Roo Code | `cline` 或 `roo` | 子目录扫描 |
-| Trae / MarsCode | `trae` | `.trae/skills/` |
+| AI 工具 | `-a` 参数 | 安装目录 | SKILL.md 兼容 |
+|:--------|:----------|:---------|:-------------|
+| Claude Code | `claude-code` | `~/.claude/skills/`（本技能默认） | ✅ 已验证 |
+| Cursor | `cursor` | `.cursor/skills/` | ✅ 已验证 |
+| Cline | `cline` | 子目录扫描 | ✅ 已验证 |
+| Roo Code | `roo` | 子目录扫描 | ✅ 已验证 |
+| Trae / MarsCode | `trae` | `.trae/skills/` | ✅ 已验证 |
+| OpenCode | `opencode` | `.opencode/skills/` | ⚠️ vercel-labs/skills 精选，但 SKILL.md 兼容未实测 |
+| Codex CLI | `codex` | `.codex/skills/` | ⚠️ vercel-labs/skills 精选，但 SKILL.md 兼容未实测 |
 
-> 完整 agent 列表可能随 `vercel-labs/skills` 演进，请跑 `npx skills add -h` 查看最新。
+> 完整 agent 列表（69+ 个，由 `vercel-labs/skills` 维护）见 [其 README 的 Supported Agents 段](https://github.com/vercel-labs/skills#supported-agents)。本表只列**已验证兼容 Agent Skills 规范（SKILL.md 格式）**或**官方精选**的 agent。
 
 ### 自助命令示例（Cursor 用户）
 
-把 4 条 `npx skills add` 命令末尾加上 `-a <agent>`：
+把 4 条 `npx skills add` 命令末尾加上 `-a <agent>`（`-g` 已加，与默认 Claude Code 命令一致）：
 
 ```bash
 npx skills add appautomaton/document-skills -g -a cursor
@@ -167,7 +170,7 @@ npx skills add https://github.com/anthropics/skills --skill skill-creator -g -a 
 
 以下 AI 工具**不读 SKILL.md 格式**，本技能无法适配（请勿安装，会浪费磁盘）：
 
-- Windsurf、JetBrains AI Assistant、GitHub Copilot、Cody、Zed、Claude.ai 网页版
-- 这些工具走自有 rules / instructions 机制，与 Agent Skills 规范不兼容
+- Windsurf、JetBrains AI Assistant、GitHub Copilot、Cody、Zed —— 走自有 rules / instructions 机制，与 Agent Skills 规范不兼容
+- Claude.ai 网页版 —— 部分支持，但需手动复制 `skills/*.md`（不是通过 `npx skills add` 装）
 
 > **为什么不自动适配**：自动探测 + 多 `-a` 分发会装到用户不用的工具目录（YAGNI 反模式）。默认最小作用面 = 只管 Claude Code；其他工具用户在该工具的聊天框里跑本技能，或按上表自助。

@@ -134,3 +134,40 @@ ls ~/.claude/skills/ 2>/dev/null
 | 找/搜索技能 | 用本技能装的 `find-skills` 直接调 |
 | 创建新技能 | 用本技能装的 `skill-creator` 直接调 |
 | 升级 mcpowers 自身 | README 维护指南场景 6 |
+
+---
+
+## 其他 AI 工具用户自助
+
+本技能默认只装到 Claude Code 全局目录（`~/.claude/skills/`）。**任何兼容 Agent Skills 规范（SKILL.md 格式）的 AI 工具**用户，可通过 `npx skills add -a <agent>` 自助安装到对应工具目录。
+
+### 已知支持的 agent（截至 v2.5.2）
+
+| AI 工具 | `-a` 参数 | 安装目录 |
+|:--------|:----------|:---------|
+| Claude Code | `claude-code` | `~/.claude/skills/`（本技能默认） |
+| Cursor | `cursor` | `.cursor/skills/` |
+| Cline / Roo Code | `cline` 或 `roo` | 子目录扫描 |
+| Trae / MarsCode | `trae` | `.trae/skills/` |
+
+> 完整 agent 列表可能随 `vercel-labs/skills` 演进，请跑 `npx skills add -h` 查看最新。
+
+### 自助命令示例（Cursor 用户）
+
+把 4 条 `npx skills add` 命令末尾加上 `-a <agent>`：
+
+```bash
+npx skills add appautomaton/document-skills -g -a cursor
+npx skills add https://github.com/nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max -g -a cursor
+npx skills add https://github.com/vercel-labs/skills --skill find-skills -g -a cursor
+npx skills add https://github.com/anthropics/skills --skill skill-creator -g -a cursor
+```
+
+### 不支持的工具
+
+以下 AI 工具**不读 SKILL.md 格式**，本技能无法适配（请勿安装，会浪费磁盘）：
+
+- Windsurf、JetBrains AI Assistant、GitHub Copilot、Cody、Zed、Claude.ai 网页版
+- 这些工具走自有 rules / instructions 机制，与 Agent Skills 规范不兼容
+
+> **为什么不自动适配**：自动探测 + 多 `-a` 分发会装到用户不用的工具目录（YAGNI 反模式）。默认最小作用面 = 只管 Claude Code；其他工具用户在该工具的聊天框里跑本技能，或按上表自助。

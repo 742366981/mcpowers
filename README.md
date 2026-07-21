@@ -10,7 +10,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 19 个技能（12 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 1 | **🎯 场景化技能路由** | 20 个技能（13 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
 | 2 | **📋 23 个技术规范**（v2.3.0 新增接口契约规范） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
@@ -56,10 +56,10 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── pre-write-confirm.sh           # 保护核心资产不可误删
 │   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/                            # 技能（扁平化：1 路由器 + 19 技能 + 1 规范库）
+├── skills/                            # 技能（扁平化：1 路由器 + 20 技能 + 1 规范库）
 │   ├── mcpowers/                      # 主入口路由器（< 150 行，每次对话注入）
 │   │
-│   │ ── 场景层（13 个，用户输入直接命中）──
+│   │ ── 场景层（14 个，用户输入直接命中）──
 │   ├── mcpowers-feat/                 # 加功能
 │   ├── mcpowers-bugfix/               # 修 bug
 │   ├── mcpowers-refactor/             # 重构
@@ -73,6 +73,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-git-cleanBranches/    # 清理分支
 │   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增）
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
+│   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
 │   │
 │   │ ── 方法层（7 个，被场景层调用）──
 │   ├── mcpowers-brainstorm/           # 澄清需求
@@ -165,6 +166,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 复杂任务/并行/多代理 | `mcpowers-subagent` |
 | 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e | `mcpowers-autoTest` |
 | 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
+| 装基础技能/一键装基础/装上所有基础/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
 | 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` |
@@ -190,7 +192,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 19 个场景/方法技能（`mcpowers-feat` 等）
+- ✅ 20 个场景/方法技能（`mcpowers-feat` 等）
 - ✅ 23 个技术规范（`mcpowers-shared`，v2.3.0 起 22 → 23：新增接口契约规范）
 - ✅ 4 个 Claude Code hooks（自动注册，无需改 `settings.json`）
 

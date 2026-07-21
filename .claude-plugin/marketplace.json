@@ -11,7 +11,7 @@
       "name": "mcpowers",
       "description": "主入口路由器 + 18 个技能 + 21 个技术规范，借鉴 superpowers 方法论",
       "source": "./",
-      "version": "2.0.0",
+      "version": "2.5.0",
       "category": "development",
       "keywords": [
         "workflow",

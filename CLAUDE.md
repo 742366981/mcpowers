@@ -7,10 +7,10 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | 目录 | 用途 |
 |:-----|:-----|
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
-| `skills/mcpowers/` | **主入口路由器**（< 150 行，每次对话注入） |
-| `skills/mcpowers-*` | **18 个技能**（场景层 11 + 方法层 7，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（21 个规范文件 + `mcpowers-spec-index` 导航） |
-| `hooks/` | Claude Code hooks 资产（4 个 hook + `hooks.json`） |
+| `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
+| `skills/mcpowers-*` | **21 个可路由技能**（场景层 14 + 方法层 7，扁平化） |
+| `skills/mcpowers-shared/` | 规范资产库（23 个技术规范 + `mcpowers-spec-index` 导航） |
+| `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
 
@@ -32,6 +32,9 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **写测试/TDD** → `mcpowers-tdd`
 - **需求不清/澄清** → `mcpowers-brainstorm`
 - **复杂任务/并行** → `mcpowers-subagent`
+- **自动化测试/E2E/测试报告** → `mcpowers-autoTest`
+- **前后端联调/API契约/接口文档** → `mcpowers-api-contract`
+- **安装基础技能/一键装基础** → `mcpowers-install-basics-skills`
 - **commit/提交** → `mcpowers-git-commit`
 - **worktree/分支隔离** → `mcpowers-git-worktree`
 - **回滚/撤销** → `mcpowers-git-rollback`
@@ -58,6 +61,19 @@ git@github.com:742366981/mcpowers.git
 3. **最后推送**：commit 并 push 到 git 仓库
 
 **禁止**直接修改 `${CLAUDE_PLUGIN_ROOT}` 下的安装副本（插件市场模式下改了会被覆盖）。所有修改在源码仓库根目录进行。
+
+### 文档同步约束（强制）
+
+凡是新增、删除、重命名或调整技能体系的能力、路由、编排、规范、Hook、目录结构、安装方式或版本号，必须在同一变更中同步检查并更新：
+
+- `CLAUDE.md`：维护规则、技能分类、触发映射、数量和验证流程
+- `README.md`：用户功能说明、技能树、触发条件、安装和维护指南
+- `skills/mcpowers/SKILL.md`：主路由器和技能清单
+- `scripts/check-readme-sync.sh`：技能/规范清单和场景技能检查
+- `.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`：插件版本和市场元数据
+
+新增场景技能时，还必须把技能加入 `SCENE_SKILLS`，并确认其包含 `## 编排` 段。禁止只修改 `skills/` 目录而不更新上述文档和校验项。纯规范正文修订至少运行同步检查；凡影响用户可见能力或体系结构的修订必须同步更新两份文档。
+
 
 ## Skill Description 编写规范（强制）
 
@@ -124,16 +140,16 @@ for f in sorted(os.listdir('skills')):
 
 **Claude Code 插件市场以 `plugin.json` 的 `version` 字段为唯一更新触发器**。version 不变，用户（包括你自己）的 Update now / `/plugin install` 都不会拉取新版。
 
-### 修改任何技能后必须做
+### 修改技能体系后必须做
 
 1. **bump version**：修改 `.claude-plugin/plugin.json` 的 `version` 字段
    - 修复 bug / 小改 → patch：`2.0.0` → `2.0.1`
    - 新增技能 / 功能 → minor：`2.0.0` → `2.1.0`
    - 破坏性改动 → major：`2.0.0` → `3.0.0`
-2. **commit + push**：版本号和代码改动放在同一个 commit（或分两个 commit 都行，但必须一起 push）
-3. **不要**用任何 hack 方式绕过 version 机制（删缓存、自建更新脚本等都禁止）
-
-### 用户侧更新流程
+2. **同步市场元数据**：`.claude-plugin/marketplace.json` 的 `plugins[0].version` 必须与 `plugin.json.version` 一致；当前单插件市场的顶层 `version` 也保持同一发布版本，避免元数据漂移。
+3. **验证后再提交**：先运行 `bash scripts/check-readme-sync.sh`，再运行 `bash tests/plugin-verify.sh`。
+4. **commit + push**：版本号和代码改动放在同一个 commit（或分两个 commit 都行，但必须一起 push）
+5. **不要**用任何 hack 方式绕过 version 机制（删缓存、自建更新脚本等都禁止）
 
 用户收到新版只需：
 - `/plugin` → 选 mcpowers → `Update now`
@@ -159,10 +175,10 @@ for f in sorted(os.listdir('skills')):
 
 ## 设计维度
 
-- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（18 个），按意图关键词精准分流
+- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（21 个可路由技能），按意图关键词精准分流
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **资产零损耗**：21+ 规范文件原地保留，路径不重组、不重命名
+- **资产零损耗**：23 个技术规范原地保留，路径不重组、不重命名
 - **完全独立**：不依赖任何外部技能，Git 操作由 4 个 `mcpowers-git-*` 技能自包含
 - **零安装脚本**：依赖 Claude Code 插件系统管理安装/卸载/升级，仓库零维护成本

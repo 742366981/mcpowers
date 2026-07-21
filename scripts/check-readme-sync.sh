@@ -32,6 +32,10 @@ done
 
 # 反向：README 有但实际不存在的（可能是文档笔误）
 for s in $README_SKILLS; do
+    # mcpowers-spec-index 是规范库子目录，不是 skills/ 顶层技能目录。
+    if [ "$s" = "mcpowers-spec-index" ]; then
+        continue
+    fi
     if ! echo "$ACTUAL_SKILLS" | grep -qx "$s" 2>/dev/null; then
         echo "  ⚠ README 提到但实际不存在: $s（可能是文档笔误）"
         # 警告而非错误（README 可能引用历史技能名）
@@ -63,8 +67,8 @@ else
 fi
 
 # ============== 3. 规范 frontmatter 完整性 ==============
-# 只检查 技术规范/ 子目录（18 核心规范范围，AI操作规范和产品设计规范不在范围）
-echo "[3/4] 校验 18 个核心规范 frontmatter 完整性"
+# 只检查 技术规范/ 子目录（23 个核心规范范围，AI操作规范和产品设计规范不在范围）
+echo "[3/4] 校验 23 个核心规范 frontmatter 完整性"
 # v2.0：路径更新
 SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null)
 MISSING_FM=0
@@ -77,7 +81,7 @@ while IFS= read -r f; do
 done <<< "$SPEC_FILES"
 
 if [ "$MISSING_FM" -eq 0 ]; then
-    echo "  ✓ 全部 18 个核心规范有 frontmatter"
+    echo "  ✓ 全部 23 个核心规范有 frontmatter"
 else
     FAIL=$((FAIL + MISSING_FM))
 fi
@@ -86,7 +90,7 @@ fi
 # v2.0：场景技能 = skills/ 下非方法类的 mcpowers-* 技能
 #   硬编码场景技能列表（原 skills/scene/*）
 echo "[4/4] 校验场景技能都有 ## 编排 段"
-SCENE_SKILLS="mcpowers-feat mcpowers-bugfix mcpowers-refactor mcpowers-optimize mcpowers-deploy mcpowers-requirement-change mcpowers-init mcpowers-git-commit mcpowers-git-worktree mcpowers-git-rollback mcpowers-git-cleanBranches mcpowers-autoTest"
+SCENE_SKILLS="mcpowers-feat mcpowers-bugfix mcpowers-refactor mcpowers-optimize mcpowers-deploy mcpowers-requirement-change mcpowers-init mcpowers-git-commit mcpowers-git-worktree mcpowers-git-rollback mcpowers-git-cleanBranches mcpowers-autoTest mcpowers-api-contract mcpowers-install-basics-skills"
 MISSING_ORCH=0
 for s in $SCENE_SKILLS; do
     f="$REPO_DIR/skills/$s/SKILL.md"

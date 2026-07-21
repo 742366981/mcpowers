@@ -10,17 +10,17 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 20 个技能（13 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 1 | **🎯 场景化技能路由** | 21 个技能（14 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
 | 2 | **📋 23 个技术规范**（v2.3.0 新增接口契约规范） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
-| 6 | **🪝 3 类 hooks 资产** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录不可误删 |
+| 6 | **🪝 4 个事件组 / 5 个 Hook 脚本** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步、PostToolUse 提醒提交 |
 | 7 | **🔧 完全独立 Git 操作** | 内置 `commit / worktree / rollback / cleanBranches` 4 个 git 技能，无需依赖任何外部技能 |
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 22 个可执行技术规范的肉 + 中文友好的壳**（v2.3.0 起规范数+1：新增接口契约规范）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 23 个技术规范的肉 + 中文友好的壳**（v2.3.0 起规范数+1：新增接口契约规范）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -34,9 +34,9 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **编排显式化**：11 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
-- **规范元数据化**：22+ 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
-- **骨架增强**：路由器瘦身（105 行）、SessionStart 注入完整铁律、3 类 hooks（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
+- **编排显式化**：14 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
+- **规范元数据化**：23 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 5 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
 ---
 
@@ -54,10 +54,11 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── session-start.sh               # 启动时注入铁律摘要
 │   ├── pre-bash-guard.sh              # 阻断 rm -rf / 等危险命令
 │   ├── pre-write-confirm.sh           # 保护核心资产不可误删
+│   ├── pre-write-confirm-api-hint.sh  # 接口变更时提示同步 API 文档
 │   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/                            # 技能（扁平化：1 路由器 + 20 技能 + 1 规范库）
-│   ├── mcpowers/                      # 主入口路由器（< 150 行，每次对话注入）
+├── skills/                            # 技能（扁平化：1 路由器 + 21 技能 + 1 规范库）
+│   ├── mcpowers/                      # 主入口路由器（每次对话注入）
 │   │
 │   │ ── 场景层（14 个，用户输入直接命中）──
 │   ├── mcpowers-feat/                 # 加功能
@@ -84,9 +85,9 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
 │   │
-│   └── mcpowers-shared/               # 规范资产库（22 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层）
+│   └── mcpowers-shared/               # 规范资产库（23 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层）
 │       ├── SKILL.md                   # 入口（按需加载导航）
-│       ├── mcpowers-spec-index/       # 规范导航（< 100 行，查表）
+│       ├── mcpowers-spec-index/       # 规范导航（查表）
 │       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
 │       │   ├── start_dev.sh           # Linux/macOS 启动
 │       │   └── start_dev.ps1          # Windows 启动
@@ -96,7 +97,7 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── AI操作规范.md          # 全局铁律
 │           ├── 产品设计/
 │           │   └── 产品设计规范.md
-│           ├── 技术规范/              # 22 个技术规范（v2.3.0 新增接口契约规范）
+│           ├── 技术规范/              # 23 个技术规范（v2.3.0 新增接口契约规范）
 │           │   ├── 接口契约规范.md     # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化参数/响应）
 │           │   ├── API规范.md
 │           │   ├── Flask后端规范.md
@@ -192,9 +193,9 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 20 个场景/方法技能（`mcpowers-feat` 等）
-- ✅ 23 个技术规范（`mcpowers-shared`，v2.3.0 起 22 → 23：新增接口契约规范）
-- ✅ 4 个 Claude Code hooks（自动注册，无需改 `settings.json`）
+- ✅ 21 个场景/方法技能（`mcpowers-feat` 等）
+- ✅ 23 个技术规范（`mcpowers-shared`）
+- ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
 
@@ -231,13 +232,13 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 ## Hooks 行为
 
-mcpowers 通过 `.claude-plugin/plugin.json` 的 `hooks` 字段声明 4 个 Claude Code hooks，由插件系统自动注册（**无需修改 `settings.json`**），让铁律从"软提示"升级为"硬约束"。
+mcpowers 通过 `hooks/hooks.json` 声明 4 个 Claude Code Hook 事件组，并调用 5 个脚本，由插件系统自动注册（**无需修改 `settings.json`**），让铁律从"软提示"升级为"硬约束"。
 
 | 钩子 | 触发时机 | 作用 |
 |:-----|:---------|:-----|
 | `SessionStart` | 每次 Claude Code 启动 | 注入路由器铁律摘要（改前确认 / TDD 先行 / 改完即 commit 等），AI 每轮对话开始就知道 mcpowers 流程 |
 | `PreToolUse (Bash)` | 每次执行 Bash 命令前 | 阻断 `rm -rf /`、`git push --force main` 等危险操作 |
-| `PreToolUse (Write)` | 每次 Write 文件前 | 保护核心资产（`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`），需用户确认 |
+| `PreToolUse (Write)` | 每次 Write 文件前 | `pre-write-confirm.sh` 保护核心资产；`pre-write-confirm-api-hint.sh` 在接口相关文件变更时提示同步 API 文档 |
 | `PostToolUse (Write/Edit/MultiEdit)` | 每次修改后 | 改完即 commit 提醒（仅在已暂存且工作区干净时触发） |
 
 > Hooks 通过 `${CLAUDE_PLUGIN_ROOT}` 环境变量定位脚本，跨平台零适配（Windows / macOS / Linux 统一）。
@@ -258,7 +259,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 18 技能 + 21 规范 + 4 个 hooks 全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 21 技能 + 23 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |
@@ -273,7 +274,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 #### Claude Code（主推）
 
-- 完整支持 4 个 hooks（`SessionStart` + `PreToolUse` + `PostToolUse`）
+- 完整支持 4 个 Hook 事件组 / 5 个脚本（`SessionStart` + `PreToolUse(Bash/Write)` + `PostToolUse`）
 - 路由器自动加载，用户输入自然语言路由到对应技能
 - 安装命令：`/plugin marketplace add https://github.com/742366981/mcpowers && /plugin install mcpowers@mcpowers`
 
@@ -312,6 +313,19 @@ mcpowers 的设计参考了以下优秀项目：
 
 mcpowers 的设计目标是**让维护者能低成本演进**：基于 superpowers / superpowers-zh 思想 + 你自己的规范文件。下面是高频维护场景的操作清单。
 
+### 文档同步规则（强制）
+
+凡是新增、删除、重命名或调整技能体系的能力、路由、编排、规范、Hook、目录结构、安装方式或版本号，必须在同一变更中同步检查并更新 `CLAUDE.md` 与 `README.md`。
+
+- 新增场景技能：同步主路由器、技能树、触发条件表、`SCENE_SKILLS`、技能版本和验证结果
+- 新增方法技能：同步技能总数、技能树、路由说明和验证结果
+- 新增规范或 Hook：同步规范/Hook 清单、对应维护文档和结构校验
+- 修改插件版本：同步 `.claude-plugin/plugin.json` 与 `.claude-plugin/marketplace.json`
+
+禁止只修改 `skills/`、`hooks/` 或插件元数据而不检查两份维护文档。纯规范正文修订至少运行同步检查；凡影响用户可见能力或体系结构的修订必须实际更新两份文档。
+
+---
+
 ### 场景 1：修改某个规范文件的内容
 
 **步骤**（1 分钟）：
@@ -320,7 +334,7 @@ mcpowers 的设计目标是**让维护者能低成本演进**：基于 superpowe
 2. 更新文件顶部 frontmatter 的 `last_updated: <今天日期>`
 3. 跑 `bash scripts/check-readme-sync.sh` 确认通过
 
-**不需要改**：spec-index、README、其他规范文件。
+**同步要求**：如果修改影响规范清单、适用范围或用户可见行为，必须同步检查 `CLAUDE.md` 和 README；仅正文措辞或 `last_updated` 变更时，至少运行同步检查。
 
 ---
 
@@ -332,7 +346,7 @@ mcpowers 的设计目标是**让维护者能低成本演进**：基于 superpowe
 |:-:|:-----|:-----|
 | 1 | `mcpowers-shared/docs/技术规范/<新规范名>规范.md` | **新建**，顶部插入 frontmatter 模板（见下方） |
 | 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 第 12-33 行查表 | **加一行**："任务/文件类型" → "必读规范" |
-| 3 | `README.md` 技能结构图的 `mcpowers-shared/docs/技术规范/` 块 | **加一行** |
+| 3 | `README.md` 技能结构图的 `mcpowers-shared/docs/技术规范/` 块、`CLAUDE.md` 规范数量 | **各加一处**，保持用户文档和维护规则一致 |
 | 4 | 跑 `bash scripts/check-readme-sync.sh` | **必须通过**（不通过 = 漏改了某处） |
 | 5 | `git add . && git commit -m "docs(specs): 新增 <X>规范"` | 提交 |
 
@@ -369,9 +383,9 @@ last_updated: 2026-07-08
 |:-:|:-----|:-----|
 | 1 | `rm mcpowers-shared/docs/技术规范/<X>规范.md` | 删除文件 |
 | 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表 | **删一行** |
-| 3 | `README.md` 技能结构图 | **删一行** |
+| 3 | `README.md` 技能结构图、`CLAUDE.md` 规范数量 | **各删一处**，保持用户文档和维护规则一致 |
 | 4 | `bash scripts/check-readme-sync.sh` | 必须通过 |
-| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥18 规范断言仍通过（如规范数 < 18 需要更新 plugin-verify 的断言阈值） |  |
+| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥23 个规范断言仍通过（如规范数 < 23 需要更新 plugin-verify 的断言阈值） |  |
 
 ---
 
@@ -382,10 +396,12 @@ last_updated: 2026-07-08
 1. 创建 `skills/mcpowers-<name>/SKILL.md`
 2. **复制 mcpowers-feat 的 "## 编排" 模板**（最完整的版本），修改表格内容
 3. 在 `skills/mcpowers/SKILL.md` 路由表（## 1 段）**加一行**："触发关键词" → `mcpowers-<name>`
-4. `README.md` 触发条件表（## 触发条件 段）**加一行**
-5. `README.md` 技能结构图的 `skills/` 块**加一行**
-6. 跑 `bash scripts/check-readme-sync.sh` 通过
-7. 跑 `bash tests/plugin-verify.sh` 通过（断言 "技能数=20" 会失败，需要更新为 21）
+4. `CLAUDE.md` 的核心结构、触发条件和技能分类**同步更新**
+5. `README.md` 触发条件表（## 触发条件 段）**加一行**
+6. `README.md` 技能结构图的 `skills/` 块**加一行**并更新技能统计
+7. 如果是场景层技能，更新 `scripts/check-readme-sync.sh` 的 `SCENE_SKILLS`
+8. bump `.claude-plugin/plugin.json`、marketplace 插件条目和顶层市场版本
+9. 先跑 `bash scripts/check-readme-sync.sh`，再跑 `bash tests/plugin-verify.sh`
 
 ---
 
@@ -395,9 +411,11 @@ last_updated: 2026-07-08
 
 1. 创建 `hooks/<hook-name>.sh`，头部加 `#!/usr/bin/env bash`，可执行
 2. `hooks/hooks.json` 追加对应事件段（不动现有段）
-3. `mcpowers/SKILL.md` "## 5. 硬约束完整覆盖" 表**加一行**
-4. `hooks/README.md` 加一段说明
-5. `bash tests/plugin-verify.sh` 跑过（确认 hooks 资产可被发现）
+3. `CLAUDE.md` 和 `README.md` 同步更新 Hook 事件组/脚本清单及维护说明
+4. `skills/mcpowers/SKILL.md` "## 5. 硬约束完整覆盖" 表**加一行**（如新增事件组）或补充对应脚本
+5. `hooks/README.md` 加一段说明
+6. `tests/plugin-verify.sh` 补充脚本存在性或行为断言
+7. `bash tests/plugin-verify.sh` 跑过（确认 hooks 资产可被发现）
 
 **hooks.json 模板**（根据事件类型选一种）：
 
@@ -455,10 +473,10 @@ git push origin master
 | `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（4 类断言） |
 | `bash hooks/session-start.sh` | 验证铁律输出正确 | `bash hooks/session-start.sh`，看输出是否完整 |
 
-**建议**：每次 commit 前跑 2 个脚本：
+**建议**：每次 commit 前按以下顺序跑 2 个脚本：先发现文档清单问题，再验证插件结构。
 
 ```bash
-bash tests/plugin-verify.sh && bash scripts/check-readme-sync.sh
+bash scripts/check-readme-sync.sh && bash tests/plugin-verify.sh
 ```
 
 ---

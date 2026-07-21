@@ -62,10 +62,10 @@ echo "[2/7] 断言：插件元数据合法"
 assert ".claude-plugin/marketplace.json 存在" "[ -f '$REPO_DIR/.claude-plugin/marketplace.json' ]"
 assert ".claude-plugin/plugin.json 存在" "[ -f '$REPO_DIR/.claude-plugin/plugin.json' ]"
 
-# 验证 marketplace.json 是合法 JSON
-if command -v python3 >/dev/null 2>&1; then
+# 优先使用可执行的 python3；Windows Store 占位命令可能存在但不可用，需回退到 python
+if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
     PY_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
+elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
     PY_BIN="python"
 else
     PY_BIN=""
@@ -126,11 +126,11 @@ fi
 # ============== 5. 规范库 ==============
 echo "[5/7] 断言：mcpowers-shared 规范库完整"
 SPEC_COUNT=$(find "$REPO_DIR/skills/mcpowers-shared/docs" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$SPEC_COUNT" -ge 18 ]; then
-    echo "  ✓ 规范数=$SPEC_COUNT (≥18)"
+if [ "$SPEC_COUNT" -ge 23 ]; then
+    echo "  ✓ 规范数=$SPEC_COUNT (≥23)"
     PASS=$((PASS + 1))
 else
-    echo "  ✗ 规范数=$SPEC_COUNT (<18)"
+    echo "  ✗ 规范数=$SPEC_COUNT (<23)"
     FAIL=$((FAIL + 1))
 fi
 assert "mcpowers-spec-index 存在" "[ -d '$REPO_DIR/skills/mcpowers-shared/mcpowers-spec-index' ]"
@@ -141,6 +141,7 @@ assert "hooks/hooks.json 存在" "[ -f '$REPO_DIR/hooks/hooks.json' ]"
 assert "session-start.sh 存在" "[ -f '$REPO_DIR/hooks/session-start.sh' ]"
 assert "pre-bash-guard.sh 存在" "[ -f '$REPO_DIR/hooks/pre-bash-guard.sh' ]"
 assert "pre-write-confirm.sh 存在" "[ -f '$REPO_DIR/hooks/pre-write-confirm.sh' ]"
+assert "pre-write-confirm-api-hint.sh 存在" "[ -f '$REPO_DIR/hooks/pre-write-confirm-api-hint.sh' ]"
 assert "post-write-commit-reminder.sh 存在" "[ -f '$REPO_DIR/hooks/post-write-commit-reminder.sh' ]"
 assert "pre-bash-guard 可执行" "[ -x '$REPO_DIR/hooks/pre-bash-guard.sh' ]"
 

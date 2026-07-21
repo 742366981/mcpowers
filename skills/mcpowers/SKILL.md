@@ -1,6 +1,6 @@
 ---
 name: mcpowers
-description: "mcpowers 内部路由器（不直接面向用户触发，避免抢触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd），禁止先调用本 skill 完整正文再判断。完整路由表（18 行骨架）见「强制分流表」段；每个场景/方法技能的 description 列出完整自然语言触发词清单和边界防误触发说明，是 L1 语义匹配的主要依据。"
+description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills），禁止先调用本 skill 完整正文再判断。完整路由表（21 行骨架）见「强制分流表」段；各技能 description 列出完整自然语言触发词和边界防误触发说明，是 L1 语义匹配的主要依据。"
 ---
 
 # mcpowers 路由器
@@ -129,7 +129,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，避免抢
 ### 3.3 规范层（Layer 3）—— 资产库，按需 Read
 - **入口**：`skills/mcpowers-shared/SKILL.md`（规范库入口 skill）
 - **导航**：`skills/mcpowers-shared/mcpowers-spec-index/SKILL.md`（查"做什么 → 读哪个规范"）
-- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（21 个文件，原地保留）
+- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（23 个文件，原地保留）
 
 ---
 
@@ -139,9 +139,9 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 - ✅ **Git 操作**：由 `mcpowers-git-*` 4 个自有技能处理（commit / worktree / rollback / cleanBranches）
 - ✅ **规范文件**：`mcpowers-shared/docs/...` 路径不变
-- ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 16 个场景/方法技能
+- ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 场景/方法技能
 
-只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（18 技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
+只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（21 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
 
 ---
 
@@ -149,7 +149,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 ---
 
-## 5. 硬约束完整覆盖（4 个 hooks）
+## 5. 硬约束完整覆盖（4 个事件组 / 5 个脚本）
 
 铁律从"软提示"升级为"硬约束"由以下 hooks 实现（详见 `hooks/README.md`）：
 
@@ -157,7 +157,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 |:-----|:-----|:---------|:-------|
 | `SessionStart/startup` | 启动时 | 7 条必做 + 6 条禁止（铁律全文注入） | 0（注入） |
 | `PreToolUse/Bash` | Bash 前 | 阻断 `rm -rf /` 等危险命令 | 2 = 阻断 / 0 = 放行 |
-| `PreToolUse/Write` | Write 前 | 改前确认（仅保护核心 3 目录） | 2 = 阻断 / 0 = 放行 |
+| `PreToolUse/Write` | Write 前 | 改前确认；接口相关文件变更时提示同步 API 文档（保护核心 4 目录） | 2 = 阻断 / 0 = 放行 |
 | `PostToolUse/Write\|Edit\|MultiEdit` | 写完后 | 改完即 commit 提醒 | 0（仅提醒） |
 
 **核心 4 目录保护**（PreToolUse/Write 范围）：`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。

@@ -2,13 +2,13 @@
 
 mcpowers 通过 Claude Code 的 hooks 机制实现**铁律的硬约束**——LLM 必须遵守的规则从"软提示"升级为"物理阻断"。
 
-## 包含的钩子（4 个）
+## 包含的钩子（4 个事件组 / 5 个脚本）
 
 | 钩子 | 触发时机 | 作用 |
 |:-----|:---------|:-----|
 | `SessionStart` | 每次 Claude Code 启动 | 注入路由器铁律摘要，AI 每轮对话开始就知道 mcpowers 流程 |
 | `PreToolUse (Bash)` | 每次执行 Bash 命令前 | 阻断 `rm -rf /`、`git push --force main` 等危险操作 |
-| `PreToolUse (Write)` | 每次 Write 文件前 | 保护核心资产（`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`），需用户确认 |
+| `PreToolUse (Write)` | 每次 Write 文件前 | 保护核心资产（`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`），需用户确认；接口变更时额外提示同步 API 文档 |
 | `PostToolUse (Write/Edit/MultiEdit)` | 每次修改后 | 改完即 commit 提醒（仅在已暂存且工作区干净时触发） |
 
 ## 注册机制（v2.0 插件市场）

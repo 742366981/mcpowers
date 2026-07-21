@@ -74,6 +74,15 @@ git@github.com:742366981/mcpowers.git
 
 新增场景技能时，还必须把技能加入 `SCENE_SKILLS`，并确认其包含 `## 编排` 段。禁止只修改 `skills/` 目录而不更新上述文档和校验项。纯规范正文修订至少运行同步检查；凡影响用户可见能力或体系结构的修订必须同步更新两份文档。
 
+#### CI 物理门禁（v2.5.2+）
+
+`.github/workflows/doc-sync.yml` 在 PR 涉及 `skills/`、`hooks/`、`.claude-plugin/`、`scripts/`、`tests/`、规范变化时自动跑：
+- `bash scripts/check-readme-sync.sh`（7 类一致性：技能/规范清单、frontmatter、场景编排、版本号、description ≤800c、文档数字声明）
+- `bash tests/plugin-verify.sh`（插件结构 + Hook 行为 + 事件组数 = 4 + 引用脚本存在）
+- 检查 CLAUDE.md 或 README.md 是否在同一 PR 中变化（**未变化则 PR 红 X**，从"AI 自觉"升级为"合并前硬阻止"）
+
+本地开发可选装 pre-commit hook（参考 README 末尾的 `.git/hooks/pre-commit` 示例）。
+
 
 ## Skill Description 编写规范（强制）
 

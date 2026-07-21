@@ -156,6 +156,56 @@ else
     PASS=$((PASS + 1))
 fi
 
+# v2.5.2：校验 hooks.json 中所有引用的脚本都实际存在
+HOOK_REFS=$(grep -oE 'hooks/[a-zA-Z0-9_-]+\.sh' "$REPO_DIR/hooks/hooks.json" 2>/dev/null | sort -u || true)
+HOOK_REF_FAIL=0
+for ref in $HOOK_REFS; do
+    if [ ! -f "$REPO_DIR/$ref" ]; then
+        echo "  ✗ hooks.json 引用 $ref 但文件不存在"
+        HOOK_REF_FAIL=$((HOOK_REF_FAIL + 1))
+    fi
+done
+if [ "$HOOK_REF_FAIL" -eq 0 ]; then
+    echo "  ✓ hooks.json 引用的 $(echo "$HOOK_REFS" | wc -l | tr -d ' ') 个脚本全部存在"
+    PASS=$((PASS + 1))
+else
+    FAIL=$((FAIL + HOOK_REF_FAIL))
+fi
+
+# v2.5.2：校验事件组数 = 4（SessionStart + PreToolUse(Bash) + PreToolUse(Write) + PostToolUse）
+# 口径：按 matcher 分组（README/CLAUDE.md 中"4 个事件组"与此对齐）
+EVENT_GROUP_COUNT=0
+if grep -q '"SessionStart"' "$REPO_DIR/hooks/hooks.json" 2>/dev/null; then
+    EVENT_GROUP_COUNT=$((EVENT_GROUP_COUNT + 1))
+fi
+# PreToolUse 分 Bash 和 Write 两组
+if grep -q '"matcher":[[:space:]]*"Bash"' "$REPO_DIR/hooks/hooks.json" 2>/dev/null; then
+    EVENT_GROUP_COUNT=$((EVENT_GROUP_COUNT + 1))
+fi
+if grep -q '"matcher":[[:space:]]*"Write"' "$REPO_DIR/hooks/hooks.json" 2>/dev/null; then
+    EVENT_GROUP_COUNT=$((EVENT_GROUP_COUNT + 1))
+fi
+if grep -q '"PostToolUse"' "$REPO_DIR/hooks/hooks.json" 2>/dev/null; then
+    EVENT_GROUP_COUNT=$((EVENT_GROUP_COUNT + 1))
+fi
+assert_eq "事件组数 = 4（按 matcher 分组）" "$EVENT_GROUP_COUNT" "4"
+
+# v2.5.2：校验插件版本号三处一致（与 check-readme-sync.sh 重复，但作独立安全网）
+if [ -n "$PY_BIN" ]; then
+    PV1=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/plugin.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
+    PV2=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/marketplace.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
+    PV3=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/marketplace.json', encoding='utf-8'))['plugins'][0]['version'])" 2>/dev/null || echo "")
+    if [ "$PV1" = "$PV2" ] && [ "$PV2" = "$PV3" ] && [ -n "$PV1" ]; then
+        echo "  ✓ 三处版本号一致: $PV1"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ 版本号不一致: plugin=$PV1, marketplace=$PV2, plugins[0]=$PV3"
+        FAIL=$((FAIL + 1))
+    fi
+else
+    assert "三处版本号一致（无 Python，跳过）" "true"
+fi
+
 # ============== 7. 行为断言：hooks 真阻断 ==============
 echo "[7/7] 行为断言：pre-bash-guard 危险命令应被阻断"
 set +e

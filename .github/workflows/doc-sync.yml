@@ -1,0 +1,67 @@
+name: 文档与插件结构同步校验
+
+# 触发条件：PR 涉及技能体系、Hook、插件元数据、校验脚本或技术规范变化时
+on:
+  pull_request:
+    paths:
+      - 'skills/**'
+      - 'hooks/**'
+      - '.claude-plugin/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'skills/mcpowers-shared/docs/**'
+      - 'CLAUDE.md'
+      - 'README.md'
+  push:
+    branches: [master]
+
+jobs:
+  doc-sync:
+    name: 文档 ↔ 代码同步校验
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 校验 README ↔ 实际状态
+        run: bash scripts/check-readme-sync.sh
+
+      - name: 校验插件结构
+        run: bash tests/plugin-verify.sh
+
+      - name: 校验 CLAUDE.md / README.md 同步变更
+        run: |
+          # 当 PR 涉及技能体系核心路径时，要求 CLAUDE.md 或 README.md 至少有一个变化
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="origin/${{ github.base_ref }}"
+            HEAD_SHA="${{ github.sha }}"
+
+            CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)
+
+            # 受保护路径：技能体系核心目录
+            PROTECTED_PATHS_REGEX='^(skills/|hooks/|\.claude-plugin/|skills/mcpowers-shared/docs/)'
+
+            DOCS_CHANGED=$(echo "$CHANGED" | grep -E '^(CLAUDE\.md|README\.md)$' || true)
+            PROTECTED_CHANGED=$(echo "$CHANGED" | grep -E "$PROTECTED_PATHS_REGEX" || true)
+
+            if [ -n "$PROTECTED_CHANGED" ] && [ -z "$DOCS_CHANGED" ]; then
+              echo "❌ 检测到技能体系变更但 CLAUDE.md/README.md 未同步"
+              echo ""
+              echo "变更的受保护路径："
+              echo "$PROTECTED_CHANGED"
+              echo ""
+              echo "按 CLAUDE.md「文档同步约束（强制）」规则，必须在同一变更中同步更新："
+              echo "  - CLAUDE.md（维护规则、技能分类、触发映射）"
+              echo "  - README.md（用户功能说明、技能树、触发条件）"
+              exit 1
+            fi
+
+            if [ -n "$PROTECTED_CHANGED" ]; then
+              echo "✓ 检测到 CLAUDE.md 或 README.md 同步变更"
+              echo "$DOCS_CHANGED"
+            fi
+          else
+            echo "✓ push 事件，跳过文档同步变更检查"
+          fi

@@ -470,13 +470,37 @@ git push origin master
 | 工具 | 用途 | 跑法 |
 |:-----|:-----|:-----|
 | `tests/plugin-verify.sh` | 插件结构验证 | `bash tests/plugin-verify.sh`（30+ 断言） |
-| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（4 类断言） |
+| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（7 类断言：技能/规范清单、frontmatter、场景编排、版本号、description ≤800c、文档数字声明） |
 | `bash hooks/session-start.sh` | 验证铁律输出正确 | `bash hooks/session-start.sh`，看输出是否完整 |
+| `.github/workflows/doc-sync.yml` | **CI 物理门禁**（v2.5.2+） | PR 涉及技能体系变化时自动跑，CLAUDE.md/README.md 未同步则红 X |
 
 **建议**：每次 commit 前按以下顺序跑 2 个脚本：先发现文档清单问题，再验证插件结构。
 
 ```bash
 bash scripts/check-readme-sync.sh && bash tests/plugin-verify.sh
+```
+
+### CI 物理门禁说明（v2.5.2+）
+
+`.github/workflows/doc-sync.yml` 把"AI 自觉同步文档"升级为"合并前硬阻止"：
+
+- **触发条件**：PR 涉及 `skills/`、`hooks/`、`.claude-plugin/`、`scripts/`、`tests/`、`skills/mcpowers-shared/docs/` 任意路径变化
+- **运行校验**：自动跑 `check-readme-sync.sh`（7 类断言）+ `plugin-verify.sh`（37 类断言）
+- **变更联动**：检测到技能体系变更时，要求 `CLAUDE.md` 或 `README.md` 至少有一个变化，否则 PR 标记失败
+- **目标**：完全消除"改了技能忘了改文档"的人工遗漏
+
+**示例 PR 红 X 提示**：
+
+```text
+❌ 检测到技能体系变更但 CLAUDE.md/README.md 未同步
+
+变更的受保护路径：
+skills/<新场景技能>/SKILL.md
+skills/mcpowers/SKILL.md
+
+按 CLAUDE.md「文档同步约束（强制）」规则，必须在同一变更中同步更新：
+  - CLAUDE.md（维护规则、技能分类、触发映射）
+  - README.md（用户功能说明、技能树、触发条件）
 ```
 
 ---

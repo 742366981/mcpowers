@@ -10,7 +10,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 22 个技能（15 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 1 | **🎯 场景化技能路由** | 23 个技能（16 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
 | 2 | **📋 24 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md`） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
@@ -34,7 +34,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **编排显式化**：15 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
+- **编排显式化**：16 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
 - **规范元数据化**：24 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 5 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
@@ -57,10 +57,10 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── pre-write-confirm-api-hint.sh  # 接口变更时提示同步 API 文档
 │   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/                            # 技能（扁平化：1 路由器 + 22 技能 + 1 规范库）
+├── skills/                            # 技能（扁平化：1 路由器 + 23 技能 + 1 规范库）
 │   ├── mcpowers/                      # 主入口路由器（每次对话注入）
 │   │
-│   │ ── 场景层（15 个，用户输入直接命中）──
+│   │ ── 场景层（16 个，用户输入直接命中）──
 │   ├── mcpowers-feat/                 # 加功能
 │   ├── mcpowers-bugfix/               # 修 bug
 │   ├── mcpowers-refactor/             # 重构
@@ -76,6 +76,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
 │   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，分析+逆向+轻量封装，联动 init 落地）
+│   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
 │   │
 │   │ ── 方法层（7 个，被场景层调用）──
 │   ├── mcpowers-brainstorm/           # 澄清需求
@@ -171,6 +172,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
 | 装基础技能/一键装基础/装上所有基础/装全部基础技能/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
 | 爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站 | `mcpowers-crawler-reverse`（v2.7.0 新增） |
+| 抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用 | `mcpowers-extract`（v2.8.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
 | 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` |
@@ -196,7 +198,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 22 个场景/方法技能（`mcpowers-feat` 等）
+- ✅ 23 个场景/方法技能（`mcpowers-feat` 等）
 - ✅ 24 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
@@ -262,7 +264,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 22 技能 + 24 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 23 技能 + 24 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |

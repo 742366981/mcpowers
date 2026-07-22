@@ -8,7 +8,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 |:-----|:-----|
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
-| `skills/mcpowers-*` | **22 个可路由技能**（场景层 15 + 方法层 7，扁平化） |
+| `skills/mcpowers-*` | **23 个可路由技能**（场景层 16 + 方法层 7，扁平化） |
 | `skills/mcpowers-shared/` | 规范资产库（24 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
@@ -36,6 +36,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **前后端联调/API契约/接口文档** → `mcpowers-api-contract`
 - **安装基础技能/一键装基础** → `mcpowers-install-basics-skills`
 - **爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站** → `mcpowers-crawler-reverse`
+- **抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用** → `mcpowers-extract`
 - **commit/提交** → `mcpowers-git-commit`
 - **worktree/分支隔离** → `mcpowers-git-worktree`
 - **回滚/撤销** → `mcpowers-git-rollback`
@@ -195,7 +196,7 @@ for f in sorted(os.listdir('skills')):
 
 ## 设计维度
 
-- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（22 个可路由技能），按意图关键词精准分流
+- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（23 个可路由技能），按意图关键词精准分流
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断

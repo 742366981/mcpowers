@@ -1,6 +1,6 @@
 ---
 name: mcpowers
-description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills），禁止先调用本 skill 完整正文再判断。完整路由表（21 行骨架）见「强制分流表」段；各技能 description 列出完整自然语言触发词和边界防误触发说明，是 L1 语义匹配的主要依据。"
+description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse），禁止先调用本 skill 完整正文再判断。完整路由表（22 行骨架）见「强制分流表」段；各技能 description 列出完整自然语言触发词和边界防误触发说明，是 L1 语义匹配的主要依据。"
 ---
 
 # mcpowers 路由器
@@ -45,6 +45,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 | 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
 | 前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 / swagger / openapi / 接口文档怎么自动生成 / 前端怎么拿到接口类型 | `mcpowers-api-contract` | 场景层 | `mcpowers-api-contract/SKILL.md` description |
 | 装基础技能 / 一键装基础 / 装上所有基础 / 装基础技能 / 装全部基础技能 / 全局安装基础技能 / npx skills add | `mcpowers-install-basics-skills` | 场景层 | `mcpowers-install-basics-skills/SKILL.md` description |
+| 爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS 反混淆 / APP 逆向 / frida hook / SSL Pinning / 爬虫被加密 / 帮我逆向这个网站 | `mcpowers-crawler-reverse` | 场景层 | `mcpowers-crawler-reverse/SKILL.md` description |
 
 ---
 
@@ -116,6 +117,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 - `skills/mcpowers-autoTest/SKILL.md`
 - `skills/mcpowers-api-contract/SKILL.md`（v2.2.0 新增）
 - `skills/mcpowers-install-basics-skills/SKILL.md`（v2.5.0 新增）
+- `skills/mcpowers-crawler-reverse/SKILL.md`（v2.7.0 新增）
 
 ### 3.2 方法层（Layer 2）—— 被编排，也可单独触发
 - `skills/mcpowers-brainstorm/SKILL.md`
@@ -141,7 +143,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 - ✅ **规范文件**：`mcpowers-shared/docs/...` 路径不变
 - ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 场景/方法技能
 
-只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（21 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
+只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（22 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
 
 ---
 

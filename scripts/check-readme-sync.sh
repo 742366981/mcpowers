@@ -3,7 +3,7 @@
 # 用途：CI 跑完所有断言无失败即视为文档与代码同步
 # 退出码 0 = 同步，1 = 不同步
 #
-# 检查 7 类一致性：
+# 检查 9 类一致性：
 #   1. README 路由表 ↔ 实际 skills/ 目录
 #   2. README 规范清单 ↔ 实际 docs/ 下的规范文件
 #   3. 每个规范文件有 frontmatter type: 字段
@@ -11,7 +11,10 @@
 #   5. 插件版本号三处一致（plugin.json / marketplace.json / plugins[0]）
 #   6. 技能 description 字符数 ≤ 800（防 1024c 截断）
 #   7. README / CLAUDE.md 中声明的技能/规范/Hook 数与实际一致
+#   8. 路由器 + 规范库入口 的技能/规范数声明一致性（v2.9.0 L1 强化）
+#   9. 跨文件技能引用一致性（无悬空引用）（v2.9.0 L1 强化）
 #
+# v2.9.0：新增 section 8/9
 # v2.5.2：新增 section 5/6/7
 # v2.0： 适配扁平化 skills/ 结构（删除 scene/method 分层）
 
@@ -38,7 +41,7 @@ else
 fi
 
 # ============== 1. 技能清单同步 ==============
-echo "[1/7] 校验 README ↔ skills/ 同步"
+echo "[1/9] 校验 README ↔ skills/ 同步"
 README_SKILLS=$(grep -oE 'mcpowers-[a-zA-Z-]+' "$README" 2>/dev/null | sort -u || true)
 # v2.0：扁平结构，直接列 skills/ 下所有目录（mcpowers-* 前缀）
 ACTUAL_SKILLS=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
@@ -67,7 +70,7 @@ if [ "$FAIL" -eq 0 ]; then
 fi
 
 # ============== 2. 规范清单同步 ==============
-echo "[2/7] 校验 README ↔ docs/ 规范同步"
+echo "[2/9] 校验 README ↔ docs/ 规范同步"
 README_SPECS=$(grep -oE '[A-Za-z一-龥]+规范\.md' "$README" 2>/dev/null | sort -u || true)
 # v2.0：mcpowers-shared 移到 skills/mcpowers-shared/
 ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
@@ -88,7 +91,7 @@ fi
 
 # ============== 3. 规范 frontmatter 完整性 ==============
 # 只检查 技术规范/ 子目录（23 个核心规范范围，AI操作规范和产品设计规范不在范围）
-echo "[3/7] 校验 23 个核心规范 frontmatter 完整性"
+echo "[3/9] 校验 23 个核心规范 frontmatter 完整性"
 # v2.0：路径更新
 SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null)
 MISSING_FM=0
@@ -109,7 +112,7 @@ fi
 # ============== 4. 场景技能都有 ## 编排 段 ==============
 # v2.0：场景技能 = skills/ 下非方法类的 mcpowers-* 技能
 #   硬编码场景技能列表（原 skills/scene/*）
-echo "[4/7] 校验场景技能都有 ## 编排 段"
+echo "[4/9] 校验场景技能都有 ## 编排 段"
 SCENE_SKILLS="mcpowers-feat mcpowers-bugfix mcpowers-refactor mcpowers-optimize mcpowers-deploy mcpowers-requirement-change mcpowers-init mcpowers-git-commit mcpowers-git-worktree mcpowers-git-rollback mcpowers-git-cleanBranches mcpowers-autoTest mcpowers-api-contract mcpowers-install-basics-skills mcpowers-crawler-reverse mcpowers-extract"
 MISSING_ORCH=0
 for s in $SCENE_SKILLS; do
@@ -133,7 +136,7 @@ fi
 
 # ============== 5. 插件版本号三处一致 ==============
 # v2.5.2：保证 plugin.json.version / marketplace.json.version / marketplace.json.plugins[0].version 三处同步
-echo "[5/7] 校验插件版本号三处一致"
+echo "[5/9] 校验插件版本号三处一致"
 if [ -n "$PY_BIN" ]; then
     PLUGIN_V=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/plugin.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
     MARKET_V=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/marketplace.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
@@ -154,7 +157,7 @@ fi
 
 # ============== 6. 技能 description 字符数 ==============
 # v2.5.2：硬约束 ≤ 800 字符（1024 字符硬上限的 80% 安全预算）
-echo "[6/7] 校验技能 description 字符数（≤800，防 1024c 截断）"
+echo "[6/9] 校验技能 description 字符数（≤800，防 1024c 截断）"
 MAX_DESC_LEN=800
 BAD_DESC=0
 SKILL_DIRS=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers')
@@ -195,7 +198,7 @@ fi
 # ============== 7. 文档数字一致性 ==============
 # v2.5.2：README / CLAUDE.md 中"X 个技能/规范/Hook 脚本"声明必须与实际一致
 #   技能数排除 mcpowers-shared（规范库）
-echo "[7/7] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
+echo "[7/9] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
 ACTUAL_SKILL_N=$(echo "$ACTUAL_SKILLS" | grep -v '^mcpowers-shared$' | grep -c '^mcpowers' || true)
 ACTUAL_SPEC_N=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
 ACTUAL_HOOK_N=$(find "$REPO_DIR/hooks" -maxdepth 1 -name "*.sh" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -276,6 +279,106 @@ if [ "$DOC_NUM_FAIL" -eq 0 ]; then
     echo "  ✓ 文档数字声明 = 实际（技能 $ACTUAL_SKILL_N / 规范 $ACTUAL_SPEC_N / Hook 脚本 $ACTUAL_HOOK_N）"
 else
     FAIL=$((FAIL + DOC_NUM_FAIL))
+fi
+
+# ============== 8. 路由器 + 规范库入口 数字一致性（v2.9.0 L1 强化） ==============
+# v2.9.0：把 #7 的技能/规范/Hook 数校验从"只查 README + CLAUDE.md"扩展到
+#   skills/mcpowers/SKILL.md (路由器本体) + skills/mcpowers-shared/SKILL.md (规范库入口)。
+#   解决历史漏改：路由器说 "23 个可路由技能" 但 README/CLAUDE.md 已改成 24。
+echo "[8/9] 校验 路由器/规范库入口 的技能/规范/Hook 脚本数声明"
+ROUTER_SKILL="$REPO_DIR/skills/mcpowers/SKILL.md"
+SHARED_SKILL="$REPO_DIR/skills/mcpowers-shared/SKILL.md"
+DOC_NUM_FAIL2=0
+
+# 复用 #7 的匹配规则，仅替换内部计数器为 DOC_NUM_FAIL2
+check_skill_decl_router() {
+    local doc="$1"; local label="$2"; local actual="$3"
+    local decls
+    decls=$(grep -oE '[0-9]+[[:space:]]*个[[:space:]]*(可路由|核心|场景/方法|场景与方法)?[[:space:]]*技能' "$doc" 2>/dev/null \
+        | grep -oE '^[0-9]+' | sort -u || true)
+    for n in $decls; do
+        if [ "$n" != "$actual" ]; then
+            echo "  ✗ $label 声明技能数 = $n，实际 = $actual"
+            DOC_NUM_FAIL2=$((DOC_NUM_FAIL2 + 1))
+        fi
+    done
+}
+check_spec_decl_router() {
+    local doc="$1"; local label="$2"; local actual="$3"
+    local decls
+    decls=$(grep -oE '[0-9]+[[:space:]]*个[[:space:]]*(技术|核心)?[[:space:]]*规范' "$doc" 2>/dev/null \
+        | grep -oE '^[0-9]+' | sort -u || true)
+    for n in $decls; do
+        if [ "$n" != "$actual" ]; then
+            echo "  ✗ $label 声明规范数 = $n，实际 = $actual"
+            DOC_NUM_FAIL2=$((DOC_NUM_FAIL2 + 1))
+        fi
+    done
+}
+check_hook_decl_router() {
+    local doc="$1"; local label="$2"; local actual="$3"
+    local d1 d2
+    d1=$(grep -oE '[0-9]+[[:space:]]*个[[:space:]]*Hook[[:space:]]*脚本' "$doc" 2>/dev/null \
+        | grep -oE '^[0-9]+' | sort -u || true)
+    d2=$(grep -oE '事件组[[:space:]]*/[[:space:]]*[0-9]+[[:space:]]*个[[:space:]]*脚本' "$doc" 2>/dev/null \
+        | grep -oE '[0-9]+' | sort -u || true)
+    local decls
+    decls=$(printf '%s\n%s\n' "$d1" "$d2" | grep -E '^[0-9]+$' | sort -u || true)
+    for n in $decls; do
+        if [ "$n" != "$actual" ]; then
+            echo "  ✗ $label 声明 Hook 脚本数 = $n，实际 = $actual"
+            DOC_NUM_FAIL2=$((DOC_NUM_FAIL2 + 1))
+        fi
+    done
+}
+
+check_skill_decl_router "$ROUTER_SKILL"  "router" "$ACTUAL_SKILL_N"
+check_skill_decl_router "$SHARED_SKILL" "shared" "$ACTUAL_SKILL_N"
+check_spec_decl_router  "$ROUTER_SKILL"  "router" "$ACTUAL_SPEC_N"
+check_spec_decl_router  "$SHARED_SKILL" "shared" "$ACTUAL_SPEC_N"
+check_hook_decl_router  "$ROUTER_SKILL"  "router" "$ACTUAL_HOOK_N"
+
+if [ "$DOC_NUM_FAIL2" -eq 0 ]; then
+    echo "  ✓ 路由器/规范库入口数字声明与实际一致"
+else
+    FAIL=$((FAIL + DOC_NUM_FAIL2))
+fi
+
+# ============== 9. 跨文件技能引用一致性（v2.9.0 L1 强化） ==============
+# v2.9.0：捕获"路由器调用 mcpowers-foo 但 mcpowers-foo 目录不存在"的悬空引用。
+#   范围：所有 SKILL.md 里出现的 mcpowers-* 字面量都要在 skills/ 实际目录里存在。
+echo "[9/9] 校验 跨文件技能引用一致性（无悬空引用）"
+DANGLING_FAIL=0
+DECLARED=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
+# ripgrep: 所有 SKILL.md 里出现的 mcpowers-* 字面量。
+#   regex 要求首字符是字母、尾字符是字母/数字，避免 `mcpowers-git-*` 通配符被截成 `mcpowers-git-`。
+REFERENCED=$(grep -rhoE 'mcpowers-[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]' "$REPO_DIR/skills" 2>/dev/null \
+    | sort -u || true)
+
+# 引用合法性 3 条规则（任一满足即视为有效）：
+#   1. 等于一个 DECLARED 的技能目录
+#   2. 历史白名单（仅 2 个：mcpowers-spec-index / mcpowers-workflow）
+#   3. 是 DECLARED 中某技能的严格前缀（ref + "-..." 出现在 DECLARED）
+#      例：`mcpowers-git` 是 `mcpowers-git-commit` 等的前缀，文档中作为家族引用合法
+for ref in $REFERENCED; do
+    valid=0
+    if echo "$DECLARED" | grep -qx "$ref" 2>/dev/null; then
+        valid=1
+    elif [ "$ref" = "mcpowers-spec-index" ] || [ "$ref" = "mcpowers-workflow" ]; then
+        valid=1
+    elif echo "$DECLARED" | grep -q "^${ref}-" 2>/dev/null; then
+        valid=1
+    fi
+    if [ "$valid" -eq 0 ]; then
+        echo "  ✗ 悬空引用: $ref（引用了不存在的技能目录）"
+        DANGLING_FAIL=$((DANGLING_FAIL + 1))
+    fi
+done
+
+if [ "$DANGLING_FAIL" -eq 0 ]; then
+    echo "  ✓ 全部 mcpowers-* 引用都有对应目录"
+else
+    FAIL=$((FAIL + DANGLING_FAIL))
 fi
 
 # ============== 汇总 ==============

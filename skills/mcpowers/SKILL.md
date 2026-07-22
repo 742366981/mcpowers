@@ -146,7 +146,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 - ✅ **规范文件**：`mcpowers-shared/docs/...` 路径不变
 - ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 场景/方法技能
 
-只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（22 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
+只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（23 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
 
 ---
 

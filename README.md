@@ -10,7 +10,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 23 个技能（16 场景 + 7 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 1 | **🎯 场景化技能路由** | 24 个技能（16 场景 + 8 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
 | 2 | **📋 24 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md`） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
@@ -78,7 +78,8 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，分析+逆向+轻量封装，联动 init 落地）
 │   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
 │   │
-│   │ ── 方法层（7 个，被场景层调用）──
+│   │ ── 方法层（8 个，被场景层调用）──
+│   ├── mcpowers-doc-sync-install/     # 项目级 doc-sync 纪律安装（v2.9.0 新增，给已有项目注入校验+hook）
 │   ├── mcpowers-brainstorm/           # 澄清需求
 │   ├── mcpowers-prd/                  # 写 PRD
 │   ├── mcpowers-plan/                 # 任务拆解
@@ -173,6 +174,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 装基础技能/一键装基础/装上所有基础/装全部基础技能/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
 | 爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站 | `mcpowers-crawler-reverse`（v2.7.0 新增） |
 | 抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用 | `mcpowers-extract`（v2.8.0 新增） |
+| 装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules | `mcpowers-doc-sync-install`（v2.9.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
 | 回滚/rollback/撤销/恢复 | `mcpowers-git-rollback` |
@@ -198,7 +200,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 23 个场景/方法技能（`mcpowers-feat` 等）
+- ✅ 24 个场景/方法技能（`mcpowers-feat` 等）
 - ✅ 24 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 

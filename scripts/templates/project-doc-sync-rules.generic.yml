@@ -1,0 +1,12 @@
+# .doc-sync-rules.yml — 通用项目预设
+# v2.9.0 L2 项目级纪律（由 mcpowers-doc-sync-install 注入）
+#
+# 适合非 Flask/Vue/爬虫项目。只启用最宽松的 README 路径真实性校验。
+# 用户可在 .env.example / 接口文档齐备后再追加规则。
+
+# 规则 1（最常用）：README.md 中提到 scripts/*.sh / bin/* / tools/* 路径必须真实存在
+RULE_START readme_paths
+enabled=true
+type=path_in_doc
+doc_file=README.md
+RULE_END

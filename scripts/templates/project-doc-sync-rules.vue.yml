@@ -1,0 +1,28 @@
+# .doc-sync-rules.yml — Vue 项目预设
+# v2.9.0 L2 项目级纪律（由 mcpowers-doc-sync-install 注入）
+
+# 规则 1：src/router 下所有 .ts 路由 path 必须在 docs/router.md 中被提及
+RULE_START vue_routes
+enabled=true
+type=route_in_doc
+code_dir=src/router
+code_ext=ts
+code_regex=path:[[:space:]]*['"]([^'"]+)['"]
+doc_file=docs/router.md
+RULE_END
+
+# 规则 2：.env 中所有 KEY 必须在 README.md 中被提及
+RULE_START env_keys
+enabled=true
+type=env_in_doc
+env_file=.env
+code_regex=^VUE_APP_([A-Z0-9_]+)=
+doc_file=README.md
+RULE_END
+
+# 规则 3：README.md 中提到 scripts/*.sh / tools/*.ts 路径必须真实存在
+RULE_START readme_paths
+enabled=true
+type=path_in_doc
+doc_file=README.md
+RULE_END

@@ -180,7 +180,7 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 ---
 
-### 7. 落地决策（联动 `mcpowers-init` / `mcpowers-feat`）
+### 7. 落地决策（联动 `mcpowers-init` / `mcpowers-feat` / `mcpowers-extract`）
 
 **`AskUserQuestion` 询问**：
 
@@ -189,6 +189,7 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 | **A. 落地为完整爬虫项目** | 跳 `mcpowers-init`，传入 `04-modules/{module}/` 路径，让 init 按《爬虫规范》生成完整骨架 + 自动 copy `functions.py` 到 `apps/{module}/crawl_functions.py` |
 | **B. 继续二次开发** | 跳 `mcpowers-feat`，基于 `04-modules/` 加业务功能 |
 | **C. 仅保留轻量产物** | 结束，建议用户把 `{slug}-crawler-reverse/` 加入 git 自管理 |
+| **D. 提炼逆向层为跨项目公共库** | 跳 `mcpowers-extract`，把 `04-modules/` 里的逆向层（sign/加解密/hook/补环境）提炼为独立可 import 模块 + CLI 脚本，供同类站点/同厂加密的其他项目反复复用 |
 
 **不主动跳的依据**：v2.6.0 YAGNI 教训 —— 不在 description 写死跳转，避免破坏本技能触发灵敏度。
 
@@ -284,6 +285,7 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - **下游**：
   - `mcpowers-init`（阶段 7 选项 A，落地完整骨架）
   - `mcpowers-feat`（阶段 7 选项 B，二次开发）
+  - `mcpowers-extract`（阶段 7 选项 D，把逆向层提炼为跨项目公共库）
   - `mcpowers-code-review`（阶段 5 自审）
   - `mcpowers-git-commit`（提交前）
 - **同级**（易混淆）：

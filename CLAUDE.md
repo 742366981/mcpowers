@@ -37,6 +37,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **安装基础技能/一键装基础** → `mcpowers-install-basics-skills`
 - **爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站** → `mcpowers-crawler-reverse`
 - **抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用** → `mcpowers-extract`
+- **装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules** → `mcpowers-doc-sync-install`
 - **commit/提交** → `mcpowers-git-commit`
 - **worktree/分支隔离** → `mcpowers-git-worktree`
 - **回滚/撤销** → `mcpowers-git-rollback`

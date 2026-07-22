@@ -132,3 +132,6 @@ description: "修 bug / 修个 bug / 排查问题 / 修一下 / debug 一下 →
 - [ ] 重要细节已记录
 - [ ] 已 commit
 - [ ] **根因定位使用了 `request_id` / `trace_id` 串联日志（v2.6.0+）**
+- [ ] **文档与代码同步（v2.9.0+ 必检）**
+  - [ ] 如修复改变接口行为/路由/数据表/环境变量，已同步更新对应文档（docs/api.md / README.md / CHANGELOG.md 等）
+  - [ ] 如项目已装 .doc-sync-rules 纪律，已跑 `bash scripts/check-doc-sync.sh` 验证

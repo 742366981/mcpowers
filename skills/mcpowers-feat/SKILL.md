@@ -157,3 +157,6 @@ description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做
   - [ ] 所有异常日志用 `logger.exception(...)` 或 `exc_info=True`
 - [ ] 重要细节已记录
 - [ ] 代码和文档已同 commit
+- [ ] **文档与代码同步（v2.9.0+ 必检）**
+  - [ ] 如本次改动涉及对外接口/路由/数据库表/环境变量/部署脚本，已同步更新对应文档（docs/api.md / README.md / CHANGELOG.md 等）
+  - [ ] 如项目已装 .doc-sync-rules 纪律，已跑 `bash scripts/check-doc-sync.sh` 验证

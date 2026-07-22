@@ -131,6 +131,8 @@ description: "改需求 / 需求变更 / 需求变了 / 需求改了 / 调整逻
 - [ ] 变更清单已穷尽（Grep 验证）
 - [ ] 所有引用点已同步修改
 - [ ] 测试通过
-- [ ] API 文档 / README 已更新
+- [ ] **API 文档 / README / 数据库文档 / 接口契约 已更新（v2.9.0+ 强化）**
+  - [ ] 如本次改动影响对外接口/路由/数据表，已同步更新 api.md / README.md / DB 文档
+  - [ ] 如项目已装 .doc-sync-rules 纪律，已跑 `bash scripts/check-doc-sync.sh` 验证
 - [ ] 变更已记录到细节文档
 - [ ] 代码和文档已同 commit

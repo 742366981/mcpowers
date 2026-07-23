@@ -208,18 +208,25 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 ### 升级
 
-**插件市场模式下无需手动升级**——Claude Code 启动时**自动**从 GitHub 拉取最新版本。
+**更新由 `.claude-plugin/plugin.json` 的 `version` 字段触发**——version 不变，`Update now` 或重装都不会拉取新版。Claude Code **不会自动**检测 GitHub 新版本。
 
 升级方式（用户视角）：
 
 ```bash
-# 完全退出当前 Claude Code 会话，然后重新启动
-# 快捷键：Ctrl+C 退出 → 重新执行 claude
+# 方式 1：推荐（在 Claude Code 内执行）
+/plugin
+# → 选 mcpowers → Update now
+
+# 方式 2：完全重装
+/plugin uninstall mcpowers@mcpowers
+/plugin install mcpowers@mcpowers
 ```
 
-下次启动时，插件系统会自动从 GitHub 拉取最新版本，**无需任何命令**——`/plugin update` 在 Claude Code 中不存在，所有更新由 mcpowers 维护者推送后自动生效。
-
-> 💡 **维护者**：改完代码 → `git push` → 你的用户在下次启动 Claude Code 时自动收到更新，无需他们做任何事。
+> 💡 **维护者**：改完代码必须按顺序做完整套，缺一不可：
+> 1. **bump version**（`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` 两处同步）
+> 2. `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 全绿
+> 3. `git commit && git push`
+> 4. 用户才能 `Update now` 拉到新版。
 
 ### 卸载
 
@@ -283,7 +290,12 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 - 完整支持 4 个 Hook 事件组 / 5 个脚本（`SessionStart` + `PreToolUse(Bash/Write)` + `PostToolUse`）
 - 路由器自动加载，用户输入自然语言路由到对应技能
-- 安装命令：`/plugin marketplace add https://github.com/742366981/mcpowers && /plugin install mcpowers@mcpowers`
+- 安装命令（**分两步执行，不要用 `&&` 串联**——`&&` 会让 Claude Code 把 install 部分也拼进 marketplace URL，导致 git clone 失败）：
+
+  ```bash
+  /plugin marketplace add https://github.com/742366981/mcpowers
+  /plugin install mcpowers@mcpowers
+  ```
 
 #### Cursor
 
@@ -442,18 +454,18 @@ last_updated: 2026-07-08
 
 ### 场景 6：升级（仅维护者视角）
 
-**用户视角**（绝大多数安装者）：无需任何操作，下次启动 Claude Code 时自动拉取最新版本。详见上方「升级」段。
+**用户视角**（绝大多数安装者）：必须主动 `Update now`（或重装），下次启动 Claude Code 才会加载新版本。详见上方「升级」段。
 
 **维护者视角**（本仓库开发者）：推送上游改动
 
 ```bash
-# 1. 改完代码
+# 1. 改完代码 + bump version（详见上方「升级」段）
 # 2. 提交并推送到 GitHub
 git add -A
 git commit -m "..."
 git push origin master
 
-# 用户下次启动 Claude Code 时，插件系统自动从 GitHub 拉取
+# 3. 用户在 Claude Code 内执行 `/plugin` → Update now 才会拉到新版
 ```
 
 ---

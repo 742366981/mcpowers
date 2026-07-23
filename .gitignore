@@ -16,6 +16,11 @@ temp/
 # Logs
 *.log
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
 # Skills (local only)
 .claude/
 

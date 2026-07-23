@@ -150,6 +150,17 @@ for f in sorted(os.listdir('skills')):
   - 否则规范进了体系但**不触发**，等于没加。
 - **结论**：新增顶层规范是**横跨 9+ 文件**的改动（1 新规范 + 1 spec-index + 5 技能编排 + 2 文档 + 2 版本文件），不能省任何一处。
 
+### 历史教训（v2.9.5 强化单技能能力）
+
+- **v2.9.5**：升级 `mcpowers-crawler-reverse` 时发现，单技能能力强化（新增 §2.7 弹窗检测 + §3.0 协作模式 + §3.4.5 置信度）也必须横跨**至少 6 类文件**同步：
+  - 1 主技能 SKILL.md（description + 阶段 2 SOP 重构 + 阶段 4.5 强化 + 自检清单 + 反模式）
+  - 1 共享规范文档（§2.5 + §2.7 + §3.0 + §3.4.5 + 附录 D）
+  - 1 spec-index 查表（加 v2.9.5 子节链接）
+  - 1 新增工具脚本（`popup-handler.py`，与字典库对应）
+  - 2 顶层文档（CLAUDE.md + README.md 注释）
+  - 3 版本文件（`plugin.json` + `marketplace.json` × 2）
+- **结论**：**单技能强化 ≠ 单文件改动**。CLAUDE.md "文档同步约束" 提到的 6 类文件（`CLAUDE.md` + `README.md` + `SKILL.md` + `check-readme-sync.sh` + `plugin.json` + `marketplace.json`）是**底线**，还要算上共享规范和新增脚本。**凡是用户可见的能力变化，都必须按这个清单同步**。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）

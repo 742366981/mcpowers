@@ -1,6 +1,6 @@
 ---
 name: mcpowers-crawler-reverse
-description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS 反混淆 / APP 逆向 → 触发本技能。口语：帮我逆向这个网站,这个app怎么抓,sign怎么算,加密怎么破,JS被混淆了,我想爬X但有加密,请求参数看不懂,frida hook,SSL Pinning,反爬太严了。English: reverse engineering, deobfuscation, frida hook, signature, mitmproxy, charles, fiddler, ssl pinning。边界：搭爬虫骨架→mcpowers-init；爬虫出bug→mcpowers-bugfix；性能优化→mcpowers-optimize。流程：输入URL/App→产物目录{slug}-crawler-reverse→接口分析→评估是否逆向→轻量封装→沉淀案例→联动init落地。"
+description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS 反混淆 / APP 逆向 / frida hook / SSL Pinning → 触发本技能。口语：帮我逆向这个网站,这个app怎么抓,sign怎么算,加密怎么破,JS被混淆了,我想爬X但有加密,请求参数看不懂,反爬太严了,滑块过不去,验证码怎么办,风控太严,指纹伪装,接管浏览器,默认 Python,Playwright,curl_cffi,DrissionPage,seleniumbase。English: reverse engineering, deobfuscation, frida hook, signature, mitmproxy, charles, fiddler, ssl pinning。能力：分析阶段 Playwright-Python 默认 + 指纹防御 + curl_cffi；封装阶段 DrissionPage/seleniumbase/Playwright 三选一（按用户场景选）；遇滑块/风控自研解决→接管本机浏览器（CDP attach）→不得开新窗口；每标定接口必须实测验证。边界：搭爬虫骨架→mcpowers-init；爬虫出bug→mcpowers-bugfix；性能优化→mcpowers-optimize。流程：输入URL/App→产物目录{slug}-crawler-reverse→接口分析→评估是否逆向→轻量封装→沉淀案例→联动init落地。"
 ---
 
 # mcpowers-crawler-reverse（爬虫逆向分析）
@@ -31,6 +31,17 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 3. **合规优先** —— 逆向前必读目标站 robots.txt / 服务条款 / 法律法规，越界即停
 4. **产物归档必须规范** —— `{slug}-crawler-reverse/` 命名，不散落工作区
 5. **沉淀优于一次性** —— 阶段 6 强制沉淀案例到《爬虫分析规范》附录 C
+6. **默认 Python + 分阶段选框架**（v2.9.3 新增，**v2.9.4 细化**）：
+   - Python 是默认语言（除非用户明确指定 JS/Go/其他）
+   - **分析阶段（§2-4）固定 Playwright-Python**（stealth + CDP attach，CDP 完整、stealth 生态最成熟）
+   - **封装阶段（§5）让用户在 3 个框架中选**（`AskUserQuestion` 必问）：
+     - **Playwright-Python**：海外项目 + 复杂交互 + 工程化（默认）
+     - **DrissionPage**：国产、**内置接管浏览器 + 内置反检测**、对国内站点（小红书/抖音/淘宝/1688）适配好
+     - **seleniumbase**：UC Mode（undetected-chromedriver）成熟 + 国外生态 + 需要 Selenium 兼容性时
+   - 协议请求（不走浏览器的 API 直连）默认 **`curl_cffi.requests`**，**禁止裸用 `requests`**（TLS 指纹一秒被风控识别）
+7. **主动风控防御 + 主动解决验证码**（v2.9.3 新增）—— 代码本身默认开启 **`playwright-stealth`** + UA/视口/时区合理随机 + 行为模式伪装（随机滚动、随机点击间隔、模拟鼠标轨迹）+ Cookie 持久化；遇滑块/点选/图形验证码**主动解决**（轨迹模拟 + OpenCV 缺口识别 / 打码平台 / 行为轨迹拟合），**不得以"难以绕过"为由中断**
+8. **复用本机浏览器，不开新窗口**（v2.9.3 新增）—— 自动化默认用 `playwright.chromium.connect_over_cdp("http://localhost:9222")` 接入用户已启动的本机 Chrome（`chrome --remote-debugging-port=9222`），**禁止每次新开 Playwright 窗口**；唯一例外：用户明确说"无 GUI 自动化"或"协议直连"
+9. **接口分析必须实测验证**（v2.9.3 新增）—— 在 `api-inventory.md` 写「这个 URL 是干嘛的 / 这个参数是加密的 / 这个响应字段是用户数据」等结论前，**必须用 `curl_cffi` / `Playwright` 实测一次**（带抓到的真实 header/cookie/参数），并保存响应样本到 `02-interfaces/responses/{slug}.json`；**禁止凭接口名/参数名/字段名凭空判断**；唯一例外：用户已明确告知所有核心内容
 
 **与 `mcpowers-feat` 的边界**：
 - `mcpowers-feat` 是「按规范在已有项目加功能」，不涉及陌生目标分析
@@ -78,9 +89,10 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 **执行要点**（**详细方法论见规范 §1-6**）：
 1. **抓包**：Web → DevTools / mitmproxy / Charles；APP → mitmproxy + 证书 + SSL Pinning 绕过（详见规范 §2 + §10.2）
-2. **自动化分析**：用 Playwright 模拟用户行为触发懒加载接口（详见规范 §2.3）
-3. **过滤冗余**：剔除 CDN/上报/字体/心跳等（详见规范 §3.1）
-4. **风控识别**：识别 sign/token/fingerprint 等关键参数 + L1-L5 难度分级（详见规范 §4.6 + §6.1）
+2. **自动化分析**：用 **Playwright-Python**（默认启用 `playwright-stealth` 绕过 `navigator.webdriver` 等指纹）模拟用户行为触发懒加载接口（详见规范 §2.3）
+3. **实测验证**（铁律 #9）：每标定一个核心接口后**必须用 `curl_cffi` / `Playwright` 实测一次**（带真实 header/cookie/参数），响应样本落到 `02-interfaces/responses/{slug}.json`；**禁止凭接口名/路径段/参数名在 `api-inventory.md` 直接写结论**
+4. **过滤冗余**：剔除 CDN/上报/字体/心跳等（详见规范 §3.1）
+5. **风控识别**：识别 sign/token/fingerprint 等关键参数 + L1-L5 难度分级（详见规范 §4.6 + §6.1）
 
 **产出**（落到 `02-interfaces/`）：
 - `api-inventory.md` —— 接口清单（URL、Method、参数、响应字段、是否加密、**风控难度 L1-L5**）
@@ -111,9 +123,9 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - 成本评估：是否值得投入？或考虑替代方案（人工打码/购买数据/官方 API）？
 
 **执行要点**（**详细方法论见规范 §7-11**）：
-- **Web JS 逆向**（规范 §7-9）：关键字搜索 → XHR 断点 → Hook 定位 → 混淆识别（5 类 + AST）→ 补环境（vm2/jsdom）→ Python/Node 双路径复现 → **≥ 3 组样本校验**
+- **Web JS 逆向**（规范 §7-9）：关键字搜索 → XHR 断点 → Hook 定位 → 混淆识别（5 类 + AST）→ 补环境（vm2/jsdom）→ **路径 A：Python 纯复现（默认首选，用 `pycryptodome` / `hashlib` / `hmac` / `gmssl`，不依赖 Node）** → 路径 A 失败才走 **路径 B：Node 调用原始 JS（`PyExecJS2` / `subprocess` 调 `node script.js`）** → **≥ 3 组样本校验**
 - **APP 逆向**（规范 §10）：**脱壳**（FRIDA-DEXDump/FART）→ **SSL Pinning 绕过**（objection 首选 / frida 自写 / justtrustme）→ 静态分析（jadx）→ frida Hook（最有效）→ so 层（Ghidra，极难）
-- **风控与验证码**（规范 §11）：L1-L5 难度分级 + 验证码类型应对 + 设备指纹模拟
+- **风控与验证码**（规范 §11，铁律 #7）：L1-L5 难度分级 + 验证码类型应对（**AI 主动解决，不得建议人工**）+ 设备指纹模拟（默认已开 `playwright-stealth`）
 
 **产出**（落到 `03-reverse/`）：
 - `algo-restore.md` —— **加密算法还原报告**（定位过程 + 算法说明 + 验证结果，覆盖 Web/APP 全部路径）
@@ -128,11 +140,43 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - ❌ APP 逆向不得跳过 SSL Pinning 绕过就声称"逆向失败"（极可能是 pin 问题，不是算法问题）
 - ❌ 不得在没拿到 ≥ 3 组 sign 值的情况下声称算法已还原
 
+### 4.5 风控/滑块专项（v2.9.3 新增）
+
+**触发条件**：`02-interfaces/anti-crawl-eval.md` 命中 **L3+ 风控**，或阶段 2 抓包发现滑块/点选/图形验证码。
+
+**三步走（递进，不得跳级）**：
+
+1. **指纹防御**（默认已开，无需额外动作）：`playwright-stealth` + UA/视口/时区随机化 + 行为伪装 + Cookie 持久化
+2. **AI 主动解决验证码**（铁律 #7）：滑块 → 轨迹模拟 + OpenCV 缺口识别；点选 → OCR 识别 + 行为轨迹拟合；图形验证码 → OCR + 打码平台；**不得以"难以绕过"中断**
+3. **接管本机浏览器**（铁律 #8）：以上都失败时 `chrome --remote-debugging-port=9222` + `playwright.chromium.connect_over_cdp("http://localhost:9222")` 接入用户本机 Chrome，**不开新窗口**
+
+**产出**（落到 `03-reverse/`，追加）：
+- `anti-bypass-notes.md` —— 指纹策略 + 验证码解决过程 + 接管记录（含命令、响应、验证 ≥ 3 组）
+
+**何时升级到 §5**：三步走中**第 2 步（AI 主动解决）或第 3 步（接管浏览器）至少走通 1 步**，能拿到 ≥ 3 组实测数据（**第 1 步指纹防御默认已开，不算"走通"**）
+
 ---
 
 ### 5. 模块化封装（轻量版）
 
 **封装目标**：产出可独立 `import` 复用的纯函数模块，**严格遵循《爬虫规范》命名/分层规范**（即使不是完整骨架）。
+
+**自动化框架选型**（v2.9.4 新增，**`AskUserQuestion` 必问**）：
+
+> 分析阶段（§2-4）固定用 **Playwright-Python**；封装阶段（§5）按目标场景让用户选框架：
+
+| 框架 | 核心优势 | 核心劣势 | **何时选** |
+|:-----|:---------|:---------|:-----------|
+| **Playwright-Python** | CDP 完整、API 现代、Python 生态最广、stealth 生态成熟 | 国内社区相对小、接管浏览器需手动 `connect_over_cdp` | **海外项目 + 复杂交互 + 工程化**（默认） |
+| **DrissionPage** | 国产、**内置接管浏览器**、**内置反检测**（无需 stealth）、对国内站点适配好 | 海外生态弱 | **国内项目**（小红书/抖音/淘宝/1688）+ 快速接管用户本机 Chrome |
+| **seleniumbase** | UC Mode（undetected-chromedriver）成熟、国外生态、自带 CDP 工具 | 基于 Selenium 老旧、API 兼容性差 | **需要 Selenium 兼容 + UC 反检测的海外项目** |
+
+**示例问法**（必走）：
+
+> 请问封装阶段用哪个自动化框架？
+> - A. Playwright-Python（默认，海外项目 + 复杂交互）
+> - B. DrissionPage（国内项目，内置接管 + 反检测）
+> - C. seleniumbase（需要 Selenium 兼容 + UC 反检测）
 
 **产出**（落到 `04-modules/{module}/`）：
 
@@ -218,7 +262,7 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - ❌ **APP 逆向跳过 SSL Pinning 绕过** —— 抓不到包 90% 是 pin 问题，不是算法问题
 - ❌ **APP 逆向跳过脱壳** —— 加固 APP 直接 jadx 看的是壳代码，不是业务代码
 - ❌ **混淆代码不 Hook 直接读** —— 用 Hook 看入参/出参比读混淆代码快 10 倍
-- ❌ **单一语言复现算法失败就放弃** —— Python 复现不行就试 Node 调用原始 JS
+- ❌ **Python 复现失败就放弃** —— 路径 A 失败时**必须**走路径 B（Node 调用原始 JS），不得因"Python 复现困难"就跳过
 - ❌ 逆向结果不验证（参数还原错误导致全量数据报废）
 - ❌ 一次性逆向所有参数（先验证核心参数，正确后再扩）
 - ❌ 产物目录散落在工作区不按 `{slug}-crawler-reverse/` 命名（违反 DRY，下次找不回）
@@ -226,6 +270,12 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - ❌ 逆向成功后不沉淀案例（违反"案例库归档约定"，v2.6.0 历史教训）
 - ❌ 轻量封装写成完整骨架（YAGNI 违反，重复 `mcpowers-init` 工作）
 - ❌ 联动 init 时强行覆盖已有项目（破坏用户已有资产）
+- ❌ **默认开新浏览器窗口**（v2.9.3 新增）—— 必须 `connect_over_cdp` 复用用户本机 Chrome，禁止每次新开 Playwright 窗口
+- ❌ **裸用 `requests` 直连 API**（v2.9.3 新增）—— TLS 指纹（JA3）一秒被风控识别，必须用 `curl_cffi.requests` 等带 TLS 指纹的框架
+- ❌ **自动化代码不开启指纹伪装**（v2.9.3 新增）—— `navigator.webdriver` / WebGL / canvas 指纹一眼穿帮，必须默认开启 `playwright-stealth`
+- ❌ **遇到滑块/验证码就建议人工**（v2.9.3 新增）—— 必须 AI 主动解决（轨迹模拟 / OpenCV / OCR / 打码平台）
+- ❌ **用 Node 作为默认语言**（v2.9.3 新增）—— Python 优先，Node 仅作 §4 路径 B 的 fallback
+- ❌ **凭接口名/参数名/字段名在 `api-inventory.md` 凭空写结论**（v2.9.3 新增）—— 必须用 `curl_cffi` / `Playwright` 实测一次并留响应样本到 `02-interfaces/responses/`
 
 ---
 
@@ -259,6 +309,18 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - [ ] **如选择 A**：已确认目标路径无冲突，再跳 `mcpowers-init`
 - [ ] 跑过 `bash scripts/check-readme-sync.sh` 通过
 
+### v2.9.3 新增 · 策略与防御自检
+
+- [ ] **默认 Python**（非 Node/JS）
+- [ ] **分析阶段用 Playwright-Python**（非 Selenium/裸 Playwright-Node）
+- [ ] **封装阶段已 `AskUserQuestion` 让用户选框架**（DrissionPage / seleniumbase / Playwright-Python 三选一）
+- [ ] **协议请求用 `curl_cffi`**（非裸 `requests`）
+- [ ] **已开启 `playwright-stealth` 指纹伪装**（分析阶段默认开；DrissionPage/seleniumbase 默认内置反检测，无需手动装 stealth）
+- [ ] **行为模式已随机化**（滚动/点击/鼠标轨迹）
+- [ ] **遇验证码/滑块已主动解决**（非"建议人工"）
+- [ ] **浏览器接管用 CDP attach**（DrissionPage 内置接管 / Playwright `connect_over_cdp`）（非新开窗口）
+- [ ] **`api-inventory.md` 中每个标定的核心接口都有 `02-interfaces/responses/` 下的实测响应样本**（非凭空判断）
+
 ---
 
 ## 工具与手法
@@ -267,7 +329,7 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 >
 > | 关注点 | 读规范的哪一段 |
 > |:-------|:--------------|
-> | 抓包/代理/自动化/设备框架 | §2 抓包与工具 + §2.4 设备与运行时框架 |
+> | 抓包/代理/自动化/设备框架/浏览器复用/协议层 | §2 抓包与工具 + §2.4 设备与运行时框架 + §2.5 浏览器复用策略（v2.9.3）+ §2.6 协议层请求框架（v2.9.3） |
 > | 过滤冗余/筛选核心接口 | §3 接口定位与筛选 |
 > | 请求结构/Header/风控参数识别 | §4 请求结构分析（含 §4.6 风控参数） |
 > | 反爬难度 L1-L5 评估 | §6 反爬强度评估（含 §6.1 L 分级） |

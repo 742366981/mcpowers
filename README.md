@@ -75,7 +75,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增）
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
-│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，分析+逆向+轻量封装，联动 init 落地）
+│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化：分析 Playwright-Python 默认 + 封装 DrissionPage/seleniumbase/Playwright 三选一 + 指纹防御 + 浏览器复用 + 接口实测验证）
 │   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
 │   │
 │   │ ── 方法层（8 个，被场景层调用）──

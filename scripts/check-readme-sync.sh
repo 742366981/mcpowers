@@ -352,7 +352,11 @@ DANGLING_FAIL=0
 DECLARED=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
 # ripgrep: 所有 SKILL.md 里出现的 mcpowers-* 字面量。
 #   regex 要求首字符是字母、尾字符是字母/数字，避免 `mcpowers-git-*` 通配符被截成 `mcpowers-git-`。
-REFERENCED=$(grep -rhoE 'mcpowers-[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]' "$REPO_DIR/skills" 2>/dev/null \
+#   v2.9.5: --exclude-dir 跳过 __pycache__（避免 Python 编译缓存 .pyc 被 grep 当成二进制文件）。
+REFERENCED=$(grep -rhoE 'mcpowers-[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]' \
+    --exclude-dir=__pycache__ \
+    --exclude='*.pyc' --exclude='*.pyo' \
+    "$REPO_DIR/skills" 2>/dev/null \
     | sort -u || true)
 
 # 引用合法性 3 条规则（任一满足即视为有效）：

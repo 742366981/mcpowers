@@ -1,6 +1,6 @@
 ---
 name: mcpowers-crawler-reverse
-description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS 反混淆 / APP 逆向 / frida hook / SSL Pinning → 触发本技能。口语：帮我逆向这个网站,这个app怎么抓,sign怎么算,加密怎么破,JS被混淆了,我想爬X但有加密,请求参数看不懂,反爬太严了,滑块过不去,验证码怎么办,风控太严,指纹伪装,接管浏览器,默认 Python,Playwright,curl_cffi,DrissionPage,seleniumbase。English: reverse engineering, deobfuscation, frida hook, signature, mitmproxy, charles, fiddler, ssl pinning。能力：分析阶段 Playwright-Python 默认 + 指纹防御 + curl_cffi；封装阶段 DrissionPage/seleniumbase/Playwright 三选一（按用户场景选）；遇滑块/风控自研解决→接管本机浏览器（CDP attach）→不得开新窗口；每标定接口必须实测验证。边界：搭爬虫骨架→mcpowers-init；爬虫出bug→mcpowers-bugfix；性能优化→mcpowers-optimize。流程：输入URL/App→产物目录{slug}-crawler-reverse→接口分析→评估是否逆向→轻量封装→沉淀案例→联动init落地。"
+description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS反混淆 / APP逆向 / frida hook / SSL Pinning / 接管浏览器 / 弹窗识别 / 接口识别 / 人机协作 → 触发本技能。口语：帮我逆向这个网站,这个app怎么抓,sign怎么算,加密怎么破,JS被混淆了,我想爬X但有加密,请求参数看不懂,反爬太严了,滑块过不去,验证码怎么办,风控太严,指纹伪装,接管我的Chrome,登录态保留,CDP接管,Cookie弹窗,弹不出来,弹窗识别不到,接口识别不准,接管我打开的页面。English: reverse engineering, deobfuscation, frida hook, signature, mitmproxy, cdp attach, takeover browser, popup detection, human-in-the-loop, api discovery。能力：默认Python+Playwright+curl_cffi；分析阶段接管本机Chrome(预检9222+早检测目标tab+粒度L1/L2/L3) + 弹窗分级智能(8类) + 协作模式4选1(A自动/B用户操作/C用户告知/D引导到指定页) + 接口置信度(🎯/⚠️/❓) + 实测验证。边界：搭爬虫骨架→mcpowers-init；爬虫出bug→mcpowers-bugfix。流程：输入URL/App→{slug}-crawler-reverse→接管预检→协作选择→清弹窗→接口分析带置信度→评估是否逆向→轻量封装→沉淀案例→联动init落地。"
 ---
 
 # mcpowers-crawler-reverse（爬虫逆向分析）
@@ -87,6 +87,72 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 **适用范围**：必走，无论是否需要逆向都要先做。
 
+> **v2.9.5 重构**：阶段 2 拆分为 5 个子步骤，**前置预检 → 协作模式选择 → 弹窗清理 → 抓包分析 → 接口识别带置信度**。每一步都有明确的产品 SOP，**不再"打开就抓"**。
+
+#### 2.0 前置预检（v2.9.5 新增，按规范 §2.5.1-2.5.4）
+
+**核心原则**：AI 接到任务后的**第一个动作**是检测 Chrome 远程调试端口，**不假设接管、不擅自开新窗口**。
+
+**执行步骤**：
+
+1. 检测 `localhost:9222` 端口（脚本见 §2.5.1）
+2. 检测到 → 列出当前所有 tabs，识别是否已含目标域（脚本见 §2.5.3）
+3. 检测到目标域 → AskUserQuestion 3 选 1：接管现有 tab / 新开 tab / 重新开浏览器
+4. 未检测到 → AskUserQuestion 4 选 1（§2.5.4）：
+   - A. 启动 Chrome 调试模式（提供 Windows/macOS/Linux 命令）
+   - B. 让 AI 开新浏览器窗口（无登录态，仅适合简单静态页）
+   - C. 协议直连（curl_cffi，无 GUI）
+   - D. 取消本次任务
+
+**详细方法论**：见规范 §2.5.1 / §2.5.2 / §2.5.3 / §2.5.4。
+
+#### 2.0.5 协作模式选择（v2.9.5 新增，按规范 §3.0）
+
+**核心原则**：AI 抓不到时**主动切换模式**，**不把"找不到"等同于"不存在"**。
+
+**AskUserQuestion 必走**（4 选 1，阶段 2 第一个动作前）：
+
+```
+> 请问使用哪种协作模式分析接口？
+> - A. AI 全自动抓包（默认，AI 跑 Playwright 模拟触发）
+> - B. 用户操作 + AI 抓包（适合登录态场景：你操作我看）
+> - C. 用户告知接口（如果你已知目标 URL / 参数）
+> - D. AI 引导用户到指定页面（适合不清楚目标位置的场景）
+```
+
+**模式切换触发条件**（详细见规范 §3.0.3）：
+- A 模式下连续 3 次未识别核心接口 → 暂停，切到 B/C/D
+- 用户主动说"我直接告诉你" → 切到 C
+- 阶段 2 自检发现 [❓] > 3 → 暂停，切到 B 让用户操作触发
+
+#### 2.1 弹窗清理（v2.9.5 新增，按规范 §2.7）
+
+**核心原则**：进入页面后**第一件事**是清理弹窗；**抓到弹窗内接口 ≠ 抓到核心业务接口**。
+
+**执行步骤**：
+
+```python
+from scripts.popup_handler import cleanup_all
+
+page = browser.contexts[0].pages[0]
+closed = cleanup_all(
+    page,
+    pause_for_user_patterns=["登录", "年龄验证", "隐私政策", "用户协议"],
+    screenshot_dir="01-target-profile/popups/",
+)
+```
+
+**8 类弹窗分级**（详细字典见规范 §2.7.1 + 附录 D）：
+- **D.1-D.5 自动处理**：Cookie 同意 / Notification / Newsletter / App 下载引导 / 地理位置
+- **D.6-D.8 询问用户**：登录墙 / 年龄验证 / 合规同意（截图 + AskUserQuestion）
+
+**禁止**：
+- ❌ 跳过弹窗直接抓包（抓到的是弹窗接口不是真实业务）
+- ❌ 自动接受所有 Cookie（GDPR 合规风险）
+- ❌ 自动登录（合规 + 隐私风险）
+
+#### 2.2 抓包与自动化分析（v2.9.4 原有，方法不变）
+
 **执行要点**（**详细方法论见规范 §1-6**）：
 1. **抓包**：Web → DevTools / mitmproxy / Charles；APP → mitmproxy + 证书 + SSL Pinning 绕过（详见规范 §2 + §10.2）
 2. **自动化分析**：用 **Playwright-Python**（默认启用 `playwright-stealth` 绕过 `navigator.webdriver` 等指纹）模拟用户行为触发懒加载接口（详见规范 §2.3）
@@ -94,8 +160,32 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 4. **过滤冗余**：剔除 CDN/上报/字体/心跳等（详见规范 §3.1）
 5. **风控识别**：识别 sign/token/fingerprint 等关键参数 + L1-L5 难度分级（详见规范 §4.6 + §6.1）
 
+#### 2.3 接口识别带置信度（v2.9.5 新增，按规范 §3.4.5）
+
+**核心原则**：每个标定接口必须带置信度标记，**让用户一眼看出哪些是实测的、哪些是猜的**。
+
+**3 档置信度**：
+
+| 置信度 | 含义 | 触发条件 | 标记 |
+|:-------|:-----|:---------|:-----|
+| **🎯 高** | 已实测，对照过响应 | §3.4 实测流程已走完 | `[🎯]` |
+| **⚠️ 中** | 路径/参数匹配但未实测 | 命中 §3.2 特征但未实测 | `[⚠️]` |
+| **❓ 低** | 仅凭名字推断 | 路径含关键词但完全未实测 | `[❓]` |
+
+**收敛铁律**（v2.9.5 新增）：阶段 2 结束前所有 `[❓]` **必须转 `[🎯]` 或删除**，不允许把 `[❓]` 留在最终 `api-inventory.md`。
+
+**api-inventory.md 模板**（v2.9.5 新增"置信度"列）：
+
+```markdown
+| # | URL | Method | 置信度 | 加密参数 | 业务含义 | 响应样本 |
+|:--|:----|:-------|:-------|:---------|:---------|:---------|
+| 1 | /api/v1/user/profile | GET | [🎯] | 无 | 用户资料 | responses/user-profile.json |
+| 2 | /api/v1/feed | GET | [⚠️] | sign | 信息流 | （未实测） |
+| 3 | /api/v1/cheap-shot | POST | [❓] | ? | （猜的） | - |
+```
+
 **产出**（落到 `02-interfaces/`）：
-- `api-inventory.md` —— 接口清单（URL、Method、参数、响应字段、是否加密、**风控难度 L1-L5**）
+- `api-inventory.md` —— 接口清单（URL、Method、参数、响应字段、是否加密、**风控难度 L1-L5**、**置信度 🎯/⚠️/❓** v2.9.5 新增列）
 - `requests/` —— **核心业务接口的抓包样本**（curl / HAR 格式，**仅保留核心，去重**）
 - `responses/` —— 关键接口的响应样本（**脱敏后**）
 - `anti-crawl-eval.md` —— 反爬强度评估结论（限频 / UA / Cookie / 验证码 / 风控 + **L 等级**）
@@ -148,10 +238,17 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 1. **指纹防御**（默认已开，无需额外动作）：`playwright-stealth` + UA/视口/时区随机化 + 行为伪装 + Cookie 持久化
 2. **AI 主动解决验证码**（铁律 #7）：滑块 → 轨迹模拟 + OpenCV 缺口识别；点选 → OCR 识别 + 行为轨迹拟合；图形验证码 → OCR + 打码平台；**不得以"难以绕过"中断**
-3. **接管本机浏览器**（铁律 #8）：以上都失败时 `chrome --remote-debugging-port=9222` + `playwright.chromium.connect_over_cdp("http://localhost:9222")` 接入用户本机 Chrome，**不开新窗口**
+3. **接管本机浏览器**（铁律 #8 + v2.9.5 §2.5 完整 SOP）：
+   - **前置预检**：检测 `localhost:9222` 端口（§2.5.1，AI 接到任务第一个动作）
+   - **接入**：`p.chromium.connect_over_cdp("http://localhost:9222")`
+   - **复用 context**：`browser.contexts[0]`（保留登录态，**禁止 `browser.new_context()`**）
+   - **早检测**：识别目标域是否已在用户的 tabs 中（§2.5.3，主动提示接管现有 tab）
+   - **接管粒度**：按 L1 整个浏览器 / L2 特定 tab / L3 新开 tab（保留 cookie）分级选择（§2.5.2）
+   - **接管后第一件事**：清理弹窗（§2.7，popup-handler.py `cleanup_all()`）
+   - **验证**：列出当前 tabs 让用户确认接管正确
 
 **产出**（落到 `03-reverse/`，追加）：
-- `anti-bypass-notes.md` —— 指纹策略 + 验证码解决过程 + 接管记录（含命令、响应、验证 ≥ 3 组）
+- `anti-bypass-notes.md` —— 指纹策略 + 验证码解决过程 + 接管记录（含命令、响应、验证 ≥ 3 组）+ **接管粒度 + 早检测结果**（v2.9.5 新增）
 
 **何时升级到 §5**：三步走中**第 2 步（AI 主动解决）或第 3 步（接管浏览器）至少走通 1 步**，能拿到 ≥ 3 组实测数据（**第 1 步指纹防御默认已开，不算"走通"**）
 
@@ -276,6 +373,11 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - ❌ **遇到滑块/验证码就建议人工**（v2.9.3 新增）—— 必须 AI 主动解决（轨迹模拟 / OpenCV / OCR / 打码平台）
 - ❌ **用 Node 作为默认语言**（v2.9.3 新增）—— Python 优先，Node 仅作 §4 路径 B 的 fallback
 - ❌ **凭接口名/参数名/字段名在 `api-inventory.md` 凭空写结论**（v2.9.3 新增）—— 必须用 `curl_cffi` / `Playwright` 实测一次并留响应样本到 `02-interfaces/responses/`
+- ❌ **跳过接管预检，直接 `connect_over_cdp`**（v2.9.5 新增）—— 必须先检测 `localhost:9222`，未检测到时 AskUserQuestion 4 选 1 让用户选择启动方式，**禁止擅自 `launch()`**
+- ❌ **跳过弹窗清理直接抓包**（v2.9.5 新增）—— Cookie/Notification/App 下载引导等弹窗会遮挡真实业务，抓到的是弹窗接口而非核心业务接口；必须先 `popup-handler.py cleanup_all()`
+- ❌ **自动登录 / 自动确认年龄 / 自动同意合规条款**（v2.9.5 新增）—— 登录墙 / 年龄验证 / 合规同意三类弹窗必须截图后 AskUserQuestion，**绝不自动点**，避免合规风险和误登录
+- ❌ **协作模式不切换就死磕**（v2.9.5 新增）—— A 模式连续 3 次未识别核心接口必须暂停切到 B/C/D，**禁止"找不到就算不存在"**
+- ❌ **`api-inventory.md` 留 `[❓]` 低置信度条目**（v2.9.5 新增）—— 阶段 2 结束前所有 `[❓]` 必须转 `[🎯]`（实测）或 `[⚠️]`（明确无意义）或删除
 
 ---
 
@@ -283,9 +385,13 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 ### 接口分析阶段
 - [ ] `01-target-profile/` 已填写（域名/包名/IP 段/技术栈指纹）
+- [ ] **v2.9.5 接管预检已完成**（§2.5.1 检测 `localhost:9222` + 早检测目标 tab）
+- [ ] **v2.9.5 协作模式已选**（§3.0.2 AskUserQuestion 4 选 1，用户选了哪种模式）
+- [ ] **v2.9.5 弹窗已清理**（§2.7 `cleanup_all()`，D.6-D.8 询问类已截图+询问）
 - [ ] **抓包已自动化**（Playwright 或 mitmproxy 脚本，非纯人工）
 - [ ] **冗余请求已过滤**（CDN/上报/字体/心跳已剔除，`02-interfaces/filter-rules.md` 已写）
-- [ ] `02-interfaces/api-inventory.md` 完整（URL/Method/参数/响应/加密判定）
+- [ ] `02-interfaces/api-inventory.md` 完整（URL/Method/参数/响应/加密判定/**置信度 🎯/⚠️/❓** v2.9.5 新增列）
+- [ ] **`❓` 已收敛**（v2.9.5 新增：阶段 2 结束前所有 `[❓]` 必须转 `[🎯]` 或删除）
 - [ ] `02-interfaces/anti-crawl-eval.md` 已写（限频/UA/Cookie/验证码/风控）
 - [ ] **风控参数已识别**（sign/token/fingerprint 等，含 L1-L5 难度等级判定）
 
@@ -320,6 +426,18 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 - [ ] **遇验证码/滑块已主动解决**（非"建议人工"）
 - [ ] **浏览器接管用 CDP attach**（DrissionPage 内置接管 / Playwright `connect_over_cdp`）（非新开窗口）
 - [ ] **`api-inventory.md` 中每个标定的核心接口都有 `02-interfaces/responses/` 下的实测响应样本**（非凭空判断）
+
+### v2.9.5 新增 · 接管 + 弹窗 + 协作 + 置信度自检
+
+- [ ] **接管预检已执行**（§2.5.1 `probe_chrome_cdp()` 返回 `available: True/False`，未检测到时给了 4 选 1 AskUserQuestion）
+- [ ] **早检测已提示**（如目标 tab 已在用户浏览器中，§2.5.3 主动给了 3 选 1 AskUserQuestion）
+- [ ] **接管粒度已选**（§2.5.2 L1 整个浏览器 / L2 特定 tab / L3 新开 tab）
+- [ ] **`connect_over_cdp` 用了用户 context**（`browser.contexts[0]`，**禁止 `browser.new_context()`**）
+- [ ] **弹窗已清理**（`cleanup_all()` 调用，D.6-D.8 询问类已截图 + 询问用户，未自动点）
+- [ ] **协作模式已选**（§3.0.2 AskUserQuestion 4 选 1 阶段 2 开头已问）
+- [ ] **`❓` 已收敛**（阶段 2 结束前 `api-inventory.md` 中无 `[❓]` 条目，全部转 `[🎯]` 或 `[⚠️]` 或删除）
+- [ ] **模式切换点已记录**（如果 A 模式 3 次失败切到 B/C/D，已在 `01-target-profile/` 记录切换原因）
+- [ ] **`api-inventory.md` 模板有"置信度"列**（v2.9.5 模板：🎯/⚠️/❓ 三档 + 响应样本列）
 
 ---
 

@@ -136,8 +136,62 @@ description: "骨架触发：爬虫逆向/接口分析/抓包/加密参数还原
 
 **模式切换触发条件**（详细见规范 §3.0.3）：
 - A 模式下连续 3 次未识别核心接口 → 暂停，切到 B/C/D
-- 用户主动说"我直接告诉你" → 切到 C
+- 用户主动说"我直接告诉我" → 切到 C
 - 阶段 2 自检发现 [❓] > 3 → 暂停，切到 B 让用户操作触发
+
+#### 2.0.5.1 bb-browser adapter 失败判定与结果合并（v2.11.1 新增）
+
+bb-browser adapter 调用是 v2.10.0 的"结构化线索"，但 v2.10.0 未明确**失败如何判定、结果如何与 Playwright 实测合并**。本节补全。
+
+**adapter 调用失败判定（4 类）**：
+
+| 失败类型 | 判定标准 | 处理 |
+|:---------|:---------|:-----|
+| **超时** | `bb-browser site <site> <action>` 单次调用 > **30s** 未返回 | 标记 `[adapter-timeout]`，回退 Playwright |
+| **命令不存在** | bb-browser status 显示 daemon running，但 site 命令报 `command not found` | 标记 `[adapter-not-covered]`，目标站点无 adapter |
+| **返回 None / 空结构** | adapter 返回 JSON 解析后 `data == None` 或 `len(data) == 0` | 标记 `[adapter-empty]`，adapter 不可用，回退 Playwright |
+| **结构不匹配** | adapter 返回字段缺 `url` / `method` / `params` 中任一关键字段 | 标记 `[adapter-malformed]`，记录原始响应到 `01-target-profile/bb-browser-calls.log`，回退 Playwright |
+
+**调用日志格式（必落，v2.11.1 新增）**：
+
+每次 adapter 调用必须记录到 `01-target-profile/bb-browser-calls.log`：
+
+```log
+[2026-07-24T10:23:45+08:00] adapter=twitter/search action="AI agent" status=success duration=2.3s urls=3
+[2026-07-24T10:24:12+08:00] adapter=twitter/user-detail action="@openai" status=timeout duration=30.0s urls=0
+[2026-07-24T10:24:43+08:00] adapter=twitter/user-detail action="@openai" status=malformed duration=1.8s urls=0 raw={"error":"..."}
+```
+
+**结果合并规则（adapter ↔ Playwright 实测冲突时）**：
+
+| 维度 | 优先级 | 理由 |
+|:-----|:-------|:-----|
+| **URL 路径** | **Playwright 实测优先** | 实测拿到真实响应样本，置信度可升 `[🎯]` |
+| **HTTP Method** | **Playwright 实测优先** | 同上 |
+| **加密参数位置** | **adapter 优先** | adapter 知道站点逻辑，能定位 sign/token 字段 |
+| **selector / XPath** | **adapter 优先** | adapter 返回的是站点维护者认可的稳定 selector |
+| **业务语义标注** | **adapter 优先** | adapter 自带站点业务模型 |
+
+**api-inventory.md 加「来源」列（v2.11.1 新增）**：
+
+```markdown
+| # | URL | Method | 置信度 | 来源 | 加密参数 | 业务含义 | 响应样本 |
+|:--|:----|:-------|:-------|:-----|:---------|:---------|:---------|
+| 1 | /api/v1/user/profile | GET | [🎯] | Playwright | 无 | 用户资料 | responses/user-profile.json |
+| 2 | /api/v1/feed | GET | [⚠️] | adapter | sign | 信息流 | （未实测） |
+| 3 | /api/v1/tweet/post | POST | [⚠️] | adapter+Playwright | sign+token | 发推 | responses/tweet-post.json |
+```
+
+**来源取值**：`adapter` / `Playwright` / `curl_cffi` / `adapter+Playwright`（合并验证后）
+
+**反模式（v2.11.1 新增）**：
+
+- ❌ **adapter 调用无日志** —— 必须落 `01-target-profile/bb-browser-calls.log`，否则无法事后复盘
+- ❌ **adapter URL 与 Playwright 实测 URL 不一致时直接信 adapter** —— 冲突时**实测优先**（§2.0.5.1 合并规则）
+- ❌ **adapter 失败 4 类判定任一未检查就继续** —— 必须先判定状态再决定 fallback
+- ❌ **api-inventory.md 无「来源」列** —— 无法区分「adapter 推测」与「Playwright 实测」
+
+---
 
 #### 2.1 弹窗清理（v2.9.5 新增，v2.10.0 增强 bb-browser 协同，按规范 §2.7）
 
@@ -221,6 +275,68 @@ bb-browser **不替代** `popup-handler.py`：
 - `anti-crawl-eval.md` —— 反爬强度评估结论（限频 / UA / Cookie / 验证码 / 风控 + **L 等级**）
 - `filter-rules.md` —— 冗余请求过滤规则（用于后续自动化抓包脚本）
 
+#### 2.5.5.0 bb-browser 安装与 MCP 配置（v2.11.1 新增）
+
+bb-browser 安装与 MCP 接入是 v2.10.0 缺失的实操环节，本节补全。
+
+**前置要求**：
+- **Node.js ≥ 18**（bb-browser 是 ESM 模块，Issue #10 报告 < 18 时 daemon 启动失败）
+- 网络可访问 `registry.npmjs.org`（postinstall 拉原生二进制需要）
+
+**安装方式（双轨 fallback）**：
+
+| 方式 | 命令 | 适用场景 |
+|:-----|:-----|:---------|
+| **A. 全局安装（推荐）** | `npm install -g bb-browser` | 网络通畅，默认首选 |
+| **B. 本地 + npx（fallback）** | `npm install bb-browser && npx bb-browser ...` | 全局安装 SSL 错误（Issue #6：raw.githubusercontent.com 443 被墙）时 |
+
+**已知安装/启动 bug（v2.11.1 文档化）**：
+
+| 问题 | 现象 | 触发条件 | 处理 |
+|:-----|:-----|:---------|:-----|
+| `Cannot find package '@bb-browser/daemon'` | daemon 启动失败（Issue #10） | tsup 打包 bug，daemon 子包未正确 bundle | 升级到 0.11.6+；或 `npm rebuild bb-browser` |
+| `Failed to connect to raw.githubusercontent.com:443` | 安装 postinstall 失败（Issue #6） | 网络环境拦截原生二进制下载 | 切到方案 B（本地 + npx） |
+
+**MCP server 配置（接入 Claude Code）**：
+
+```json
+{
+  "mcpServers": {
+    "bb-browser": {
+      "command": "bb-browser",
+      "args": ["daemon", "--mcp"]
+    }
+  }
+}
+```
+
+> 写入 `~/.claude/mcp_servers.json` 后重启 Claude Code。**全局安装**用 `"command": "bb-browser"`；**本地安装**用 `"command": "npx", "args": ["bb-browser", "daemon", "--mcp"]`。
+
+**daemon 默认端口**：
+- `localhost:9001`（bb-browser daemon）
+- `localhost:9222`（Playwright 用户 Chrome CDP）
+- **两端口独立，**不冲突**；daemon 启动后无需额外配置端口。
+
+**验证步骤**：
+
+```bash
+# 1. CLI 可用性
+bb-browser --version   # 应输出 0.11.6+
+
+# 2. daemon 启动状态
+bb-browser status       # 应输出 daemon running
+
+# 3. adapter 列表
+bb-browser site --list  # 列出 35+ 可用 adapter
+
+# 4. MCP endpoint 联通（可选）
+curl http://localhost:9001/mcp -X POST -d '{}'  # 应返回 MCP 协议响应
+```
+
+**任一步失败** → 视为「bb-browser unavailable」，按铁律 #10 回退 v2.9.5 原链路。
+
+---
+
 #### 2.5.5 bb-browser 集成策略（v2.10.0 新增，按规范 §2.5.5）
 
 bb-browser（[epiral/bb-browser](https://github.com/epiral/bb-browser)）是可选增强依赖，**不是本技能的硬依赖**。安装后可通过 CLI、MCP server 和 site adapter 提供**站点级导航、结构化内容读取及常见操作**；未安装、daemon 未运行、目标站点未适配或版本不兼容时，**必须完整回退 v2.9.5 的 Chrome CDP + Playwright + popup-handler.py 链路**。
@@ -268,6 +384,91 @@ bb-browser daemon --mcp
 - **adapter**：站点级导航 / 内容入口 / 结构化操作
 - **Playwright**：CDP 会话内的网络实测 / DevTools 抓包 / 浏览器自动化
 - **`popup-handler.py`**：通用 DOM 弹窗 / 浏览器原生权限 / 合规询问
+
+---
+
+#### 2.5.5.1 bb-browser + Playwright 共享 Chrome CDP 实操（v2.11.1 新增）
+
+bb-browser daemon 与 Playwright `connect_over_cdp` 共享同一用户 Chrome 是 v2.10.0 缺失的实操细节。本节明确启动顺序、端口分配、异常接管与验证步骤。
+
+**启动顺序（严格，不可乱序）**：
+
+```bash
+# 第 1 步：用户先启动 Chrome 调试模式（铁律 #8 前置）
+# Windows
+chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\ChromeProfile"
+# macOS
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+# Linux
+google-chrome --remote-debugging-port=9222
+
+# 第 2 步：启动 bb-browser daemon（占用 9001 端口，不影响 9222）
+bb-browser daemon --mcp &
+
+# 第 3 步：Playwright attach 同一 Chrome（9222 端口）
+python -c "
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    browser = p.chromium.connect_over_cdp('http://localhost:9222')
+    ctx = browser.contexts[0]  # 复用用户 context（铁律 #8）
+    page = ctx.pages[0]
+    print('attached:', page.url)
+"
+```
+
+**端口分配（互不冲突）**：
+
+| 端口 | 占用方 | 作用 |
+|:-----|:-------|:-----|
+| `9222` | 用户 Chrome | CDP endpoint（Playwright `connect_over_cdp` 目标） |
+| `9001` | bb-browser daemon | MCP endpoint + adapter 调用入口 |
+| 其他（9002+） | bb-browser adapter | 多 adapter 并行时占用 |
+
+**daemon 异常时 Playwright 接管顺序**：
+
+```bash
+# 1. 检测 daemon 是否健康
+curl http://localhost:9001/health  # 5xx / 无响应 → 异常
+
+# 2. daemon 异常时，先尝试重启
+bb-browser daemon stop
+bb-browser daemon --mcp &
+
+# 3. 重启失败 → 完全回退 v2.9.5（铁律 #10）
+#    此时只靠 Playwright + popup-handler.py，bb-browser 标记为 unavailable
+```
+
+**共享 Chrome CDP 验证（必走，4 步全部通过）**：
+
+```bash
+# 验证 1：Chrome 9222 端口存活
+curl http://localhost:9222/json/version | grep "webSocketDebuggerUrl"
+
+# 验证 2：bb-browser 9001 端口存活
+curl http://localhost:9001/health
+
+# 验证 3：两者能看到同一 tabs 列表
+curl http://localhost:9222/json | jq '.[].url'         # Chrome tabs
+curl http://localhost:9001/tabs | jq '.[].url'         # daemon 视角 tabs
+
+# 验证 4：Playwright 能 attach 且复用用户 context
+python -c "
+from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    b = p.chromium.connect_over_cdp('http://localhost:9222')
+    print('contexts:', len(b.contexts), 'pages:', sum(len(c.pages) for c in b.contexts))
+    # 期望：contexts=1（用户已有），pages≥1（用户已开 tabs）
+"
+```
+
+**4 步任一失败** → bb-browser 与 Playwright 未真正共享 Chrome，**禁止**进入 §2.0.5 模式 A 的 bb-browser 增强流程，强制回退纯 Playwright 链路。
+
+**反模式（v2.11.1 新增）**：
+
+- ❌ **daemon 未启动就调用 adapter 命令** —— 必须 `bb-browser status` 确认 daemon running 再调
+- ❌ **Playwright `browser.new_context()` 新建独立 context** —— 违反铁律 #8，daemon 视角下看不到该 context
+- ❌ **daemon 异常时反复重启超过 3 次** —— 第 4 次直接回退，不再尝试
+- ❌ **共享验证 4 步未全部通过就启用 adapter** —— 4 步任一失败 = 未真正共享 = 走原链路
 
 ---
 
@@ -527,6 +728,14 @@ bb-browser daemon --mcp
 - [ ] **bb-browser 与 Playwright 使用同一 Chrome CDP 用户 context**（**禁止** `browser.new_context()` / 分别创建独立浏览器）
 - [ ] **adapter 提供的接口线索已经过 Playwright / `curl_cffi` 实测**，并保存响应样本到 `02-interfaces/responses/`
 - [ ] **bb-browser 未安装 / daemon 异常时**，v2.9.5 接管、弹窗、协作和置信度流程**仍可独立完成**，无任何中断
+
+### v2.11.1 新增 · bb-browser 实操自检
+
+- [ ] **Chrome CDP 共享验证 4 步全部通过**（§2.5.5.1：9222 + 9001 双端口存活 + tabs 一致 + Playwright attach 复用 `browser.contexts[0]`）
+- [ ] **adapter 调用日志已保存**（`01-target-profile/bb-browser-calls.log`，每条记录时间戳 + adapter 名 + action + 状态 + 耗时 + urls 数量）
+- [ ] **`api-inventory.md` 已加「来源」列**（取值 `adapter` / `Playwright` / `curl_cffi` / `adapter+Playwright`，可区分结构化线索 vs 实测证据）
+- [ ] **adapter 失败 4 类判定已检查**（超时 / 命令不存在 / 返回空结构 / 字段不匹配），任一未检查 = 流程不合规
+- [ ] **daemon 异常重启未超过 3 次**（v2.11.1 硬上限：第 4 次直接回退，不再尝试）
 
 ---
 

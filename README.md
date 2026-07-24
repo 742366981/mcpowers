@@ -75,7 +75,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增；v2.10.0 默认 Python + 项目证据优先选框架）
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
-│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化，v2.9.5 全面升级接管+弹窗+协作+置信度，**v2.10.0 集成 bb-browser**（可选依赖，CDP 接管 + 35+ site adapters，§2.5.5 集成策略））
+│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化，v2.9.5 全面升级接管+弹窗+协作+置信度，v2.10.0 集成 bb-browser 可选依赖，**v2.11.1 补实操子节 §2.5.5.0 安装 + §2.5.5.1 daemon + §2.0.5.1 adapter 失败判定**）
 │   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
 │   │
 │   │ ── 方法层（8 个，被场景层调用）──

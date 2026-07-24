@@ -170,6 +170,14 @@ for f in sorted(os.listdir('skills')):
 - **关键经验**：技能 description 接近 1024c 时，必须**先压缩重复触发词和能力描述**（从长流程压缩为"骨架 / 口语 / 中英 / 边界"4 段式），再增加 `bb-browser`、`site adapter`、`MCP server`、`登录态保留` 等新触发词；实施前后都要用 Python 检查字符数，预算严格控制在 800c 以内，避免尾部高频词被截断。
 - **关键工具设计**：`popup-handler.py` 的职责边界是 DOM 弹窗处理，**不引入 `probe_browser_daemon()` 函数**（避免引入 Node / subprocess 依赖），daemon 探测由 SKILL.md §2.0 SOP 层说明；脚本只新增 `DEFAULT_BB_BROWSER_PROBE` 提示常量声明职责边界。
 
+### 历史教训（v2.11.1 bb-browser 实操补全）
+
+- **v2.11.1**：v2.10.0 集成 bb-browser 后真实用户复盘发现 3 类实操缺失——**安装指引未指定安装位置与 Node 版本要求**、**daemon 与 Playwright 共享 Chrome CDP 的启动顺序与端口分配不明确**、**adapter 调用失败判定与结果合并规则缺失**。这 3 类问题属于 v2.10.0 文档化的「已知风险」未在 SOP 落地。
+- **关键修复**：补 3 个子节——SKILL.md §2.5.5.0 安装与 MCP 配置（含双轨 fallback：全局 + 本地+npx，规避 Issue #6 SSL 错误）、§2.5.5.1 daemon + Playwright 共享 Chrome CDP 实操（含启动顺序、端口分配、4 步验证）、§2.0.5.1 adapter 失败判定与结果合并（含 4 类失败判定、调用日志格式、合并冲突优先级、api-inventory.md 加「来源」列）。
+- **关键经验**：第三方 CLI 集成**不只是「可选用法 + 反模式」**，必须包含**完整实操链路**（安装 → 启动 → 验证 → 失败处理 → 结果合并）；任何「链接到 README 自己看」的写法都是反模式，因为用户复盘时不可能跳出去读外部文档。
+- **版本策略**：v2.10.0 → v2.11.1 是 patch bump（文档完善 + bug fix），不是 minor（无新功能），符合 CLAUDE.md 版本管理规则。
+- **docstring 注释同步**：popup-handler.py 的 `DEFAULT_BB_BROWSER_PROBE` 常量在 v2.11.1 中仍是「最小改动 + 职责声明」，不引入 daemon 探测代码（守住 YAGNI 边界）。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）

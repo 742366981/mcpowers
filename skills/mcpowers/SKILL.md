@@ -42,7 +42,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 | TDD / 测试驱动 / 先写测试 / 红绿循环 / test first | `mcpowers-tdd` | 方法层 | `mcpowers-tdd/SKILL.md` description |
 | 需求不清 / 想法模糊 / 不知道怎么开始 / brainstorm | `mcpowers-brainstorm` | 方法层 | `mcpowers-brainstorm/SKILL.md` description |
 | 并行 / 多 agent / subagent / 复杂任务 / fan-out | `mcpowers-subagent` | 方法层 | `mcpowers-subagent/SKILL.md` description |
-| 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
+| 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test / 跑 pytest / 跑 Playwright / 跑 DrissionPage / 跑 Selenium / 跑 Cypress | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
 | 前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 / swagger / openapi / 接口文档怎么自动生成 / 前端怎么拿到接口类型 | `mcpowers-api-contract` | 场景层 | `mcpowers-api-contract/SKILL.md` description |
 | 装基础技能 / 一键装基础 / 装上所有基础 / 装基础技能 / 装全部基础技能 / 全局安装基础技能 / npx skills add | `mcpowers-install-basics-skills` | 场景层 | `mcpowers-install-basics-skills/SKILL.md` description |
 | 爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS 反混淆 / APP 逆向 / frida hook / SSL Pinning / 爬虫被加密 / 帮我逆向这个网站 | `mcpowers-crawler-reverse` | 场景层 | `mcpowers-crawler-reverse/SKILL.md` description |

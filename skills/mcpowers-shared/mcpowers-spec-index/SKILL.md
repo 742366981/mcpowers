@@ -27,7 +27,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **导入 / 导出 / Excel** | `导入导出规范.md`（含大文件/前端集成/判重策略） |
 | **写测试 / 单测** | `测试规范.md` |
 | **端到端验证 / 数据清理**（v2.0.5） | `测试规范.md`（§7.1.1 测试数据生命周期 + §9.6 Step 6 清理测试数据） |
-| **自动化测试 / E2E**（v2.1.0） | `自动化测试规范.md` + `测试规范.md` |
+| **自动化测试 / E2E**（v2.1.0） | `自动化测试规范.md` + `测试规范.md`（新增自动化默认 Python；按项目证据选择 pytest/Playwright-Python/DrissionPage 等） |
 | **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `接口契约规范.md`（v2.3.0）+ `API文档/API文档模板.md` + `tools/export_docs.py` |
 | **前端自动生成 TS 类型**（v2.2.0） | `API契约/前端对接流程.md` |
 | **基于 spec 自动生成 API 测试**（v2.2.0） | `API契约/API测试自动生成.md` |
@@ -123,7 +123,7 @@ mcpowers-shared/docs/
     ├── 安全规范.md          # 🆕 SQL注入/XSS/CSRF/限流/幂等
     ├── API版本管理规范.md   # 🆕 版本策略/breaking change/废弃
     ├── 健康检查规范.md      # 🆕 /health/liveness/readiness
-    ├── 自动化测试规范.md    # 🆕 工具选型/bug 二维分类/报告 JSON schema/修复路由/循环机制
+    ├── 自动化测试规范.md    # 🆕 Python 默认/项目证据选型/工具角色/bug 二维分类/报告 JSON schema/修复路由/循环机制
     └── 日志规范.md          # 🆕 v2.6.0 通用层（栈无关，7 类日志 + JSON 字段 + 大内容默认截断 + 脱敏黑名单）
 ├── API文档/
 │   ├── API文档模板.md

@@ -72,7 +72,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-git-worktree/         # worktree 隔离
 │   ├── mcpowers-git-rollback/         # 安全回滚
 │   ├── mcpowers-git-cleanBranches/    # 清理分支
-│   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增）
+│   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增；v2.10.0 默认 Python + 项目证据优先选框架）
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
 │   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化，**v2.9.5 全面升级**：接管 SOP §2.5.1-2.5.4 + 弹窗分级智能 §2.7 + 协作模式 4 选 1 §3.0 + 接口置信度 🎯/⚠️/❓ §3.4.5 + popup-handler.py 工具脚本）
@@ -169,7 +169,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 写测试/TDD/单测 | `mcpowers-tdd` |
 | 不清楚要做什么/需求不清 | `mcpowers-brainstorm` |
 | 复杂任务/并行/多代理 | `mcpowers-subagent` |
-| 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e | `mcpowers-autoTest` |
+| 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e/跑 pytest/跑 Playwright/跑 DrissionPage/跑 Selenium/跑 Cypress | `mcpowers-autoTest`（新增自动化默认 Python；先查项目证据，已有套件沿用） |
 | 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
 | 装基础技能/一键装基础/装上所有基础/装全部基础技能/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
 | 爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站 | `mcpowers-crawler-reverse`（v2.7.0 新增） |

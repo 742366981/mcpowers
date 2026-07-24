@@ -32,7 +32,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **写测试/TDD** → `mcpowers-tdd`
 - **需求不清/澄清** → `mcpowers-brainstorm`
 - **复杂任务/并行** → `mcpowers-subagent`
-- **自动化测试/E2E/测试报告** → `mcpowers-autoTest`
+- **自动化测试/E2E/测试报告/跑 pytest/跑 Playwright/跑 DrissionPage/跑 Selenium/跑 Cypress** → `mcpowers-autoTest`（新增自动化默认 Python；先查项目证据，已有套件沿用）
 - **前后端联调/API契约/接口文档** → `mcpowers-api-contract`
 - **安装基础技能/一键装基础** → `mcpowers-install-basics-skills`
 - **爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站** → `mcpowers-crawler-reverse`
@@ -50,6 +50,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **技术锁规范**：Flask后端、Vue前端、爬虫
 
 **按需加载**：场景/方法层技能不预加载规范，而是通过 `mcpowers-spec-index` 查表（"做什么 → 读哪个规范"）按需 Read。
+
+**自动化选型基线**：新增自动化默认使用 Python + pytest；先检查项目已有测试文件、依赖、配置和 CI/脚本证据；已有非 Python 套件沿用原框架，未知框架不得凭 AI 熟悉度引入。
 
 ## 仓库地址
 

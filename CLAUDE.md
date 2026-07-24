@@ -163,6 +163,13 @@ for f in sorted(os.listdir('skills')):
   - 3 版本文件（`plugin.json` + `marketplace.json` × 2）
 - **结论**：**单技能强化 ≠ 单文件改动**。CLAUDE.md "文档同步约束" 提到的 6 类文件（`CLAUDE.md` + `README.md` + `SKILL.md` + `check-readme-sync.sh` + `plugin.json` + `marketplace.json`）是**底线**，还要算上共享规范和新增脚本。**凡是用户可见的能力变化，都必须按这个清单同步**。
 
+### 历史教训（v2.10.0 集成第三方 CLI）
+
+- **v2.10.0**：`bb-browser`（[epiral/bb-browser](https://github.com/epiral/bb-browser)）是首个被正式集成到爬虫逆向 SOP 的第三方 CLI / MCP server。外部工具接入不能只改主技能，必须同步维护 6 类文件：`CLAUDE.md`、`README.md`、`SKILL.md`、`scripts/check-readme-sync.sh` 校验边界、`.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`；同时还要同步共享规范 `last_updated` frontmatter、§2.5.5 详情页、spec-index 查表行、相关工具脚本的 docstring 注释（popup-handler.py 加 `DEFAULT_BB_BROWSER_PROBE` 提示常量）。
+- **关键设计**：bb-browser 必须是**可选依赖**。未安装、daemon 未运行、adapter 未命中或版本不兼容时，v2.9.5 的 Chrome CDP + Playwright + popup-handler.py 原链路必须**完全可用**，不得把第三方 CLI 变成硬依赖；任何缺 bb-browser 就会失败的写法都是反模式。
+- **关键经验**：技能 description 接近 1024c 时，必须**先压缩重复触发词和能力描述**（从长流程压缩为"骨架 / 口语 / 中英 / 边界"4 段式），再增加 `bb-browser`、`site adapter`、`MCP server`、`登录态保留` 等新触发词；实施前后都要用 Python 检查字符数，预算严格控制在 800c 以内，避免尾部高频词被截断。
+- **关键工具设计**：`popup-handler.py` 的职责边界是 DOM 弹窗处理，**不引入 `probe_browser_daemon()` 函数**（避免引入 Node / subprocess 依赖），daemon 探测由 SKILL.md §2.0 SOP 层说明；脚本只新增 `DEFAULT_BB_BROWSER_PROBE` 提示常量声明职责边界。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）

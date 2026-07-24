@@ -147,6 +147,18 @@ DEFAULT_PAUSE_PATTERNS: list[str] = [
 ]
 
 
+# v2.10.0 新增：bb-browser 提示常量（最小改动，不引入新函数）
+# 实际 bb-browser daemon 探测由 §2.5.5 / SKILL.md §2.0 SOP 执行，不在本模块职责范围。
+# 本常量仅作为模块 docstring 与 __main__ 输出中的职责声明，提示使用者：
+#   - bb-browser 是可选依赖（详见 SKILL.md 铁律 #10）
+#   - 本模块不替代 bb-browser / 不替代 Playwright 网络实测
+#   - bb-browser site adapter 处理站点级导航后，本模块仍须 cleanup_all() 做二次清理
+DEFAULT_BB_BROWSER_PROBE: str = (
+    "bb-browser 为可选依赖。使用前先运行 `bb-browser status`；"
+    "未安装或不可用时继续使用 Chrome CDP + Playwright 原链路。"
+)
+
+
 # ----------------------------------------------------------------------------
 # 辅助函数
 # ----------------------------------------------------------------------------
@@ -441,3 +453,6 @@ if __name__ == "__main__":
     print("  - detect_popups(page) -> list[dict]")
     print("  - close_popup(page, popup, mode='smart') -> bool")
     print("  - cleanup_all(page, pause_for_user_patterns=None, screenshot_dir=...) -> list[str]")
+    print()
+    print("v2.10.0 新增常量：")
+    print("  - DEFAULT_BB_BROWSER_PROBE  # bb-browser 可选依赖提示（探测由 SKILL.md §2.0 SOP 执行）")

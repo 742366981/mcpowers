@@ -1,6 +1,6 @@
 ---
 name: mcpowers-crawler-reverse
-description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS反混淆 / APP逆向 / frida hook / SSL Pinning / 接管浏览器 / 弹窗识别 / 接口识别 / 人机协作 → 触发本技能。口语：帮我逆向这个网站,这个app怎么抓,sign怎么算,加密怎么破,JS被混淆了,我想爬X但有加密,请求参数看不懂,反爬太严了,滑块过不去,验证码怎么办,风控太严,指纹伪装,接管我的Chrome,登录态保留,CDP接管,Cookie弹窗,弹不出来,弹窗识别不到,接口识别不准,接管我打开的页面。English: reverse engineering, deobfuscation, frida hook, signature, mitmproxy, cdp attach, takeover browser, popup detection, human-in-the-loop, api discovery。能力：默认Python+Playwright+curl_cffi；分析阶段接管本机Chrome(预检9222+早检测目标tab+粒度L1/L2/L3) + 弹窗分级智能(8类) + 协作模式4选1(A自动/B用户操作/C用户告知/D引导到指定页) + 接口置信度(🎯/⚠️/❓) + 实测验证。边界：搭爬虫骨架→mcpowers-init；爬虫出bug→mcpowers-bugfix。流程：输入URL/App→{slug}-crawler-reverse→接管预检→协作选择→清弹窗→接口分析带置信度→评估是否逆向→轻量封装→沉淀案例→联动init落地。"
+description: "骨架触发：爬虫逆向/接口分析/抓包/加密参数还原/JS反混淆/APP逆向/frida/SSL Pinning/接管浏览器/弹窗/人机协作，或 bb-browser/site adapter/MCP server/接管浏览。口语变体：帮我逆向网站或 App、sign 怎么算、请求参数看不懂、反爬/滑块/验证码/风控、接管我的 Chrome、登录态保留、your browser is the API。中英混输：reverse engineering/deobfuscation/signature/CDP attach/takeover browser/popup/API discovery/bb-browser。边界：默认 Python+Playwright+curl_cffi，优先复用本机 Chrome；bb-browser 为可选依赖，未安装保留原链路；项目骨架→mcpowers-init，已有爬虫修复→mcpowers-bugfix。"
 ---
 
 # mcpowers-crawler-reverse（爬虫逆向分析）
@@ -42,6 +42,7 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 7. **主动风控防御 + 主动解决验证码**（v2.9.3 新增）—— 代码本身默认开启 **`playwright-stealth`** + UA/视口/时区合理随机 + 行为模式伪装（随机滚动、随机点击间隔、模拟鼠标轨迹）+ Cookie 持久化；遇滑块/点选/图形验证码**主动解决**（轨迹模拟 + OpenCV 缺口识别 / 打码平台 / 行为轨迹拟合），**不得以"难以绕过"为由中断**
 8. **复用本机浏览器，不开新窗口**（v2.9.3 新增）—— 自动化默认用 `playwright.chromium.connect_over_cdp("http://localhost:9222")` 接入用户已启动的本机 Chrome（`chrome --remote-debugging-port=9222`），**禁止每次新开 Playwright 窗口**；唯一例外：用户明确说"无 GUI 自动化"或"协议直连"
 9. **接口分析必须实测验证**（v2.9.3 新增）—— 在 `api-inventory.md` 写「这个 URL 是干嘛的 / 这个参数是加密的 / 这个响应字段是用户数据」等结论前，**必须用 `curl_cffi` / `Playwright` 实测一次**（带抓到的真实 header/cookie/参数），并保存响应样本到 `02-interfaces/responses/{slug}.json`；**禁止凭接口名/参数名/字段名凭空判断**；唯一例外：用户已明确告知所有核心内容
+10. **bb-browser 是可选依赖**（v2.10.0 新增）—— 只有 `bb-browser status` 可用、daemon 正常且目标站点命中 site adapter 时，才启用 bb-browser CLI / MCP / adapter；未安装、daemon 异常、adapter 未覆盖或版本不兼容时，**必须完整保留 v2.9.5 的 Chrome CDP + Playwright + popup-handler.py 原链路**，**不得把第三方 CLI 变成硬依赖**
 
 **与 `mcpowers-feat` 的边界**：
 - `mcpowers-feat` 是「按规范在已有项目加功能」，不涉及陌生目标分析
@@ -89,24 +90,30 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 > **v2.9.5 重构**：阶段 2 拆分为 5 个子步骤，**前置预检 → 协作模式选择 → 弹窗清理 → 抓包分析 → 接口识别带置信度**。每一步都有明确的产品 SOP，**不再"打开就抓"**。
 
-#### 2.0 前置预检（v2.9.5 新增，按规范 §2.5.1-2.5.4）
+#### 2.0 前置预检（v2.9.5 新增，v2.10.0 增强 bb-browser 探测，按规范 §2.5.1-2.5.5）
 
-**核心原则**：AI 接到任务后的**第一个动作**是检测 Chrome 远程调试端口，**不假设接管、不擅自开新窗口**。
+**核心原则**：AI 接到任务后的**第一个动作**是探测接管能力，**不假设接管、不擅自开新窗口**。
 
 **执行步骤**：
 
-1. 检测 `localhost:9222` 端口（脚本见 §2.5.1）
-2. 检测到 → 列出当前所有 tabs，识别是否已含目标域（脚本见 §2.5.3）
-3. 检测到目标域 → AskUserQuestion 3 选 1：接管现有 tab / 新开 tab / 重新开浏览器
-4. 未检测到 → AskUserQuestion 4 选 1（§2.5.4）：
+1. **先探测 bb-browser（v2.10.0 新增）**：执行 `bb-browser status`，探测 CLI 是否已安装、daemon 是否运行、当前 CDP 状态
+   - 探测失败 / 命令不存在 / 不可用 → 标记为「bb-browser unavailable」，**继续执行原链路，不得报错中断**
+   - 探测成功 → 记录 adapter 可用列表，继续步骤 2
+2. 检测 `localhost:9222` 端口（脚本见 §2.5.1）
+3. 检测到 → 列出当前所有 tabs，识别是否已含目标域（脚本见 §2.5.3）
+4. 检测到目标域 → AskUserQuestion 3 选 1：接管现有 tab / 新开 tab / 重新开浏览器
+   - **若 bb-browser 命中目标站点 adapter**，提示"可优先用 bb-browser <site> <action> 触发后再接管"
+5. 未检测到 → AskUserQuestion 4 选 1（§2.5.4）：
    - A. 启动 Chrome 调试模式（提供 Windows/macOS/Linux 命令）
    - B. 让 AI 开新浏览器窗口（无登录态，仅适合简单静态页）
    - C. 协议直连（curl_cffi，无 GUI）
    - D. 取消本次任务
 
-**详细方法论**：见规范 §2.5.1 / §2.5.2 / §2.5.3 / §2.5.4。
+> **bb-browser 优先级**：bb-browser 是增强型站点操作工具，**不替代 Chrome CDP 接管**。bb-browser 可用时优先使用其站点适配能力；CDP 接管仍须遵循 §2.5.1-§2.5.4。
 
-#### 2.0.5 协作模式选择（v2.9.5 新增，按规范 §3.0）
+**详细方法论**：见规范 §2.5.1 / §2.5.2 / §2.5.3 / §2.5.4 + §2.5.5（v2.10.0 新增 bb-browser 集成策略）。
+
+#### 2.0.5 协作模式选择（v2.9.5 新增，v2.10.0 增强 adapter 优先，按规范 §3.0）
 
 **核心原则**：AI 抓不到时**主动切换模式**，**不把"找不到"等同于"不存在"**。
 
@@ -114,18 +121,25 @@ description: "爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / 
 
 ```
 > 请问使用哪种协作模式分析接口？
-> - A. AI 全自动抓包（默认，AI 跑 Playwright 模拟触发）
+> - A. AI 全自动抓包（默认，AI 跑 Playwright 模拟触发；**v2.10.0 新增** bb-browser 命中 site adapter 时优先调用）
 > - B. 用户操作 + AI 抓包（适合登录态场景：你操作我看）
 > - C. 用户告知接口（如果你已知目标 URL / 参数）
 > - D. AI 引导用户到指定页面（适合不清楚目标位置的场景）
 ```
+
+**模式 A 的 bb-browser 增强（v2.10.0 新增）**：
+
+- bb-browser 可用且目标站点有 adapter → **优先调用 adapter** 获取结构化业务线索
+- adapter 仅提供业务线索，**不替代抓包和实测验证**（adapter 返回的 URL / 参数 / 响应仍须经 Playwright / `curl_cffi` 验证）
+- adapter 不支持 / 调用失败 / 结果不完整 → **无缝回退**到 Playwright 自动化触发
+- bb-browser 与 Playwright 必须连接**同一用户 Chrome / CDP 会话**，禁止新建独立浏览器上下文
 
 **模式切换触发条件**（详细见规范 §3.0.3）：
 - A 模式下连续 3 次未识别核心接口 → 暂停，切到 B/C/D
 - 用户主动说"我直接告诉你" → 切到 C
 - 阶段 2 自检发现 [❓] > 3 → 暂停，切到 B 让用户操作触发
 
-#### 2.1 弹窗清理（v2.9.5 新增，按规范 §2.7）
+#### 2.1 弹窗清理（v2.9.5 新增，v2.10.0 增强 bb-browser 协同，按规范 §2.7）
 
 **核心原则**：进入页面后**第一件事**是清理弹窗；**抓到弹窗内接口 ≠ 抓到核心业务接口**。
 
@@ -146,19 +160,35 @@ closed = cleanup_all(
 - **D.1-D.5 自动处理**：Cookie 同意 / Notification / Newsletter / App 下载引导 / 地理位置
 - **D.6-D.8 询问用户**：登录墙 / 年龄验证 / 合规同意（截图 + AskUserQuestion）
 
+**bb-browser 协同（v2.10.0 新增）**：
+
+bb-browser 的 site adapter 通常已处理常见**登录前引导 / 站点初始化页 / 公开内容入口**。若 adapter 返回页面已就绪，仍必须调用 `popup-handler.py cleanup_all()` 做二次清理；adapter 未覆盖、调用失败或页面仍存在弹窗时，完全按 D.1-D.8 原流程处理。
+
+bb-browser **不替代** `popup-handler.py`：
+- adapter 负责**站点级导航 / 内容入口 / 结构化操作**
+- `popup-handler.py` 负责**通用 DOM 弹窗 / 浏览器原生权限 / 合规询问**
+- **登录墙、年龄验证、隐私协议仍必须截图并询问用户**，禁止自动确认
+
 **禁止**：
 - ❌ 跳过弹窗直接抓包（抓到的是弹窗接口不是真实业务）
 - ❌ 自动接受所有 Cookie（GDPR 合规风险）
 - ❌ 自动登录（合规 + 隐私风险）
+- ❌ 用 bb-browser 替代 popup-handler.py 跳过通用弹窗清理（v2.10.0 新增）
 
-#### 2.2 抓包与自动化分析（v2.9.4 原有，方法不变）
+#### 2.2 抓包与自动化分析（v2.9.4 原有，v2.10.0 增强 bb-browser 触发）
 
 **执行要点**（**详细方法论见规范 §1-6**）：
 1. **抓包**：Web → DevTools / mitmproxy / Charles；APP → mitmproxy + 证书 + SSL Pinning 绕过（详见规范 §2 + §10.2）
-2. **自动化分析**：用 **Playwright-Python**（默认启用 `playwright-stealth` 绕过 `navigator.webdriver` 等指纹）模拟用户行为触发懒加载接口（详见规范 §2.3）
-3. **实测验证**（铁律 #9）：每标定一个核心接口后**必须用 `curl_cffi` / `Playwright` 实测一次**（带真实 header/cookie/参数），响应样本落到 `02-interfaces/responses/{slug}.json`；**禁止凭接口名/路径段/参数名在 `api-inventory.md` 直接写结论**
+2. **自动化分析**（**v2.10.0 增强 bb-browser 并行**）：
+   - bb-browser 可用 + 命中 site adapter → **优先通过 adapter 触发目标站点动作 / 定位实体 / 进入业务页面**
+   - 同时用 **Playwright-Python**（默认启用 `playwright-stealth` 绕过 `navigator.webdriver` 等指纹）模拟用户行为触发懒加载接口（详见规范 §2.3）
+   - bb-browser 与 Playwright **必须连接同一用户 Chrome / CDP 会话**，禁止分别创建新的浏览器上下文
+   - adapter 不可用 / 未命中 → 保持原 Playwright 自动化路径
+3. **实测验证**（铁律 #9 + **v2.10.0 增强**）：每标定一个核心接口后**必须用 `curl_cffi` / `Playwright` 实测一次**（带真实 header/cookie/参数），响应样本落到 `02-interfaces/responses/{slug}.json`；**禁止凭接口名/路径段/参数名在 `api-inventory.md` 直接写结论**；**adapter 命中仅是结构化线索，不能跳过实测**
 4. **过滤冗余**：剔除 CDN/上报/字体/心跳等（详见规范 §3.1）
 5. **风控识别**：识别 sign/token/fingerprint 等关键参数 + L1-L5 难度分级（详见规范 §4.6 + §6.1）
+
+> bb-browser 负责**高层站点操作和结构化线索**，Playwright 负责**CDP 会话内的底层网络证据**；两者必须共享同一用户 Chrome 上下文。
 
 #### 2.3 接口识别带置信度（v2.9.5 新增，按规范 §3.4.5）
 
@@ -168,8 +198,8 @@ closed = cleanup_all(
 
 | 置信度 | 含义 | 触发条件 | 标记 |
 |:-------|:-----|:---------|:-----|
-| **🎯 高** | 已实测，对照过响应 | §3.4 实测流程已走完 | `[🎯]` |
-| **⚠️ 中** | 路径/参数匹配但未实测 | 命中 §3.2 特征但未实测 | `[⚠️]` |
+| **🎯 高** | 已实测，对照过响应 | §3.4 实测流程已走完，响应样本已保存（**v2.10.0 增强**：bb-browser site adapter 命中 + Playwright / `curl_cffi` 实测验证后也满足条件） | `[🎯]` |
+| **⚠️ 中** | 路径/参数匹配但未实测 | 命中 §3.2 特征但未实测（**v2.10.0 增强**：adapter 返回但未实测只能标 `[⚠️]`，不能直接升 `[🎯]`） | `[⚠️]` |
 | **❓ 低** | 仅凭名字推断 | 路径含关键词但完全未实测 | `[❓]` |
 
 **收敛铁律**（v2.9.5 新增）：阶段 2 结束前所有 `[❓]` **必须转 `[🎯]` 或删除**，不允许把 `[❓]` 留在最终 `api-inventory.md`。
@@ -190,6 +220,54 @@ closed = cleanup_all(
 - `responses/` —— 关键接口的响应样本（**脱敏后**）
 - `anti-crawl-eval.md` —— 反爬强度评估结论（限频 / UA / Cookie / 验证码 / 风控 + **L 等级**）
 - `filter-rules.md` —— 冗余请求过滤规则（用于后续自动化抓包脚本）
+
+#### 2.5.5 bb-browser 集成策略（v2.10.0 新增，按规范 §2.5.5）
+
+bb-browser（[epiral/bb-browser](https://github.com/epiral/bb-browser)）是可选增强依赖，**不是本技能的硬依赖**。安装后可通过 CLI、MCP server 和 site adapter 提供**站点级导航、结构化内容读取及常见操作**；未安装、daemon 未运行、目标站点未适配或版本不兼容时，**必须完整回退 v2.9.5 的 Chrome CDP + Playwright + popup-handler.py 链路**。
+
+**安装**：
+
+```bash
+npm install bb-browser
+```
+
+**接管预检阶段先运行**：
+
+```bash
+bb-browser status
+```
+
+命令可用且 daemon 正常时，**优先使用 adapter**；需要 MCP 时按 bb-browser CLI 帮助启动：
+
+```bash
+bb-browser daemon --mcp
+```
+
+**已知 adapter 覆盖**：GitHub、Twitter/X、Reddit、V2EX，以及其他 35+ 平台；**实际可用列表必须以当前安装版本输出为准**。**国内站点或未覆盖项目需自写 adapter**，不得假设所有站点均受支持。
+
+**与 §2.5.1 接管预检协作**：
+
+- 先检查 `bb-browser status`
+- 再检查 `localhost:9222` 和目标 tab（§2.5.3 早检测）
+- bb-browser 与 Playwright **应连接同一用户 Chrome / CDP 会话**
+- 与 §2.5.2 接管粒度一致，**优先 L2 已打开目标 tab**，其次 L3 在用户 context 新开 tab，**禁止新建独立 context**
+
+**与 §2.7 弹窗协同**：
+
+- adapter 通常可处理登录前导航或公开入口，**但不替代 `popup-handler.py`**
+- 仍须先清理 D.1-D.5 弹窗；D.6-D.8 **必须截图并询问用户**
+
+**置信度联动（v2.10.0 增强）**：
+
+- adapter 命中后，**接口线索还要由 Playwright / `curl_cffi` 实测并保存响应**
+- 验证通过后置信度自动升为 `[🎯]`（详见 §2.3 表格）
+- adapter 命中但未实测 → 只能标 `[⚠️]`，**不得直接升 `[🎯]`**
+
+**职责边界**：
+
+- **adapter**：站点级导航 / 内容入口 / 结构化操作
+- **Playwright**：CDP 会话内的网络实测 / DevTools 抓包 / 浏览器自动化
+- **`popup-handler.py`**：通用 DOM 弹窗 / 浏览器原生权限 / 合规询问
 
 ---
 
@@ -378,6 +456,9 @@ closed = cleanup_all(
 - ❌ **自动登录 / 自动确认年龄 / 自动同意合规条款**（v2.9.5 新增）—— 登录墙 / 年龄验证 / 合规同意三类弹窗必须截图后 AskUserQuestion，**绝不自动点**，避免合规风险和误登录
 - ❌ **协作模式不切换就死磕**（v2.9.5 新增）—— A 模式连续 3 次未识别核心接口必须暂停切到 B/C/D，**禁止"找不到就算不存在"**
 - ❌ **`api-inventory.md` 留 `[❓]` 低置信度条目**（v2.9.5 新增）—— 阶段 2 结束前所有 `[❓]` 必须转 `[🎯]`（实测）或 `[⚠️]`（明确无意义）或删除
+- ❌ **未检测 `bb-browser status` 就假设 adapter 可用**（v2.10.0 新增）—— 必须先探测 CLI / daemon；未安装 / 不可用 / 不兼容时回退 v2.9.5 原链路，**禁止**"看到 github 就直接调 bb-browser"
+- ❌ **把 bb-browser 当成 popup-handler.py / Playwright 的替代品**（v2.10.0 新增）—— adapter 负责**站点级操作**，Playwright 负责**网络实测**，`popup-handler.py` 负责**通用弹窗与合规询问**，三者职责不可混用
+- ❌ **adapter 命中后跳过实测直接标 `[🎯]`**（v2.10.0 新增）—— adapter 仅提供结构化线索，必须经 Playwright / `curl_cffi` 实测验证后才能升 `[🎯]`，**禁止** adapter 命中 = 自动高置信度
 
 ---
 
@@ -439,6 +520,14 @@ closed = cleanup_all(
 - [ ] **模式切换点已记录**（如果 A 模式 3 次失败切到 B/C/D，已在 `01-target-profile/` 记录切换原因）
 - [ ] **`api-inventory.md` 模板有"置信度"列**（v2.9.5 模板：🎯/⚠️/❓ 三档 + 响应样本列）
 
+### v2.10.0 新增 · bb-browser 集成自检
+
+- [ ] **已执行 `bb-browser status`**（v2.10.0 必走），并记录 `installed` / `running` / `unavailable` 状态
+- [ ] **目标站点有 adapter 时已优先调用**（`bb-browser <site> <action>`）；未命中时已回退 Playwright 原链路
+- [ ] **bb-browser 与 Playwright 使用同一 Chrome CDP 用户 context**（**禁止** `browser.new_context()` / 分别创建独立浏览器）
+- [ ] **adapter 提供的接口线索已经过 Playwright / `curl_cffi` 实测**，并保存响应样本到 `02-interfaces/responses/`
+- [ ] **bb-browser 未安装 / daemon 异常时**，v2.9.5 接管、弹窗、协作和置信度流程**仍可独立完成**，无任何中断
+
 ---
 
 ## 工具与手法
@@ -447,7 +536,7 @@ closed = cleanup_all(
 >
 > | 关注点 | 读规范的哪一段 |
 > |:-------|:--------------|
-> | 抓包/代理/自动化/设备框架/浏览器复用/协议层 | §2 抓包与工具 + §2.4 设备与运行时框架 + §2.5 浏览器复用策略（v2.9.3）+ §2.6 协议层请求框架（v2.9.3） |
+> | 抓包/代理/自动化/设备框架/浏览器复用/协议层 | §2 抓包与工具 + §2.4 设备与运行时框架 + §2.5 浏览器复用策略（v2.9.3 + **§2.5.5 bb-browser 集成 v2.10.0**）+ §2.6 协议层请求框架（v2.9.3） |
 > | 过滤冗余/筛选核心接口 | §3 接口定位与筛选 |
 > | 请求结构/Header/风控参数识别 | §4 请求结构分析（含 §4.6 风控参数） |
 > | 反爬难度 L1-L5 评估 | §6 反爬强度评估（含 §6.1 L 分级） |

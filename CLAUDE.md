@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **31 个可路由技能**（场景层 23 + 方法层 8，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册） |
+| `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
@@ -85,6 +85,8 @@ git@github.com:742366981/mcpowers.git
 - `.claude-plugin/plugin.json`、`.claude-plugin/marketplace.json`：插件版本和市场元数据
 
 新增场景技能时，还必须把技能加入 `SCENE_SKILLS`，并确认其包含 `## 编排` 段。禁止只修改 `skills/` 目录而不更新上述文档和校验项。纯规范正文修订至少运行同步检查；凡影响用户可见能力或体系结构的修订必须同步更新两份文档。
+
+新增工具脚本时（如 `skills/<技能>/scripts/<新工具>.py`），还必须把脚本路径加到对应规范文档的 §工具对照表 / §字典库对应关系（参考《爬虫工具与抓包规范》§7.2 / 末尾附录）+ 顶层维护文档引用（参考 v2.15.0 `user-action-recorder.py` 的 8 类同步）。
 
 #### CI 物理门禁（v2.5.2+）
 
@@ -210,6 +212,16 @@ for f in sorted(os.listdir('skills')):
 - **跨文件职责边界**：工具册唯一维护抓包工具栈、CDP 接管、弹窗字典 8 类、bb-browser MCP；各平台专项只维护本平台逆向方法（脱壳/SSL Pinning/IPA/blutter/JSBridge 等）；主册只维护公共方法论；不允许相同内容在两个规范文件出现（包括章节级别）。
 - **同步面**：本次横跨 25 个文件改动——1 主册瘦身 + 7 新增规范 + spec-index 查表/树/计数 + 8 reverse/统一入口 SKILL.md 编排表 + extract + 爬虫规范.md + popup-handler.py 4 处注释/print + CLAUDE.md + README.md + plugin.json + marketplace.json + check-readme-sync.sh §12；CI doc-sync.yml PROTECTED_PATHS 检测会强制要求 CLAUDE.md/README.md 同 PR 变化。
 - **版本策略**：新增 7 册用户可见规范 = minor bump，`2.13.0 → 2.14.0`。
+
+### 历史教训（v2.15.0 协作模式 B 工具化）
+
+- **v2.15.0**：协作模式 B（用户操作 + AI 抓包）自 v2.9.5 起只有口头协议，无工具支撑；真实用户复盘发现 AI 自动化分析页面按钮操作耗时过长，期望"人操作 + AI 监控抓包 + 记录操作流 + 沉淀可重放脚本"。
+- **关键设计**：选型 A-最小（5h）只做录制 + 重放，**不**做 AI 智能 selector、失败自愈、HAR diff、数据点标注（守 YAGNI，避免重复造 popup-handler 字典维护的轮子）。
+- **关键技术约束**：Playwright `record_har_path` 在 `connect_over_cdp` 模式不可用（只对 `launch()` / `launch_persistent_context()` 创建的 context 生效），本模块手写 `page.on("request"/"response")` 落 JSONL 格式 HAR。
+- **职责边界（DRY/SOLID）**：与 `popup-handler.py` 严格分工——popup-handler 主动查询 + 关闭弹窗；recorder 被动监听 + 落操作流。**不**在 recorder 内部调用 `cleanup_all()`（避免隐式副作用）。两个工具通过 SOP 串联：`cleanup_all()` → `start_recording()`。
+- **资源所有权**：全程遵守 §1.3 铁律，**禁止** `browser.close()` / `context.close()` / `page.close()`；监听器通过 `page.remove_listener()` 注销（不靠进程结束清理）。
+- **版本策略**：新增用户可见工具 + 协作模式 B 工具化 = minor bump `2.14.0 → 2.15.0`。
+- **同步面**：本次横跨 8 类文件改动——1 新增工具 + 2 技能 SKILL.md（reverse-web §1.5 / 爬虫分析规范 §3.0.1 模式 B）+ 2 工具/抓包规范（frontmatter + 索引 + §8 全文 + §7.2 + 附录对应）+ 2 版本文件（plugin.json / marketplace.json）+ 2 维护文档（CLAUDE.md / README.md）。
 
 ### 反模式（禁止）
 

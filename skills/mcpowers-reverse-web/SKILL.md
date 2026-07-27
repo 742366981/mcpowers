@@ -30,6 +30,19 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 
 **外部接管资源不可关闭**：`connect_over_cdp` 得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。
 
+### 1.5 用户操作录制（v2.15.0 新增，协作模式 B 工具支撑）
+
+当用户切换到协作模式 B（"用户操作 + AI 抓包"，见《爬虫分析规范》§3.0.1）时，
+先 `popup-handler.cleanup_all(page)` 清弹窗，再
+`user_action_recorder.start_recording(page, output_dir=...)` 启动录制，让用户完成
+关键操作后 `stop_recording()` 落 `user-actions.json` + `user-session.har.jsonl`。
+重放可用 `replay_actions(page, actions_json_path, screenshot_each_step=True)` 验证。
+详见《爬虫工具与抓包规范》§8。
+
+注意：录制/重放全程遵守 §1 外部资源所有权铁律——禁止 `browser.close()` /
+`context.close()` / `page.close()` / kill Chrome；监听器通过
+`page.remove_listener()` 注销，不靠进程结束清理。
+
 ### 2. 页面与接口证据
 
 - 先运行 popup-handler.py 清理可自动处理弹窗；登录墙、年龄验证和合规同意截图后询问。

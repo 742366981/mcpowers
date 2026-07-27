@@ -11,7 +11,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
-| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
+| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
@@ -241,7 +241,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 31 个场景/方法技能（23 场景 + 8 方法）
-- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册）
+- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。

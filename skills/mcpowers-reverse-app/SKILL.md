@@ -12,7 +12,7 @@ description: "App逆向入口 / 移动端类型判断 / Native与跨端识别 �
 | 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
 |:-----|:---------|:-----|:---------|:-------|
 | 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中本技能 | 缺目标/授权则中断 |
-| 2 | `爬虫分析规范.md` App 指纹矩阵 | 规范 | 必读 | 保持 unknown，不猜测 |
+| 2 | `爬虫分析规范.md` §1.2 + §10.9（App 指纹交接协议） | 规范 | 必读 | 保持 unknown，不猜测 |
 | 3 | `mcpowers-reverse-android` | 场景 | APK/AAB、DEX、Java/Kotlin/JNI | 记录阻塞证据 |
 | 4 | `mcpowers-reverse-ios` | 场景 | IPA、Mach-O、Swift/Objective-C | 记录阻塞证据 |
 | 5 | `mcpowers-reverse-flutter` | 场景 | Dart/Flutter AOT 指纹 | 由 Android/iOS 外壳辅助 |

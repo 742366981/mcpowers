@@ -10,8 +10,8 @@ description: "混合App逆向 / uni-app与React Native / WebView JSBridge / Herm
 | 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
 |:-----|:---------|:-----|:---------|:-------|
 | 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中 | 缺授权/目标则中断 |
-| 2 | `爬虫分析规范.md` Hybrid 章节 | 规范 | 必读 | 保持框架 unknown |
-| 3 | `爬虫分析规范.md` Web / Android / iOS 章节 | 辅助规范 | 核心逻辑落在 JS 或 Native | 只引用对应方法，不递归调用专项 |
+| 2 | `爬虫Hybrid逆向规范.md` + `爬虫工具与抓包规范.md` §3 WebView 接管 | 规范 | 必读 | 保持框架 unknown |
+| 3 | `爬虫Web逆向规范.md` / `爬虫Android逆向规范.md` / `爬虫IOS逆向规范.md` | 辅助规范 | 核心逻辑落在 JS 或 Native | 只引用对应方法，不递归调用专项 |
 | 4 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | Hybrid 证据交接后 | 缺证据返回对应层补齐 |
 
 **防循环**：只 Read 公共合同；需要 Web/Android/iOS 方法时只读规范对应章节，不递归调用其他逆向专项。

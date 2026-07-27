@@ -10,8 +10,8 @@ description: "Flutter逆向 / Dart AOT分析 / libapp.so与App.framework / Platf
 | 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
 |:-----|:---------|:-----|:---------|:-------|
 | 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中 | 缺授权/目标则中断 |
-| 2 | `爬虫分析规范.md` Flutter 章节 | 规范 | 必读 | 保持版本/层级 unknown |
-| 3 | `爬虫分析规范.md` Android / iOS 章节 | 辅助规范 | 需要外壳、证书或原生桥接证据 | 只引用平台方法，不递归调用专项 |
+| 2 | `爬虫Flutter逆向规范.md` | 规范 | 必读 | 保持版本/层级 unknown |
+| 3 | `爬虫Android逆向规范.md` / `爬虫IOS逆向规范.md` | 辅助规范 | 需要外壳、证书或原生桥接证据 | 只引用平台方法，不递归调用专项 |
 | 4 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | Flutter 证据交接后 | 缺证据返回补齐 |
 
 **防循环**：只 Read 公共合同；需要 Android/iOS 外壳证据时只读取规范对应章节，不递归调用其他逆向专项。

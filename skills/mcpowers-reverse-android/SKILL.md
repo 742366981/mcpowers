@@ -10,8 +10,8 @@ description: "Android逆向 / APK与AAB分析 / Kotlin Java JNI / Frida Hook →
 | 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
 |:-----|:---------|:-----|:---------|:-------|
 | 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中 | 缺授权/目标则中断 |
-| 2 | `爬虫分析规范.md` Android 章节 | 规范 | 必读 | 按证据补环境信息 |
-| 3 | `爬虫分析规范.md` Flutter / Hybrid 章节 | 辅助规范 | 发现跨端指纹 | 停止 Android 深挖并返回重新分流证据 |
+| 2 | `爬虫Android逆向规范.md` + `爬虫工具与抓包规范.md` §1.2/§2.3 | 规范 | 必读 | 按证据补环境信息 |
+| 3 | `爬虫Flutter逆向规范.md` / `爬虫Hybrid逆向规范.md` | 辅助规范 | 发现跨端指纹 | 停止 Android 深挖并返回重新分流证据 |
 | 4 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | Android 证据交接后 | 缺证据返回补齐 |
 
 **防循环**：只 Read 公共合同，不再次调用统一入口分流；发现 Flutter/Hybrid 指纹时返回重新分流证据，不递归调用其他逆向专项。

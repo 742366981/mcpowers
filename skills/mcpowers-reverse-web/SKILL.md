@@ -12,7 +12,7 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 | 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
 |:-----|:---------|:-----|:---------|:-------|
 | 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中本技能时必读 | 缺目标/授权/交付形态则中断 |
-| 2 | `爬虫分析规范.md` Web 章节 | 规范 | 必读 | 按 spec-index 重新定位 |
+| 2 | `爬虫Web逆向规范.md` + `爬虫工具与抓包规范.md` §3 | 规范 | 必读 | 按 spec-index 重新定位 |
 | 3 | Playwright-Python + CDP | 执行链 | 浏览器证据与动态触发 | 切换协作模式，不擅自 launch |
 | 4 | bb-browser + popup-handler.py | 可选增强 | daemon/adapter 可用 | 回退 Playwright 原链路 |
 | 5 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | 专项证据交接后 | 缺证据则返回本技能补齐 |

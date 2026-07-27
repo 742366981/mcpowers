@@ -1,15 +1,17 @@
 """
-popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增）
+popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路径同步）
 
 本模块是 mcpowers-crawler-reverse 阶段 2「弹窗清理」步骤的核心实现。
-字典库与《爬虫分析规范》§2.7 + 附录 D 一一对应，新弹窗类型先追加字典再写逻辑。
+字典库与《爬虫工具与抓包规范》§4 弹窗字典一一对应，新弹窗类型先追加字典再写逻辑。
+历史兼容：v2.14.0 之前位于《爬虫分析规范》§2.7 + 附录 D。
 
 核心函数（3 个公开）：
 - detect_popups(page): 检测页面所有弹窗（DOM + 浏览器原生）
 - close_popup(page, popup, mode): 关闭单个弹窗
 - cleanup_all(page, pause_for_user_patterns, screenshot_dir): 一键清理所有弹窗
 
-详细方法论：见《爬虫分析规范》§2.7 + 附录 D
+详细方法论：见《爬虫工具与抓包规范》§4 + 附录与 popup-handler.py 对应关系
+DEFAULT_BB_BROWSER_PROBE 文档参考《爬虫工具与抓包规范》§6（bb-browser 可选增强）
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ except ImportError:  # pragma: no cover
 
 
 # ----------------------------------------------------------------------------
-# 8 类弹窗字典（v2.9.5 新增，与《爬虫分析规范》§2.7.1 + 附录 D 一一对应）
+# 8 类弹窗字典（v2.9.5 新增，与《爬虫工具与抓包规范》§4 弹窗字典一一对应）
 # ----------------------------------------------------------------------------
 
 # 类型 → (自动/询问, 优先关闭关键词)
@@ -148,7 +150,7 @@ DEFAULT_PAUSE_PATTERNS: list[str] = [
 
 
 # v2.10.0 新增：bb-browser 提示常量（最小改动，不引入新函数）
-# 实际 bb-browser daemon 探测由 §2.5.5 / SKILL.md §2.0 SOP 执行，不在本模块职责范围。
+# 实际 bb-browser daemon 探测由《爬虫工具与抓包规范》§6 / SKILL.md §2.0 SOP 执行，不在本模块职责范围。
 # 本常量仅作为模块 docstring 与 __main__ 输出中的职责声明，提示使用者：
 #   - bb-browser 是可选依赖（详见 SKILL.md 铁律 #10）
 #   - 本模块不替代 bb-browser / 不替代 Playwright 网络实测
@@ -447,7 +449,7 @@ def cleanup_all(
 
 if __name__ == "__main__":
     print("popup-handler.py 是 mcpowers-crawler-reverse 的工具脚本")
-    print("详细用法见《爬虫分析规范》§2.7 + 附录 D")
+    print("详细用法见《爬虫工具与抓包规范》§4 + 附录与 popup-handler.py 对应关系")
     print()
     print("公开 API：")
     print("  - detect_popups(page) -> list[dict]")

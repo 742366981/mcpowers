@@ -469,11 +469,18 @@ fi
 echo "[12/12] 校验浏览器/CDP 外部资源所有权门禁"
 BROWSER_OWNERSHIP_FAIL=0
 CRAWLER_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫分析规范.md"
+# v2.14.0：爬虫分析规范拆分为 7 册，铁律字符串同时存在于 4 个规范文件 + 3 个 reverse SKILL.md
+CRAWLER_TOOLS_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫工具与抓包规范.md"
+CRAWLER_WEB_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫Web逆向规范.md"
+CRAWLER_MINIPGM_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫小程序逆向规范.md"
 OWNERSHIP_FILES="$CRAWLER_SKILL
 $REPO_DIR/skills/mcpowers-reverse-web/SKILL.md
 $REPO_DIR/skills/mcpowers-reverse-hybrid/SKILL.md
 $REPO_DIR/skills/mcpowers-reverse-miniprogram/SKILL.md
-$CRAWLER_SPEC"
+$CRAWLER_SPEC
+$CRAWLER_TOOLS_SPEC
+$CRAWLER_WEB_SPEC
+$CRAWLER_MINIPGM_SPEC"
 
 while IFS= read -r f; do
     [ -n "$f" ] || continue

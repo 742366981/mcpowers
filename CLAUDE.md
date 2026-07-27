@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **31 个可路由技能**（场景层 23 + 方法层 8，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（24 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`） |
+| `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
@@ -202,6 +202,15 @@ for f in sorted(os.listdir('skills')):
 - **门禁**：`check-readme-sync.sh` 增至 12 类检查，新增 reverse 拓扑/公共合同与外部资源所有权断言，防止后续合并回单体或恢复危险清理逻辑。
 - **版本策略**：新增 7 个用户可见场景技能与二级路由，`2.12.0 → 2.13.0` 为 minor bump。
 
+### 历史教训（v2.14.0 爬虫分析规范拆分 7 册 + 1 配套）
+
+- **v2.14.0**：原 `爬虫分析规范.md` 单文件 1710 行 / 81KB，§2 抓包与工具独占 584 行 / 34%，单一文件按需加载效率低；reverse 技能已按平台拆为 7 个专项，对应规范文档也应**按相同拓扑拆分**。
+- **关键修复**：保持主《爬虫分析规范.md》为公共方法论（§1 流程/§3-§6 接口分析/§9.4 验收/§10.9 指纹交接/§11 风控），新增 7 个独立规范文件——`爬虫工具与抓包规范.md`（公共配套：抓包/自动化/CDP/弹窗字典/bb-browser/协议层）+ `爬虫Web逆向规范.md` + `爬虫Android逆向规范.md` + `爬虫IOS逆向规范.md` + `爬虫Flutter逆向规范.md` + `爬虫Hybrid逆向规范.md` + `爬虫小程序逆向规范.md`。
+- **所有权铁律跨册落地**：§2.5.2.1「外部接管资源不可关闭」原文保留在主《爬虫分析规范》§1.3 作为唯一权威引文；实操步骤放工具册 §3.5.1；Web 逆向册、Hybrid 册、小程序册各自按需引用主册 §1.3；不允许各平台专项重复定义铁律。`check-readme-sync.sh` §12 OWNERSHIP_FILES 加入新册路径，仍校验 `外部接管资源不可关闭` 字符串。
+- **跨文件职责边界**：工具册唯一维护抓包工具栈、CDP 接管、弹窗字典 8 类、bb-browser MCP；各平台专项只维护本平台逆向方法（脱壳/SSL Pinning/IPA/blutter/JSBridge 等）；主册只维护公共方法论；不允许相同内容在两个规范文件出现（包括章节级别）。
+- **同步面**：本次横跨 25 个文件改动——1 主册瘦身 + 7 新增规范 + spec-index 查表/树/计数 + 8 reverse/统一入口 SKILL.md 编排表 + extract + 爬虫规范.md + popup-handler.py 4 处注释/print + CLAUDE.md + README.md + plugin.json + marketplace.json + check-readme-sync.sh §12；CI doc-sync.yml PROTECTED_PATHS 检测会强制要求 CLAUDE.md/README.md 同 PR 变化。
+- **版本策略**：新增 7 册用户可见规范 = minor bump，`2.13.0 → 2.14.0`。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）
@@ -253,6 +262,6 @@ for f in sorted(os.listdir('skills')):
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **资产零损耗**：24 个技术规范原地保留，路径不重组、不重命名
+- **资产零损耗**：31 个技术规范原地保留，路径不重组、不重命名
 - **完全独立**：不依赖任何外部技能，Git 操作由 4 个 `mcpowers-git-*` 技能自包含
 - **零安装脚本**：依赖 Claude Code 插件系统管理安装/卸载/升级，仓库零维护成本

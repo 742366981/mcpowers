@@ -52,7 +52,7 @@ description: "抽离公共模块 / 抽离通用能力 / 提取可复用组件 / 
 先 Read `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表，再定向加载：
 - `docs/技术规范/代码规范.md`（**必读**，SOLID/KISS/DRY/YAGNI，抽离边界判据）
 - `docs/技术规范/代码同步修改规范.md`（**必读**，切依赖时波及原项目引用点）
-- 爬虫项目：`docs/技术规范/爬虫规范.md`（模块命名/分层）+ `docs/技术规范/爬虫分析规范.md`（逆向层封装参照，复用其阶段 5 `04-modules/` 骨架）
+- 爬虫项目：`docs/技术规范/爬虫规范.md`（模块命名/分层）+ `docs/技术规范/爬虫分析规范.md` §9.4 + `docs/技术规范/爬虫Web逆向规范.md` §3（逆向层封装参照，复用阶段 5 `04-modules/` 骨架）
 - 涉及接口封装：`docs/技术规范/接口契约规范.md`（docstring 5 字段标准）
 
 ---

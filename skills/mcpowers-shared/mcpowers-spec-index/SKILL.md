@@ -7,7 +7,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 
 > **用法**：上层技能命中后，先 Read 本表确定要加载的规范文件路径，再按需 Read 命中的规范。**不要跳过本表去猜**。
 >
-> **当前索引 28 个规范文件**（22 原有 + 4 API契约新增 v2.2.0 + 1 接口契约规范新增 v2.3.0 + 1 日志规范新增 v2.6.0，按需加载避免爆上下文）
+> **当前索引 35 个规范文件**（24 原有 + 4 API契约新增 v2.2.0 + 1 接口契约规范新增 v2.3.0 + 1 日志规范新增 v2.6.0 + 1 公共配套 + 6 平台专项 = 爬虫分析规范 v2.14.0 拆分 7 册，按需加载避免爆上下文）
 
 ---
 
@@ -20,14 +20,14 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **Flask / 后端 `.py`** | `Flask后端规范.md` + `API规范.md` |
 | **Vue / 前端 `.vue`** | `Vue前端规范.md` + `设计规范.md` |
 | **爬虫（项目骨架）** | `爬虫规范.md` |
-| **逆向统一入口 / 交付与验收** | `爬虫分析规范.md` §1-§1.2 + §9.4（目标分层、三种交付形态、生命周期、真实可用性、有界并发） |
-| **网站 / Web JS / CDP / bb-browser** | `爬虫分析规范.md` §2.1、§2.3、§2.5-§2.7、§7-§9（§2.5.2.1 外部接管资源不可关闭） |
+| **逆向统一入口 / 交付与验收** | `爬虫分析规范.md` §1.1-§1.3 + §9.4（目标分层、三种交付形态、外部资源所有权铁律、生命周期、真实可用性、有界并发） |
+| **网站 / Web JS / CDP / bb-browser** | `爬虫Web逆向规范.md` + `爬虫工具与抓包规范.md` §3/§6 |
 | **App 类型未知 / 运行时识别** | `爬虫分析规范.md` §1.2 + §10.9（Android/iOS/Flutter/Hybrid 主专项判断） |
-| **Android / Kotlin / Java / JNI** | `爬虫分析规范.md` §2.2、§2.4、§10.1-§10.5 |
-| **iOS / Swift / Objective-C** | `爬虫分析规范.md` §2.2 + §10.6 |
-| **Flutter / Dart AOT** | `爬虫分析规范.md` §10.7 |
-| **uni-app / React Native / WebView / JSBridge** | `爬虫分析规范.md` §10.8 + §2.5.2.1 |
-| **小程序 / 小游戏** | `爬虫分析规范.md` §12 + §2.5.2.1 |
+| **Android / Kotlin / Java / JNI** | `爬虫Android逆向规范.md` + `爬虫工具与抓包规范.md` §1.2/§2.3 |
+| **iOS / Swift / Objective-C** | `爬虫IOS逆向规范.md` + `爬虫工具与抓包规范.md` §1.2 |
+| **Flutter / Dart AOT** | `爬虫Flutter逆向规范.md` |
+| **uni-app / React Native / WebView / JSBridge** | `爬虫Hybrid逆向规范.md` + `爬虫工具与抓包规范.md` §3 |
+| **小程序 / 小游戏** | `爬虫小程序逆向规范.md` + `爬虫工具与抓包规范.md` §3 调试资源所有权 |
 | **涉及 DB / 模型 / SQL** | `数据库规范.md` |
 | **涉及缓存 / Redis** | `缓存规范.md` |
 | **定时任务 / Celery** | `定时任务规范.md` |
@@ -113,7 +113,14 @@ mcpowers-shared/docs/
     ├── Flask后端规范.md
     ├── Vue前端规范.md
     ├── 爬虫规范.md
-    ├── 爬虫分析规范.md        # v2.13.0：目标分层路由 + Web/Android/iOS/Flutter/Hybrid/小程序专项边界 + 外部浏览器资源不可关闭 + 统一真实可用性验收
+    ├── 爬虫分析规范.md        # v2.14.0 主册（公共方法论：§1 流程/§3-§6 接口分析/§9.4 真实可用性验收/§10.9 指纹交接/§11 风控）
+    ├── 爬虫工具与抓包规范.md  # 🆕 v2.14.0 公共配套（§1 抓包/§2 自动化基础/§3 浏览器运行时复用/§4 弹窗字典/§5 协议层/§6 bb-browser/§7 工具对照表）
+    ├── 爬虫Web逆向规范.md     # 🆕 v2.14.0 ↔ mcpowers-reverse-web（§1 加密定位/§2 Web JS 逆向/§3 算法复现/§4 跨端指纹）
+    ├── 爬虫Android逆向规范.md # 🆕 v2.14.0 ↔ mcpowers-reverse-android（§1 脱壳/§2 SSL Pinning/§3 静态/§4 动态/§5 so 层）
+    ├── 爬虫IOS逆向规范.md     # 🆕 v2.14.0 ↔ mcpowers-reverse-ios（§1 IPA/§2 SSL Pinning/§3 静态/§4 动态）
+    ├── 爬虫Flutter逆向规范.md # 🆕 v2.14.0 ↔ mcpowers-reverse-flutter（§1 Dart AOT/§2 blutter darlk/§3 Platform Channel）
+    ├── 爬虫Hybrid逆向规范.md  # 🆕 v2.14.0 ↔ mcpowers-reverse-hybrid（§1 容器识别/§2 Bridge 三层定位/§3 接管 WebView）
+    ├── 爬虫小程序逆向规范.md   # 🆕 v2.14.0 ↔ mcpowers-reverse-miniprogram（§1 包运行时/§2 平台差异/§3 接口算法/§4 调试资源所有权）
     ├── 代码规范.md
     ├── 数据库规范.md
     ├── 缓存规范.md

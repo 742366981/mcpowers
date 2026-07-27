@@ -11,7 +11,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
-| 2 | **📋 24 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md`） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
+| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
@@ -20,7 +20,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 24 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 31 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -35,7 +35,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
 - **编排显式化**：23 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
-- **规范元数据化**：24 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **规范元数据化**：31 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 5 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
 ---
@@ -107,13 +107,20 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── AI操作规范.md          # 全局铁律
 │           ├── 产品设计/
 │           │   └── 产品设计规范.md
-│           ├── 技术规范/              # 24 个技术规范（v2.3.0 新增接口契约规范；v2.6.0 新增日志规范）
+│           ├── 技术规范/              # 31 个技术规范（v2.3.0 新增接口契约规范；v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册）
 │           │   ├── 接口契约规范.md     # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化参数/响应）
 │           │   ├── API规范.md
 │           │   ├── Flask后端规范.md
 │           │   ├── Vue前端规范.md
 │           │   ├── 爬虫规范.md
-│           │   ├── 爬虫分析规范.md
+│           │   ├── 爬虫分析规范.md        # v2.14.0 主册（公共方法论）
+│           │   ├── 爬虫工具与抓包规范.md  # 🆕 v2.14.0 公共配套（抓包/自动化/浏览器运行时/弹窗字典/协议层/bb-browser）
+│           │   ├── 爬虫Web逆向规范.md     # 🆕 v2.14.0 ↔ mcpowers-reverse-web
+│           │   ├── 爬虫Android逆向规范.md # 🆕 v2.14.0 ↔ mcpowers-reverse-android
+│           │   ├── 爬虫IOS逆向规范.md     # 🆕 v2.14.0 ↔ mcpowers-reverse-ios
+│           │   ├── 爬虫Flutter逆向规范.md # 🆕 v2.14.0 ↔ mcpowers-reverse-flutter
+│           │   ├── 爬虫Hybrid逆向规范.md  # 🆕 v2.14.0 ↔ mcpowers-reverse-hybrid
+│           │   ├── 爬虫小程序逆向规范.md   # 🆕 v2.14.0 ↔ mcpowers-reverse-miniprogram
 │           │   ├── 代码规范.md
 │           │   ├── 数据库规范.md
 │           │   ├── 缓存规范.md
@@ -234,7 +241,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 31 个场景/方法技能（23 场景 + 8 方法）
-- ✅ 24 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范）
+- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
@@ -437,7 +444,7 @@ last_updated: 2026-07-08
 | 2 | `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表 | **删一行** |
 | 3 | `README.md` 技能结构图、`CLAUDE.md` 规范数量 | **各删一处**，保持用户文档和维护规则一致 |
 | 4 | `bash scripts/check-readme-sync.sh` | 必须通过 |
-| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥24 个规范断言仍通过（如规范数 < 24 需要更新 plugin-verify 的断言阈值） |  |
+| 5 | 跑 `bash tests/plugin-verify.sh` 确认 ≥31 个规范断言仍通过（v2.14.0 后规范数为 31，阈值已更新；新规范添加到 ≥28 时需要更新 plugin-verify 的断言阈值） |  |
 
 ---
 

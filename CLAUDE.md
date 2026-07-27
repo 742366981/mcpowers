@@ -35,7 +35,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **自动化测试/E2E/测试报告/跑 pytest/跑 Playwright/跑 DrissionPage/跑 Selenium/跑 Cypress** → `mcpowers-autoTest`（新增自动化默认 Python；先查项目证据，已有套件沿用）
 - **前后端联调/API契约/接口文档** → `mcpowers-api-contract`
 - **安装基础技能/一键装基础** → `mcpowers-install-basics-skills`
-- **爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站** → `mcpowers-crawler-reverse`
+- **爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/RPC 逆向/纯协议/半自动化/纯自动化/一次性报文/token 复用/并发稳定性/模块真实可用** → `mcpowers-crawler-reverse`
 - **抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用** → `mcpowers-extract`
 - **装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules** → `mcpowers-doc-sync-install`
 - **commit/提交** → `mcpowers-git-commit`
@@ -177,6 +177,15 @@ for f in sorted(os.listdir('skills')):
 - **关键经验**：第三方 CLI 集成**不只是「可选用法 + 反模式」**，必须包含**完整实操链路**（安装 → 启动 → 验证 → 失败处理 → 结果合并）；任何「链接到 README 自己看」的写法都是反模式，因为用户复盘时不可能跳出去读外部文档。
 - **版本策略**：v2.10.0 → v2.11.1 是 patch bump（文档完善 + bug fix），不是 minor（无新功能），符合 CLAUDE.md 版本管理规则。
 - **docstring 注释同步**：popup-handler.py 的 `DEFAULT_BB_BROWSER_PROBE` 常量在 v2.11.1 中仍是「最小改动 + 职责声明」，不引入 daemon 探测代码（守住 YAGNI 边界）。
+
+### 历史教训（v2.12.0 真实可用性验收门禁）
+
+- **v2.12.0**：真实用户复盘发现，接口 `[🎯]`、≥ 3 组 sign 一致、单次 HTTP 200 和模块文件生成只能分别证明接口语义、算法或单次协议有效，**不能证明模块真的可用**；旧流程缺少阶段 5 → 6/7 的硬门禁，容易在重复调用、跨会话、一次性 token 或并发尚未验证时过早创建完整骨架。
+- **关键修复**：新增 SKILL.md 阶段 1 交付形态确认（纯协议 / 半自动化 / 纯自动化），明确 RPC 只是阶段 4 的逆向实现方式；新增阶段 5.5 +《爬虫分析规范》§1.1/§9.4，强制从模块公开入口验证业务语义、至少 2 组输入/合计 ≥ 5 次、至少 2 个 session/冷启动、原报文重放、动态参数重生成、跨 session、TTL 和有界并发 2 → 5；统一产出 `verification-report.md`，只有 `PASS` 才能进入阶段 6/7。
+- **生命周期分类**：关键状态必须归类为 `reusable` / `per-request` / `single-use-token` / `session-bound` / `time-bound` / `challenge-bound` / `unknown`；`unknown` 禁止冒充可复用，原报文无法重放不等于逆向失败，模块能按生命周期持续生成有效新报文才是关键。
+- **YAGNI 边界**：轻量模块不引入 Session 池、代理池、Redis 队列或任务调度，但必须包含完成一次真实业务调用所需的最小 token/challenge/session 生命周期，或通过清晰接口显式注入；禁止把抓包临时 token/Cookie/nonce 写进常量。
+- **安全边界**：并发仅做小规模 2 → 5 可用性验证，不做压力测试；出现 429、验证码增加、账号提示、目标异常或授权/条款边界时立即停止。
+- **版本策略**：v2.11.1 → v2.12.0 是 minor bump，因为新增了用户可见的验收阶段、生命周期分类和并发门禁，不是纯文档修正。
 
 ### 反模式（禁止）
 

@@ -75,7 +75,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增；v2.10.0 默认 Python + 项目证据优先选框架）
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
-│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化，v2.9.5 全面升级接管+弹窗+协作+置信度，v2.10.0 集成 bb-browser 可选依赖，**v2.11.1 补实操子节 §2.5.5.0 安装 + §2.5.5.1 daemon + §2.0.5.1 adapter 失败判定**）
+│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化，v2.9.5 全面升级接管+弹窗+协作+置信度，v2.10.0 集成 bb-browser 可选依赖，v2.11.1 补实操链路，**v2.12.0 新增阶段 1 交付形态选择、RPC 逆向方式、阶段 5.5 真实可用性+报文生命周期+有界并发验收门禁**）
 │   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
 │   │
 │   │ ── 方法层（8 个，被场景层调用）──
@@ -172,7 +172,7 @@ mcpowers/                              # 仓库根 = 插件根
 | 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e/跑 pytest/跑 Playwright/跑 DrissionPage/跑 Selenium/跑 Cypress | `mcpowers-autoTest`（新增自动化默认 Python；先查项目证据，已有套件沿用） |
 | 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
 | 装基础技能/一键装基础/装上所有基础/装全部基础技能/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
-| 爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/爬虫被加密/帮我逆向这个网站 | `mcpowers-crawler-reverse`（v2.7.0 新增） |
+| 爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/RPC 逆向/纯协议/半自动化/纯自动化/一次性报文/token 复用/并发稳定性/模块真实可用 | `mcpowers-crawler-reverse`（v2.7.0 新增，v2.12.0 交付形态与可用性验收门禁） |
 | 抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用 | `mcpowers-extract`（v2.8.0 新增） |
 | 装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules | `mcpowers-doc-sync-install`（v2.9.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |

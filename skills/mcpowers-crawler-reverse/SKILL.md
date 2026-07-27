@@ -1,6 +1,6 @@
 ---
 name: mcpowers-crawler-reverse
-description: "骨架触发：爬虫逆向/接口分析/抓包/加密参数还原/JS反混淆/APP逆向/frida/SSL Pinning/接管浏览器/弹窗/人机协作，或 bb-browser/site adapter/MCP server/接管浏览。口语变体：帮我逆向网站或 App、sign 怎么算、请求参数看不懂、反爬/滑块/验证码/风控、接管我的 Chrome、登录态保留、your browser is the API。中英混输：reverse engineering/deobfuscation/signature/CDP attach/takeover browser/popup/API discovery/bb-browser。边界：默认 Python+Playwright+curl_cffi，优先复用本机 Chrome；bb-browser 为可选依赖，未安装保留原链路；项目骨架→mcpowers-init，已有爬虫修复→mcpowers-bugfix。"
+description: "骨架触发：爬虫逆向/接口分析/抓包/加密还原/JS反混淆/APP逆向/RPC逆向/一次性报文/并发稳定性/真实可用性。口语变体：帮我逆向网站或 App、sign 怎么算、用 RPC 调加密函数、做成纯协议/半自动化/纯自动化、请求只能用一次、token 能否复用、多测几次、模块必须真的能用。中英混输：reverse engineering/deobfuscation/RPC/frida rpc/signature/replay/token lifecycle/concurrency/usability verification/CDP。边界：先确认最终交付形态；算法成功不等于模块可用，验收 PASS 后才落地；项目骨架→mcpowers-init，已有爬虫修复→mcpowers-bugfix。"
 ---
 
 # mcpowers-crawler-reverse（爬虫逆向分析）
@@ -34,15 +34,14 @@ description: "骨架触发：爬虫逆向/接口分析/抓包/加密参数还原
 6. **默认 Python + 分阶段选框架**（v2.9.3 新增，**v2.9.4 细化**）：
    - Python 是默认语言（除非用户明确指定 JS/Go/其他）
    - **分析阶段（§2-4）固定 Playwright-Python**（stealth + CDP attach，CDP 完整、stealth 生态最成熟）
-   - **封装阶段（§5）让用户在 3 个框架中选**（`AskUserQuestion` 必问）：
-     - **Playwright-Python**：海外项目 + 复杂交互 + 工程化（默认）
-     - **DrissionPage**：国产、**内置接管浏览器 + 内置反检测**、对国内站点（小红书/抖音/淘宝/1688）适配好
-     - **seleniumbase**：UC Mode（undetected-chromedriver）成熟 + 国外生态 + 需要 Selenium 兼容性时
+   - **封装阶段（§5）**：按阶段 1 交付形态选择运行依赖；只有半自动化/纯自动化需要浏览器时才 `AskUserQuestion` 选择 Playwright-Python、DrissionPage 或 seleniumbase；纯协议不引入浏览器框架
    - 协议请求（不走浏览器的 API 直连）默认 **`curl_cffi.requests`**，**禁止裸用 `requests`**（TLS 指纹一秒被风控识别）
 7. **主动风控防御 + 主动解决验证码**（v2.9.3 新增）—— 代码本身默认开启 **`playwright-stealth`** + UA/视口/时区合理随机 + 行为模式伪装（随机滚动、随机点击间隔、模拟鼠标轨迹）+ Cookie 持久化；遇滑块/点选/图形验证码**主动解决**（轨迹模拟 + OpenCV 缺口识别 / 打码平台 / 行为轨迹拟合），**不得以"难以绕过"为由中断**
 8. **复用本机浏览器，不开新窗口**（v2.9.3 新增）—— 自动化默认用 `playwright.chromium.connect_over_cdp("http://localhost:9222")` 接入用户已启动的本机 Chrome（`chrome --remote-debugging-port=9222`），**禁止每次新开 Playwright 窗口**；唯一例外：用户明确说"无 GUI 自动化"或"协议直连"
 9. **接口分析必须实测验证**（v2.9.3 新增）—— 在 `api-inventory.md` 写「这个 URL 是干嘛的 / 这个参数是加密的 / 这个响应字段是用户数据」等结论前，**必须用 `curl_cffi` / `Playwright` 实测一次**（带抓到的真实 header/cookie/参数），并保存响应样本到 `02-interfaces/responses/{slug}.json`；**禁止凭接口名/参数名/字段名凭空判断**；唯一例外：用户已明确告知所有核心内容
 10. **bb-browser 是可选依赖**（v2.10.0 新增）—— 只有 `bb-browser status` 可用、daemon 正常且目标站点命中 site adapter 时，才启用 bb-browser CLI / MCP / adapter；未安装、daemon 异常、adapter 未覆盖或版本不兼容时，**必须完整保留 v2.9.5 的 Chrome CDP + Playwright + popup-handler.py 原链路**，**不得把第三方 CLI 变成硬依赖**
+11. **真实可用才可落地**（v2.12.0 新增）—— 算法一致、单次请求成功或模块文件已生成，都不等于可交付；必须通过阶段 5.5 的业务语义、串行重复、报文生命周期、跨会话/时效和有界并发验收，`verification-report.md` 最终为 `PASS` 后才可进入阶段 6/7
+12. **交付形态与逆向方式分离**（v2.12.0 新增）—— 阶段 1 先确认最终要做成纯协议、半自动化或纯自动化；RPC 是阶段 4 的逆向实现方式，不是第四种交付形态。选择纯协议时，最终产物不得依赖浏览器 / App / RPC 运行时
 
 **与 `mcpowers-feat` 的边界**：
 - `mcpowers-feat` 是「按规范在已有项目加功能」，不涉及陌生目标分析
@@ -63,6 +62,15 @@ description: "骨架触发：爬虫逆向/接口分析/抓包/加密参数还原
 - App → 包名前缀小写：`com.douyin.android` → `douyin`，`com.taobao.taobao` → `taobao`，`com.xingin.xhs` → `xingin`（保留 `xhs` 也可，让用户选）
 - 中文应用名 → 转拼音或英文别名（`小红书` → `xiaohongshu`，`抖音` → `douyin`），让用户确认
 
+**最终交付形态（必须在阶段 1 确认）**：交付形态与阶段 4 的逆向实现方式分开记录；RPC 是逆向手段，不是第四种交付形态。
+
+> 请确认最终要做成哪一种：
+> - **A. 纯协议**：最终脱离浏览器/App，Python + `curl_cffi` 独立生成参数并请求；阶段 4 可暂时用 RPC 找函数，但交付前必须替换为可独立复现逻辑
+> - **B. 半自动化**：自动化/RPC 负责登录、验证码、challenge、sign/token 等难点，协议层负责核心业务请求；状态写入专用运行态存储并按 TTL/session 刷新
+> - **C. 纯自动化**：浏览器/App 自动完成完整业务动作和数据提取，协议仅用于分析和辅助验证
+>
+> **默认建议**：纯协议优先；算法无法稳定剥离时降为半自动化；业务强依赖页面/App 交互时才选纯自动化。目标站点实测后如需改变形态，必须重新确认验收契约，不能静默改变交付目标。
+
 **产物目录初始化**：在工作区根创建：
 
 ```
@@ -80,7 +88,7 @@ description: "骨架触发：爬虫逆向/接口分析/抓包/加密参数还原
 - `mcpowers-shared/docs/技术规范/爬虫规范.md`（**阶段 5 时必读**，模块化封装骨架）
 - 按需：`mcpowers-shared/docs/技术规范/日志规范.md`（如涉及大量请求日志）
 
-**输出**：`ANALYSIS_PLAN.md`（总体方案：目标说明、slug、预期阶段、可逆向/不可逆向判定预估）
+**输出**：`ANALYSIS_PLAN.md`（总体方案：目标说明、slug、最终交付形态、预期阶段、逆向实现方式候选、可逆向/不可逆向判定预估）
 
 ---
 
@@ -474,13 +482,18 @@ with sync_playwright() as p:
 
 ### 3. 决策点 · 是否进入逆向
 
+> **v2.12.0 边界**：本阶段只判断“是否需要逆向”，**不判断模块是否可交付**。无论走哪条路径，后续都必须完成阶段 5 封装和阶段 5.5 真实可用性验收。
+
 | 反爬评估结果 | 走向 |
 |:------------|:-----|
-| **可直采**（明文 + 无强反爬） | 跳过阶段 4，直接进入阶段 5 |
-| **简单处理**（编码/固定密钥） | 跳过阶段 4 主体，直接进入阶段 5，编码逻辑在阶段 5 一并封装 |
-| **需逆向**（动态签名 / 加密 / 混淆） | 进入阶段 4 |
+| **可直采**（明文 + 无强反爬） | 跳过阶段 4，进入阶段 5 实现真实业务调用 |
+| **简单处理**（编码/固定密钥） | 跳过阶段 4 主体，进入阶段 5，编码逻辑一并封装 |
+| **需逆向**（动态签名 / 加密 / 混淆） | 进入阶段 4，还原并校验后再进入阶段 5 |
 
-**强制要求**：无论是否进入逆向，`02-interfaces/api-inventory.md` 和 `anti-crawl-eval.md` 都必须完整产出。
+**强制要求**：
+- 无论是否进入逆向，`02-interfaces/api-inventory.md` 和 `anti-crawl-eval.md` 都必须完整产出
+- 接口单次实测 `[🎯]` 只证明接口语义已确认，不证明重复调用、跨会话或并发可用
+- 401/403/429、验证码、空业务数据或 token 失效问题未解决时，不得用“可直采”绕过后续验收
 
 ---
 
@@ -492,15 +505,44 @@ with sync_playwright() as p:
 - 成本评估：是否值得投入？或考虑替代方案（人工打码/购买数据/官方 API）？
 
 **执行要点**（**详细方法论见规范 §7-11**）：
-- **Web JS 逆向**（规范 §7-9）：关键字搜索 → XHR 断点 → Hook 定位 → 混淆识别（5 类 + AST）→ 补环境（vm2/jsdom）→ **路径 A：Python 纯复现（默认首选，用 `pycryptodome` / `hashlib` / `hmac` / `gmssl`，不依赖 Node）** → 路径 A 失败才走 **路径 B：Node 调用原始 JS（`PyExecJS2` / `subprocess` 调 `node script.js`）** → **≥ 3 组样本校验**
+- **Web JS 逆向**（规范 §7-9）：关键字搜索 → XHR 断点 → Hook 定位 → 混淆识别（5 类 + AST）→ 补环境（vm2/jsdom）→ 按目标选择：**路径 A：Python 纯复现**（默认首选，用 `pycryptodome` / `hashlib` / `hmac` / `gmssl`）→ A 失败后**路径 B：Node 调用原始 JS**（`PyExecJS2` / `subprocess`）→ 算法仍难剥离或必须保留页面/App 运行时则走**路径 C：RPC 远程调用**（参考 [JsRpc](https://github.com/jxhczhl/JsRpc)：注入通信环境，按 group/name 隔离运行时，注册函数或执行代码，通过 `/go` / `/execjs` 类接口取回结果）→ **≥ 3 组样本校验**。RPC 只是逆向实现方式；若最终交付选纯协议，必须继续把 RPC 依赖替换为独立复现；若选半自动化，可将 RPC 作为受控参数生成器。
 - **APP 逆向**（规范 §10）：**脱壳**（FRIDA-DEXDump/FART）→ **SSL Pinning 绕过**（objection 首选 / frida 自写 / justtrustme）→ 静态分析（jadx）→ frida Hook（最有效）→ so 层（Ghidra，极难）
 - **风控与验证码**（规范 §11，铁律 #7）：L1-L5 难度分级 + 验证码类型应对（**AI 主动解决，不得建议人工**）+ 设备指纹模拟（默认已开 `playwright-stealth`）
+
+#### 4.1 RPC 逆向方式（v2.12.0 新增）
+
+RPC 适用于“函数依赖浏览器/App 原生运行时，直接抠代码或补环境成本过高”的场景，参考 [`jxhczhl/JsRpc`](https://github.com/jxhczhl/JsRpc) 的基本模型：目标页面注入 WebSocket 客户端，服务端按 `group` / `name` 标识连接；页面预注册加密函数或执行受控 JS，协议客户端通过 RPC 传参取回 sign/token/响应。
+
+**最小链路**：
+
+```text
+启动本地 RPC 服务
+  → 目标页面/App 注入通信客户端
+  → 按 group/name 绑定独立运行时
+  → 注册 sign/token 函数（优先注册函数，谨慎使用任意 execjs）
+  → 客户端调用并记录 request_id / action / duration
+  → 返回结果给协议请求层或保存到阶段证据
+```
+
+**RPC 必须验证**：
+- 连接健康、断线重连、超时和异常响应；服务端不可用时必须明确失败，禁止静默使用旧 sign/token
+- `group/name` 或等价运行时标识隔离账号、设备和 session，禁止并发请求串用上下文
+- 参数和返回值 schema、序列化边界、敏感值脱敏；任意代码执行仅限用户授权的本机目标
+- 同函数串行重复、不同参数并发和 RPC 重启后恢复；结果必须能进入阶段 5.5 生命周期/并发验收
+- WebSocket/HTTP RPC 仅绑定本机或受控内网，必须配置访问控制；禁止把 RPC endpoint 暴露公网
+
+**JsRpc 参考边界**：其 README 描述了本地服务、浏览器注入 WebSocket、`/list`、`/ws`、`/go`、`/execjs` 及注册 action 调用模式；本技能只借鉴“驻留运行时 + 显式 action + 参数回传”的方法，不把该仓库、端口、接口或编译产物变成本技能硬依赖。
+
+**交付形态约束**：
+- 纯协议：RPC 只能作为分析/对照手段，最终 `functions.py` 不得依赖 RPC 服务
+- 半自动化：允许 RPC 作为 sign/token/challenge 生成器，但必须有健康检查、生命周期记录、session 隔离、超时重试边界和运行态存储
+- 纯自动化：RPC 可作为浏览器/App 内部辅助，但最终业务链路仍需按自动化模式验收
 
 **产出**（落到 `03-reverse/`）：
 - `algo-restore.md` —— **加密算法还原报告**（定位过程 + 算法说明 + 验证结果，覆盖 Web/APP 全部路径）
 - `restored-js/` —— 还原后的 JS 片段（Web 逆向）
 - `hooks/` —— frida hook 脚本（**Web + APP 全套**，含 SSL Bypass）
-- `verification.md` —— **≥ 3 组样本交叉验证记录**（不同输入值的还原结果对比）
+- `verification.md` —— **≥ 3 组样本交叉验证记录**（不同输入值的还原结果对比）+ timestamp / nonce / sign / token / challenge 的生命周期线索（是否随请求、会话、时间变化；最终分类在阶段 5.5 实测）
 - `app-unpack-notes.md`（**仅 APP 类**）—— 脱壳 + SSL Pinning 绕过的完整操作记录
 
 **正确性铁律**：
@@ -508,6 +550,7 @@ with sync_playwright() as p:
 - ❌ 不得跳过验证直接进入阶段 5
 - ❌ APP 逆向不得跳过 SSL Pinning 绕过就声称"逆向失败"（极可能是 pin 问题，不是算法问题）
 - ❌ 不得在没拿到 ≥ 3 组 sign 值的情况下声称算法已还原
+- ❌ 不得把“≥ 3 组 sign 一致”写成“模块已可用”——这只完成算法正确性证明，仍须阶段 5.5 验收
 
 ### 4.5 风控/滑块专项（v2.9.3 新增）
 
@@ -535,24 +578,18 @@ with sync_playwright() as p:
 
 ### 5. 模块化封装（轻量版）
 
-**封装目标**：产出可独立 `import` 复用的纯函数模块，**严格遵循《爬虫规范》命名/分层规范**（即使不是完整骨架）。
+**封装目标**：产出可独立 `import` 复用的轻量模块，**严格遵循《爬虫规范》命名/分层规范**（即使不是完整骨架）。加密/签名算法保持纯函数；完成一次真实业务调用必需的最小 token / challenge / session 生命周期必须在模块内实现，或通过清晰接口显式注入。
 
-**自动化框架选型**（v2.9.4 新增，**`AskUserQuestion` 必问**）：
+**封装运行方式选择（v2.12.0 增强）**：阶段 1 已确认最终交付形态，本阶段不得擅自改变。只有纯自动化或半自动化实际需要浏览器时，才必须 `AskUserQuestion` 选择浏览器框架；纯协议不引入浏览器框架，半自动化还需明确 RPC/自动化状态生成方式。
 
-> 分析阶段（§2-4）固定用 **Playwright-Python**；封装阶段（§5）按目标场景让用户选框架：
+| 最终交付形态 | 阶段 5 运行依赖 | 产物要求 |
+|:-------------|:----------------|:---------|
+| **纯协议** | `curl_cffi`；RPC/浏览器只能用于分析和对照 | 最终公开入口脱离浏览器/App/RPC 可运行 |
+| **半自动化** | `curl_cffi` + 浏览器框架或 RPC 生成器 | 自动化/RPC 只处理已确认的登录、风控、challenge、sign/token 难点；协议层完成核心业务 |
+| **纯自动化** | Playwright-Python / DrissionPage / seleniumbase | 完整业务动作和数据提取都在自动化链路内完成 |
 
-| 框架 | 核心优势 | 核心劣势 | **何时选** |
-|:-----|:---------|:---------|:-----------|
-| **Playwright-Python** | CDP 完整、API 现代、Python 生态最广、stealth 生态成熟 | 国内社区相对小、接管浏览器需手动 `connect_over_cdp` | **海外项目 + 复杂交互 + 工程化**（默认） |
-| **DrissionPage** | 国产、**内置接管浏览器**、**内置反检测**（无需 stealth）、对国内站点适配好 | 海外生态弱 | **国内项目**（小红书/抖音/淘宝/1688）+ 快速接管用户本机 Chrome |
-| **seleniumbase** | UC Mode（undetected-chromedriver）成熟、国外生态、自带 CDP 工具 | 基于 Selenium 老旧、API 兼容性差 | **需要 Selenium 兼容 + UC 反检测的海外项目** |
+> 浏览器框架选择：Playwright-Python（默认，复杂交互/海外）、DrissionPage（国内站点/内置接管）、seleniumbase（Selenium 兼容/UC Mode）。纯协议模式跳过框架选择；半自动化和纯自动化必须在 `README.md` 记录运行依赖、降级路径和状态边界。
 
-**示例问法**（必走）：
-
-> 请问封装阶段用哪个自动化框架？
-> - A. Playwright-Python（默认，海外项目 + 复杂交互）
-> - B. DrissionPage（国内项目，内置接管 + 反检测）
-> - C. seleniumbase（需要 Selenium 兼容 + UC 反检测）
 
 **产出**（落到 `04-modules/{module}/`）：
 
@@ -560,9 +597,10 @@ with sync_playwright() as p:
 04-modules/{module}/
 ├── __init__.py              # 暴露对外可复用接口
 ├── functions.py             # 核心函数（可独立 import）
-├── constants.py             # 常量（Redis Key、URL 模板、Header 模板）
-├── README.md                # 使用说明：哪些函数可独立复用 + 复用示例
-└── verify.py                # 复用前的快速验证脚本
+├── constants.py             # URL / Header 模板等稳定常量（禁止临时 token/cookie/nonce）
+├── README.md                # 使用说明：公开入口、状态依赖、限制 + 复用示例
+├── verify.py                # 阶段 5.5 必须真实执行的验收入口
+└── verification-report.md   # 串行/生命周期/并发证据 + PASS/CONDITIONAL/FAIL
 ```
 
 **规范遵循**：
@@ -573,16 +611,113 @@ with sync_playwright() as p:
 **何时升级为完整骨架**：
 - 用户在阶段 7 选择「落地为完整项目」时 → `mcpowers-init` 调用，**自动把** `04-modules/{module}/functions.py` **复制到** `apps/{module}/crawl_functions.py`，并按《爬虫规范》§2.4 补全其余 6 个文件
 
+**模块状态边界（v2.12.0 新增）**：
+- ✅ 允许：逐请求生成 timestamp / nonce / sign、获取或刷新一次性 token、维护完成单次业务调用所需的 Cookie / challenge、通过调用参数注入 session
+- ✅ 优先：把状态作用域限制到实例或单次调用，避免模块级可变全局状态导致并发串值
+- ❌ 禁止：把抓包得到的临时 token / Cookie / nonce / challenge 写入 `constants.py`，靠首次成功冒充可复用
+
+**运行态存储边界（半自动化 / RPC，v2.12.0 新增）**：
+- 运行态状态必须与 `02-interfaces/` 抓包样本、`constants.py` 稳定常量分离，写入模块专用运行态目录或可替换 `state_store` 接口
+- 每条状态记录类型、生成时间、过期时间、账号/session/设备绑定和刷新方式；写入要原子化，目录默认 Git 忽略，日志只记脱敏标识
+- RPC 连接信息只绑定本机或受控内网，必须有健康检查、超时、断线重连上限和 group/name（或等价标识）隔离；禁止暴露公网、静默复用旧 sign/token 或把任意 execjs 当默认接口
+
 **不封装的内容**（YAGNI）：
 - ❌ 不写 `crawl_wrappers.py` / `crawl_loggers.py` / `crawl_retry_conditions.py` 等需要工程骨架支撑的文件
-- ❌ 不写 Session/代理/指纹管理（属于 `mcpowers-init` 范畴）
+- ❌ 不写通用 Session 池、代理池或完整指纹管理；但不得删掉真实调用必需的最小状态生命周期
 - ❌ 不写 Redis 队列/任务调度（属于 `mcpowers-init` 范畴）
+
+---
+
+### 5.5 真实可用性验收（v2.12.0 新增）
+
+> **核心原则**：`functions.py` 写完、`verify.py` 创建、单次请求成功、HTTP 200 或 ≥ 3 组 sign 一致，都不等于模块可交付。必须从模块公开入口完成本节验收，`verification-report.md` 最终为 `PASS` 才能进入阶段 6/7。
+
+#### 5.5.1 先定义验收契约
+
+执行测试前，在 `verification-report.md` 写清：
+
+- **输入与公开入口**：用户实际会怎样 `import` 和调用
+- **核心业务动作**：查询 / 翻页 / 下载 / 提交等本次明确要求
+- **业务成功断言**：必需字段、数据数量、状态变化或副作用；**禁止只断言 HTTP 200**
+- **运行前提**：登录态、Cookie、设备、地区、浏览器或协议直连要求
+- **稳定性目标**：是否要求跨会话、批量和并发；目标并发未说明时按 2 → 5 做小规模验证
+
+用户要求的核心动作有任一未实现，不得通过缩小测试范围宣布成功。
+
+#### 5.5.1.1 按最终交付形态验收
+
+| 形态 | 必须证明 | 失败判定 |
+|:-----|:---------|:---------|
+| **纯协议** | 关闭浏览器/App/RPC 后，公开入口仍能独立生成参数并完成核心业务；协议层通过冷启动、重复、生命周期和目标并发测试 | 仍需 RPC/页面运行时生成核心参数，不能标记纯协议 `PASS` |
+| **半自动化** | 自动化/RPC 只负责已确认的登录、验证码、challenge、sign/token 难点；协议层完成核心业务；运行态存储可刷新、隔离、过期恢复 | 状态硬编码、session 串用、RPC 断线无恢复或协议层无法独立完成核心请求 |
+| **纯自动化** | 自动化入口完整完成业务动作、数据提取和用户要求的页面交互；selector/context/session 边界明确 | 仍需手工复制报文/参数，或只验证接口而未验证页面业务 |
+
+RPC 作为阶段 4 的逆向实现方式，必须在报告中注明：调用端、运行时分组、函数/action、参数/返回 schema、健康检查、超时/重连和并发隔离；它不能改变阶段 1 已确认的最终交付形态。
+
+#### 5.5.2 串行重复与冷启动
+
+`verify.py` **必须真实执行**，默认最低覆盖：
+
+1. 从 `__init__.py` 暴露的公开入口调用，不得绕过模块调用分析临时代码
+2. 至少 2 组不同业务输入，合计连续调用 **≥ 5 次**；小样本门禁要求业务断言全部成功
+3. 至少覆盖 2 个独立 session 或冷启动环境，验证模块不依赖当前 DevTools、进程全局变量或残留 token
+4. 记录每次时间、输入摘要、HTTP/业务状态、关键字段、耗时和失败原因；敏感字段必须脱敏
+
+#### 5.5.3 报文生命周期矩阵
+
+对 timestamp / nonce / sign / token / Cookie / challenge 等关键状态，用**最小请求量**完成以下测试：
+
+| 测试 | 操作 | 目的 |
+|:-----|:-----|:-----|
+| **原报文重放** | URL、Body、Header、动态参数完全不变，重复发送 1 次 | 判断报文或 token 是否只能消费一次 |
+| **动态参数重生成** | 业务输入不变，重新生成 timestamp / nonce / sign / token | 判断模块能否持续构造新请求 |
+| **跨 session 重放** | 新 session 使用旧 sign / token，再用新状态对照 | 判断是否绑定 Cookie、账号、设备或会话 |
+| **延时 / TTL** | 按响应过期字段、已知 TTL 或合理短间隔复测 | 判断有效时间窗口；无法确认时保持 `unknown` |
+
+每个关键状态必须归类并写入报告：
+
+| 分类 | 含义 | 封装要求 |
+|:-----|:-----|:---------|
+| `reusable` | 在已验证范围内可重复使用 | 写明验证范围，不得外推为永久有效 |
+| `per-request` | 每次请求必须重新生成 | 生成逻辑放入单次请求路径 |
+| `single-use-token` | 服务端消费一次即失效 | 每次调用前重新获取，不缓存旧值 |
+| `session-bound` | 绑定 Cookie / 账号 / 设备 / session | 状态按 session 隔离 |
+| `time-bound` | 受 TTL 或时间窗口限制 | 记录 TTL，并在过期前刷新 |
+| `challenge-bound` | 依赖前置 challenge | 封装完整“获取 → 生成 → 请求”链路 |
+| `unknown` | 样本不足，无法确认 | **禁止宣称可复用**；若影响验收契约则不能 PASS |
+
+> 原报文重放失败不等于逆向失败；如果模块能够按已确认生命周期持续生成有效新报文，仍可通过对应业务验收。
+
+#### 5.5.4 有界并发稳定性
+
+并发验证是可用性检查，**不是压力测试**：
+
+1. 按并发 **2 → 5** 递增；每级只发送足以发现状态污染的小批量请求
+2. 分别测试**相同业务输入**和**不同业务输入**，检查 nonce / token 重用、共享 session 线程安全、参数串值、结果交叉污染
+3. 记录请求总数、业务成功数、401/403/429/5xx、验证码次数、P50/P95 耗时、session 策略和失败原因
+4. 出现以下任一情况立即停止递增：429、验证码明显增加、账号安全提示、目标异常、robots / 服务条款 / 用户授权不允许
+5. 用户要求的目标并发未通过，或停止后无法证明目标并发可用时，不得标记 `PASS`
+
+#### 5.5.5 结果判定与回退
+
+| 状态 | 判定 | 后续动作 |
+|:-----|:-----|:---------|
+| **PASS** | 当前验收契约中的业务、重复、生命周期、跨会话/时效和目标并发都有实测证据 | 允许进入阶段 6/7 |
+| **CONDITIONAL** | 功能可用但存在未被当前契约接受的限制，或关键生命周期仍为 `unknown` | 不得进入阶段 7；询问用户是否调整验收契约，调整后补测并重新判定 |
+| **FAIL** | 核心业务失败、无法持续生成有效报文、跨请求状态污染或目标并发失败 | 按根因返回阶段 2（接口）、4（算法/生命周期）或 5（模块实现） |
+
+**唯一报告产物**：`04-modules/{module}/verification-report.md`，至少包含：测试环境、验收契约、串行结果、生命周期矩阵、并发结果、停止原因、已知限制、最终状态和证据路径。禁止拆出多个空泛报告充数。
+
+**阶段推进铁律**：
+- `verify.py` 未实际运行或报告缺证据 → 视为 `FAIL`
+- `CONDITIONAL` 不能靠用户一句“继续”直接变成 `PASS`；必须先更新契约并补测
+- 阶段 6/7 只接受 `PASS`，不得把失败项留给完整骨架“以后再修”
 
 ---
 
 ### 6. 沉淀案例（v2.7.0 铁律）
 
-**强制要求**：阶段 5 完成后**必须**沉淀案例，不可跳过。
+**强制要求**：阶段 5.5 的 `verification-report.md` 最终状态为 `PASS` 后**必须**沉淀案例，不可跳过；`CONDITIONAL` / `FAIL` 状态禁止进入本阶段。
 
 **产出**：
 - `05-case-study.md`（按《爬虫分析规范》附录 C 格式）
@@ -601,6 +736,8 @@ with sync_playwright() as p:
 ---
 
 ### 7. 落地决策（联动 `mcpowers-init` / `mcpowers-feat` / `mcpowers-extract`）
+
+**前置门禁（v2.12.0 新增）**：仅当 `04-modules/{module}/verification-report.md` 最终状态为 `PASS` 时，才展示以下落地选项。`CONDITIONAL` 必须先调整验收契约并补测；`FAIL` 必须返回阶段 2/4/5，二者都禁止创建完整骨架。
 
 **`AskUserQuestion` 询问**：
 
@@ -638,7 +775,7 @@ with sync_playwright() as p:
 - ❌ **APP 逆向跳过 SSL Pinning 绕过** —— 抓不到包 90% 是 pin 问题，不是算法问题
 - ❌ **APP 逆向跳过脱壳** —— 加固 APP 直接 jadx 看的是壳代码，不是业务代码
 - ❌ **混淆代码不 Hook 直接读** —— 用 Hook 看入参/出参比读混淆代码快 10 倍
-- ❌ **Python 复现失败就放弃** —— 路径 A 失败时**必须**走路径 B（Node 调用原始 JS），不得因"Python 复现困难"就跳过
+- ❌ **Python 复现失败就放弃** —— 路径 A 失败时必须评估路径 B（Node 调用原始 JS）或路径 C（RPC 调用目标运行时），不得因“Python 复现困难”就跳过可行路径
 - ❌ 逆向结果不验证（参数还原错误导致全量数据报废）
 - ❌ 一次性逆向所有参数（先验证核心参数，正确后再扩）
 - ❌ 产物目录散落在工作区不按 `{slug}-crawler-reverse/` 命名（违反 DRY，下次找不回）
@@ -660,10 +797,31 @@ with sync_playwright() as p:
 - ❌ **未检测 `bb-browser status` 就假设 adapter 可用**（v2.10.0 新增）—— 必须先探测 CLI / daemon；未安装 / 不可用 / 不兼容时回退 v2.9.5 原链路，**禁止**"看到 github 就直接调 bb-browser"
 - ❌ **把 bb-browser 当成 popup-handler.py / Playwright 的替代品**（v2.10.0 新增）—— adapter 负责**站点级操作**，Playwright 负责**网络实测**，`popup-handler.py` 负责**通用弹窗与合规询问**，三者职责不可混用
 - ❌ **adapter 命中后跳过实测直接标 `[🎯]`**（v2.10.0 新增）—— adapter 仅提供结构化线索，必须经 Playwright / `curl_cffi` 实测验证后才能升 `[🎯]`，**禁止** adapter 命中 = 自动高置信度
+- ❌ **单次成功或 ≥ 3 组 sign 一致就声称模块可用**（v2.12.0 新增）—— 算法正确性、协议有效性、业务完整性和运行稳定性必须分层验证
+- ❌ **只创建 `verify.py` 不执行，或只断言 HTTP 200**（v2.12.0 新增）—— 必须从公开入口执行并校验真实业务语义
+- ❌ **把临时 token / Cookie / nonce / challenge 硬编码为常量**（v2.12.0 新增）—— 必须按生命周期逐请求生成、刷新或按 session 隔离
+- ❌ **把 `unknown` 生命周期写成“可复用”**（v2.12.0 新增）—— 证据不足必须保留未知，影响验收契约时不能 PASS
+- ❌ **用无界并发压测目标站**（v2.12.0 新增）—— 只允许 2 → 5 的有界可用性验证，出现 429/验证码/账号风险立即停止
+- ❌ **`CONDITIONAL` / `FAIL` 仍进入阶段 6/7**（v2.12.0 新增）—— 只有补测后的 `PASS` 可沉淀和落地
+
+- ❌ **把 RPC 当成最终交付形态**（v2.12.0 新增）—— RPC 是阶段 4 的逆向实现方式；最终只能是纯协议、半自动化或纯自动化
+- ❌ **未在阶段 1 确认最终交付形态就开始逆向**（v2.12.0 新增）—— 纯协议、半自动化、纯自动化的验收条件不同，不能分析完成后再倒推目标
+- ❌ **纯协议产物依赖 RPC/浏览器/App 运行时**（v2.12.0 新增）—— RPC 只能作为分析/对照手段；无法剥离时必须重新确认改为半自动化
+- ❌ **RPC endpoint 暴露公网或不隔离 group/name**（v2.12.0 新增）—— 仅绑定本机/受控内网，并按账号、设备、session 隔离运行时
+- ❌ **半自动化把 token/Cookie/challenge 写进抓包目录或 constants.py**（v2.12.0 新增）—— 必须使用专用运行态存储，记录 TTL、绑定关系并原子刷新
+- ❌ **把 RPC 任意 execjs 当成默认实现**（v2.12.0 新增）—— 优先注册受控 action，限制参数/返回 schema，记录调用审计和超时重连
 
 ---
 
 ## 完成后自检清单
+
+### 交付形态与逆向方式
+- [ ] 阶段 1 已确认最终交付形态：纯协议 / 半自动化 / 纯自动化，并写入 `ANALYSIS_PLAN.md`
+- [ ] 阶段 4 已记录实际逆向方式：Python 复现 / Node 执行 / RPC；RPC 不被误写成最终交付形态
+- [ ] 如使用 RPC，已记录调用端、group/name（或等价隔离标识）、action、schema、健康检查、超时/重连和并发隔离
+- [ ] 如选择纯协议，最终模块在关闭浏览器/App/RPC 后仍可独立运行
+- [ ] 如选择半自动化，自动化/RPC 只负责已确认难点，核心请求由协议层完成，运行态状态已专用存储并按 TTL/session 隔离
+- [ ] 如选择纯自动化，完整业务动作和数据提取均已从自动化入口验证
 
 ### 接口分析阶段
 - [ ] `01-target-profile/` 已填写（域名/包名/IP 段/技术栈指纹）
@@ -685,15 +843,20 @@ with sync_playwright() as p:
 - [ ] `03-reverse/verification.md` 含 ≥ 3 组样本交叉验证
 - [ ] **≥ 3 组 sign 复现值与抓包结果一致**（不是 1-2 组，是 3+）
 
-### 封装与沉淀
-- [ ] `04-modules/{module}/functions.py` 函数 docstring 5 字段齐全
-- [ ] `04-modules/{module}/README.md` 含复用示例（≥ 2 个 import 用例）
+### 封装、验收与沉淀
+- [ ] `04-modules/{module}/functions.py` 函数 docstring 5 字段齐全，公开入口可独立 import
+- [ ] 完成真实调用必需的最小 token / challenge / session 生命周期已实现或显式注入，无临时状态硬编码
+- [ ] `04-modules/{module}/README.md` 含复用示例（≥ 2 个 import 用例）+ 登录态/生命周期/并发限制
+- [ ] `verify.py` 已从公开入口真实执行，覆盖至少 2 组输入、合计 ≥ 5 次和至少 2 个 session / 冷启动环境
+- [ ] 原报文重放、动态参数重生成、跨 session、延时 / TTL 已按最小请求量验证；`unknown` 未冒充可复用
+- [ ] 有界并发已按 2 → 5 验证同输入与不同输入；出现风险信号时已停止并记录
+- [ ] `04-modules/{module}/verification-report.md` 证据完整，最终状态为 `PASS`
 - [ ] `05-case-study.md` 已写（含目标/参数/定位/方案/可复用代码入口/关键决策点）
 - [ ] **`05-case-study.md` 已询问用户是否沉淀到《爬虫分析规范》附录 C**
 - [ ] **如选择沉淀**：本次 commit 已同步更新 `爬虫分析规范.md` 附录 C + frontmatter `last_updated`
 
 ### 联动与收尾
-- [ ] 阶段 7 联动决策已与用户确认（A/B/C 三选一）
+- [ ] 阶段 7 联动决策已与用户确认（A/B/C/D 四选一），且阶段 5.5 最终状态为 `PASS`
 - [ ] **如选择 A**：已确认目标路径无冲突，再跳 `mcpowers-init`
 - [ ] 跑过 `bash scripts/check-readme-sync.sh` 通过
 
@@ -701,7 +864,7 @@ with sync_playwright() as p:
 
 - [ ] **默认 Python**（非 Node/JS）
 - [ ] **分析阶段用 Playwright-Python**（非 Selenium/裸 Playwright-Node）
-- [ ] **封装阶段已 `AskUserQuestion` 让用户选框架**（DrissionPage / seleniumbase / Playwright-Python 三选一）
+- [ ] **封装方式遵循阶段 1 交付形态**（纯协议不引入浏览器框架；半自动化/纯自动化如需浏览器，已 `AskUserQuestion` 选择 DrissionPage / seleniumbase / Playwright-Python）
 - [ ] **协议请求用 `curl_cffi`**（非裸 `requests`）
 - [ ] **已开启 `playwright-stealth` 指纹伪装**（分析阶段默认开；DrissionPage/seleniumbase 默认内置反检测，无需手动装 stealth）
 - [ ] **行为模式已随机化**（滚动/点击/鼠标轨迹）
@@ -750,7 +913,7 @@ with sync_playwright() as p:
 > | 请求结构/Header/风控参数识别 | §4 请求结构分析（含 §4.6 风控参数） |
 > | 反爬难度 L1-L5 评估 | §6 反爬强度评估（含 §6.1 L 分级） |
 > | 加密定位/Hook/混淆识别 | §7 加密参数定位 + §8 Web JS 逆向 |
-> | 算法复现/补环境/正确性校验 | §8.3-8.5 补环境与复现 + §9 参数还原 |
+> | 算法复现/补环境/正确性校验 | §8.3-8.5 补环境与复现 + §9 参数还原 + §9.4 报文生命周期与真实可用性验收（v2.12.0） |
 > | 脱壳/SSL Pinning/frida/so | §10 APP 逆向（含 5 子节） |
 > | 验证码/设备指纹/风控 | §11 验证码与风控应对 |
 > | 完整工具清单 | 附录 A（含 A.1-A.8） |

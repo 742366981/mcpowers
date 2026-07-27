@@ -1,6 +1,6 @@
 ---
 name: mcpowers
-description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse/extract/doc-sync-install），禁止先调用本 skill 完整正文再判断。完整路由表（24 行骨架）见「强制分流表」段；各技能 description 列出完整自然语言触发词和边界防误触发说明，是 L1 语义匹配的主要依据。"
+description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse/reverse-web/reverse-app/reverse-android/reverse-ios/reverse-flutter/reverse-hybrid/reverse-miniprogram/extract/doc-sync-install），禁止先调用本 skill 完整正文再判断。完整路由表（31 行骨架）见「强制分流表」段；各技能 description 是 L1 语义匹配主依据。"
 ---
 
 # mcpowers 路由器
@@ -45,7 +45,14 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 | 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test / 跑 pytest / 跑 Playwright / 跑 DrissionPage / 跑 Selenium / 跑 Cypress | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
 | 前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 / swagger / openapi / 接口文档怎么自动生成 / 前端怎么拿到接口类型 | `mcpowers-api-contract` | 场景层 | `mcpowers-api-contract/SKILL.md` description |
 | 装基础技能 / 一键装基础 / 装上所有基础 / 装基础技能 / 装全部基础技能 / 全局安装基础技能 / npx skills add | `mcpowers-install-basics-skills` | 场景层 | `mcpowers-install-basics-skills/SKILL.md` description |
-| 爬虫逆向 / 加密参数还原 / 抓包分析 / 逆向工程 / JS 反混淆 / APP 逆向 / frida hook / RPC 逆向 / 纯协议 / 半自动化 / 纯自动化 / 一次性报文 / token 复用 / 并发稳定性 / 模块真实可用 | `mcpowers-crawler-reverse` | 场景层 | `mcpowers-crawler-reverse/SKILL.md` description |
+| 爬虫逆向 / 接口分析 / 抓包分析 / 加密参数还原 / 逆向工程 / RPC 逆向 / 纯协议 / 半自动化 / 纯自动化 / 一次性报文 / token 复用 / 并发稳定性 / 模块真实可用 / 目标类型不明 | `mcpowers-crawler-reverse` | 场景层（统一入口） | `mcpowers-crawler-reverse/SKILL.md` description |
+| 网站逆向 / Web JS 反混淆 / 浏览器抓包 / CDP 接管 / WASM / bb-browser | `mcpowers-reverse-web` | 场景层（专项） | `mcpowers-reverse-web/SKILL.md` description |
+| APP 逆向但平台或运行时未知 / 先识别 App 技术栈 | `mcpowers-reverse-app` | 场景层（二级入口） | `mcpowers-reverse-app/SKILL.md` description |
+| Android 逆向 / 安卓 / APK / AAB / Kotlin / Java / JNI / jadx / frida hook / LSPosed | `mcpowers-reverse-android` | 场景层（专项） | `mcpowers-reverse-android/SKILL.md` description |
+| iOS 逆向 / 苹果 App / IPA / Mach-O / Swift / Objective-C / LLDB | `mcpowers-reverse-ios` | 场景层（专项） | `mcpowers-reverse-ios/SKILL.md` description |
+| Flutter 逆向 / Dart AOT / libapp.so / App.framework / Platform Channel | `mcpowers-reverse-flutter` | 场景层（专项） | `mcpowers-reverse-flutter/SKILL.md` description |
+| 混合 App 逆向 / uni-app / React Native / Cordova / Capacitor / WebView / JSBridge / Hermes | `mcpowers-reverse-hybrid` | 场景层（专项） | `mcpowers-reverse-hybrid/SKILL.md` description |
+| 小程序逆向 / 小游戏 / 微信小程序 / 支付宝小程序 / 抖音小程序 / 百度小程序 / wxapkg | `mcpowers-reverse-miniprogram` | 场景层（专项） | `mcpowers-reverse-miniprogram/SKILL.md` description |
 | 抽离公共模块 / 抽离通用能力 / 提取可复用组件 / 拆出独立库 / 爬虫逆向层剥离 / 抽成公共库 / 做成可调用脚本 / 模块化调用 / extract module / reusable library | `mcpowers-extract` | 场景层 | `mcpowers-extract/SKILL.md` description |
 | 装项目级文档同步纪律 / 给现有项目加 doc-sync / 一键安装校验+hook / 安装 .doc-sync-rules | `mcpowers-doc-sync-install` | 方法层 | `mcpowers-doc-sync-install/SKILL.md` description |
 
@@ -95,6 +102,8 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 | "部署出问题回滚" | deploy + rollback | rollback 优先（紧急修复类） |
 
 **灰色地带处理**：
+- 逆向关键词同时命中统一入口和平台专项 → **已明确的平台/运行时优先**；仅“App 逆向”但平台未知时走 `mcpowers-reverse-app`；载体也未知时走 `mcpowers-crawler-reverse`
+- 逆向专项直接命中后只读取统一入口的公共前置/收尾合同，禁止再次调用统一入口分流，避免循环路由
 - 用户说"加个功能顺便 commit" → 视为单一任务，`mcpowers-feat` 在 Step 8 自动调 `mcpowers-git-commit`，不拆
 - 用户说"我也不知道要做什么" → 直接进 `mcpowers-brainstorm`，不查路由表
 - 命中 ≥ 3 个意图 → 中断并调 AskUserQuestion，让用户选择先做哪个
@@ -121,7 +130,14 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 - `skills/mcpowers-autoTest/SKILL.md`
 - `skills/mcpowers-api-contract/SKILL.md`（v2.2.0 新增）
 - `skills/mcpowers-install-basics-skills/SKILL.md`（v2.5.0 新增）
-- `skills/mcpowers-crawler-reverse/SKILL.md`（v2.7.0 新增）
+- `skills/mcpowers-crawler-reverse/SKILL.md`（v2.7.0 新增，v2.13.0 转为统一入口）
+- `skills/mcpowers-reverse-web/SKILL.md`（v2.13.0 新增）
+- `skills/mcpowers-reverse-app/SKILL.md`（v2.13.0 新增，App 二级入口）
+- `skills/mcpowers-reverse-android/SKILL.md`（v2.13.0 新增）
+- `skills/mcpowers-reverse-ios/SKILL.md`（v2.13.0 新增）
+- `skills/mcpowers-reverse-flutter/SKILL.md`（v2.13.0 新增）
+- `skills/mcpowers-reverse-hybrid/SKILL.md`（v2.13.0 新增）
+- `skills/mcpowers-reverse-miniprogram/SKILL.md`（v2.13.0 新增）
 - `skills/mcpowers-extract/SKILL.md`（v2.8.0 新增）
 
 ### 3.2 方法层（Layer 2）—— 被编排，也可单独触发
@@ -149,7 +165,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 - ✅ **规范文件**：`mcpowers-shared/docs/...` 路径不变
 - ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 场景/方法技能
 
-只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（24 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
+只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（31 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
 
 ---
 

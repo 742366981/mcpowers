@@ -3,7 +3,7 @@
 # 用途：CI 跑完所有断言无失败即视为文档与代码同步
 # 退出码 0 = 同步，1 = 不同步
 #
-# 检查 10 类一致性：
+# 检查 12 类一致性：
 #   1. README 路由表 ↔ 实际 skills/ 目录
 #   2. README 规范清单 ↔ 实际 docs/ 下的规范文件
 #   3. 每个规范文件有 frontmatter type: 字段
@@ -14,6 +14,8 @@
 #   8. 路由器 + 规范库入口 的技能/规范数声明一致性（v2.9.0 L1 强化）
 #   9. 跨文件技能引用一致性（无悬空引用）（v2.9.0 L1 强化）
 #  10. crawler-reverse 真实可用性验收门禁完整性（v2.12.0）
+#  11. reverse 分层拓扑与公共合同完整性（v2.13.0）
+#  12. 浏览器/CDP 外部资源所有权门禁（v2.13.0）
 #
 # v2.9.0：新增 section 8/9
 # v2.5.2：新增 section 5/6/7
@@ -42,7 +44,7 @@ else
 fi
 
 # ============== 1. 技能清单同步 ==============
-echo "[1/10] 校验 README ↔ skills/ 同步"
+echo "[1/12] 校验 README ↔ skills/ 同步"
 README_SKILLS=$(grep -oE 'mcpowers-[a-zA-Z-]+' "$README" 2>/dev/null | sort -u || true)
 # v2.0：扁平结构，直接列 skills/ 下所有目录（mcpowers-* 前缀）
 ACTUAL_SKILLS=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
@@ -71,7 +73,7 @@ if [ "$FAIL" -eq 0 ]; then
 fi
 
 # ============== 2. 规范清单同步 ==============
-echo "[2/10] 校验 README ↔ docs/ 规范同步"
+echo "[2/12] 校验 README ↔ docs/ 规范同步"
 README_SPECS=$(grep -oE '[A-Za-z一-龥]+规范\.md' "$README" 2>/dev/null | sort -u || true)
 # v2.0：mcpowers-shared 移到 skills/mcpowers-shared/
 ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
@@ -91,8 +93,8 @@ else
 fi
 
 # ============== 3. 规范 frontmatter 完整性 ==============
-# 只检查 技术规范/ 子目录（23 个核心规范范围，AI操作规范和产品设计规范不在范围）
-echo "[3/10] 校验 23 个核心规范 frontmatter 完整性"
+# 只检查 技术规范/ 子目录（24 个核心规范范围，AI操作规范和产品设计规范不在范围）
+echo "[3/12] 校验 24 个核心规范 frontmatter 完整性"
 # v2.0：路径更新
 SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null)
 MISSING_FM=0
@@ -113,8 +115,8 @@ fi
 # ============== 4. 场景技能都有 ## 编排 段 ==============
 # v2.0：场景技能 = skills/ 下非方法类的 mcpowers-* 技能
 #   硬编码场景技能列表（原 skills/scene/*）
-echo "[4/10] 校验场景技能都有 ## 编排 段"
-SCENE_SKILLS="mcpowers-feat mcpowers-bugfix mcpowers-refactor mcpowers-optimize mcpowers-deploy mcpowers-requirement-change mcpowers-init mcpowers-git-commit mcpowers-git-worktree mcpowers-git-rollback mcpowers-git-cleanBranches mcpowers-autoTest mcpowers-api-contract mcpowers-install-basics-skills mcpowers-crawler-reverse mcpowers-extract"
+echo "[4/12] 校验场景技能都有 ## 编排 段"
+SCENE_SKILLS="mcpowers-feat mcpowers-bugfix mcpowers-refactor mcpowers-optimize mcpowers-deploy mcpowers-requirement-change mcpowers-init mcpowers-git-commit mcpowers-git-worktree mcpowers-git-rollback mcpowers-git-cleanBranches mcpowers-autoTest mcpowers-api-contract mcpowers-install-basics-skills mcpowers-crawler-reverse mcpowers-reverse-web mcpowers-reverse-app mcpowers-reverse-android mcpowers-reverse-ios mcpowers-reverse-flutter mcpowers-reverse-hybrid mcpowers-reverse-miniprogram mcpowers-extract"
 MISSING_ORCH=0
 for s in $SCENE_SKILLS; do
     f="$REPO_DIR/skills/$s/SKILL.md"
@@ -132,12 +134,12 @@ done
 if [ "$MISSING_ORCH" -eq 0 ]; then
     echo "  ✓ 全部场景技能有 ## 编排 段"
 else
-    FAIL=$((MISSING_ORCH))
+    FAIL=$((FAIL + MISSING_ORCH))
 fi
 
 # ============== 5. 插件版本号三处一致 ==============
 # v2.5.2：保证 plugin.json.version / marketplace.json.version / marketplace.json.plugins[0].version 三处同步
-echo "[5/10] 校验插件版本号三处一致"
+echo "[5/12] 校验插件版本号三处一致"
 if [ -n "$PY_BIN" ]; then
     PLUGIN_V=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/plugin.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
     MARKET_V=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/marketplace.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
@@ -158,7 +160,7 @@ fi
 
 # ============== 6. 技能 description 字符数 ==============
 # v2.5.2：硬约束 ≤ 800 字符（1024 字符硬上限的 80% 安全预算）
-echo "[6/10] 校验技能 description 字符数（≤800，防 1024c 截断）"
+echo "[6/12] 校验技能 description 字符数（≤800，防 1024c 截断）"
 MAX_DESC_LEN=800
 BAD_DESC=0
 SKILL_DIRS=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers')
@@ -199,7 +201,7 @@ fi
 # ============== 7. 文档数字一致性 ==============
 # v2.5.2：README / CLAUDE.md 中"X 个技能/规范/Hook 脚本"声明必须与实际一致
 #   技能数排除 mcpowers-shared（规范库）
-echo "[7/10] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
+echo "[7/12] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
 ACTUAL_SKILL_N=$(echo "$ACTUAL_SKILLS" | grep -v '^mcpowers-shared$' | grep -c '^mcpowers' || true)
 ACTUAL_SPEC_N=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
 ACTUAL_HOOK_N=$(find "$REPO_DIR/hooks" -maxdepth 1 -name "*.sh" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -286,7 +288,7 @@ fi
 # v2.9.0：把 #7 的技能/规范/Hook 数校验从"只查 README + CLAUDE.md"扩展到
 #   skills/mcpowers/SKILL.md (路由器本体) + skills/mcpowers-shared/SKILL.md (规范库入口)。
 #   解决历史漏改：路由器说 "23 个可路由技能" 但 README/CLAUDE.md 已改成 24。
-echo "[8/10] 校验 路由器/规范库入口 的技能/规范/Hook 脚本数声明"
+echo "[8/12] 校验 路由器/规范库入口 的技能/规范/Hook 脚本数声明"
 ROUTER_SKILL="$REPO_DIR/skills/mcpowers/SKILL.md"
 SHARED_SKILL="$REPO_DIR/skills/mcpowers-shared/SKILL.md"
 DOC_NUM_FAIL2=0
@@ -348,7 +350,7 @@ fi
 # ============== 9. 跨文件技能引用一致性（v2.9.0 L1 强化） ==============
 # v2.9.0：捕获"路由器调用 mcpowers-foo 但 mcpowers-foo 目录不存在"的悬空引用。
 #   范围：所有 SKILL.md 里出现的 mcpowers-* 字面量都要在 skills/ 实际目录里存在。
-echo "[9/10] 校验 跨文件技能引用一致性（无悬空引用）"
+echo "[9/12] 校验 跨文件技能引用一致性（无悬空引用）"
 DANGLING_FAIL=0
 DECLARED=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
 # ripgrep: 所有 SKILL.md 里出现的 mcpowers-* 字面量。
@@ -388,7 +390,7 @@ fi
 
 # ============== 10. crawler-reverse 可用性验收门禁（v2.12.0） ==============
 # 防止后续修改只保留模块骨架，却删除真实业务、生命周期和并发验收。
-echo "[10/10] 校验 crawler-reverse 真实可用性验收门禁"
+echo "[10/12] 校验 crawler-reverse 真实可用性验收门禁"
 CRAWLER_SKILL="$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md"
 CRAWLER_GATE_FAIL=0
 
@@ -416,6 +418,88 @@ if [ "$CRAWLER_GATE_FAIL" -eq 0 ]; then
     echo "  ✓ crawler-reverse 可用性验收门禁完整"
 else
     FAIL=$((FAIL + CRAWLER_GATE_FAIL))
+fi
+
+# ============== 11. reverse 分层拓扑与公共合同（v2.13.0） ==============
+echo "[11/12] 校验 reverse 分层拓扑与公共合同"
+REVERSE_SKILLS="mcpowers-reverse-web mcpowers-reverse-app mcpowers-reverse-android mcpowers-reverse-ios mcpowers-reverse-flutter mcpowers-reverse-hybrid mcpowers-reverse-miniprogram"
+REVERSE_TOPOLOGY_FAIL=0
+ROUTER_SKILL="$REPO_DIR/skills/mcpowers/SKILL.md"
+
+for s in $REVERSE_SKILLS; do
+    f="$REPO_DIR/skills/$s/SKILL.md"
+    if [ ! -f "$f" ]; then
+        echo "  ✗ reverse 专项技能不存在: $s"
+        REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
+        continue
+    fi
+    if ! grep -qF "公共前置合同" "$f" || ! grep -qF "公共收尾合同" "$f"; then
+        echo "  ✗ $s 未引用统一入口的公共前置/收尾合同"
+        REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
+    fi
+    if grep -qF "### 5.5 真实可用性验收" "$f"; then
+        echo "  ✗ $s 复制了公共阶段 5.5，应只引用统一入口"
+        REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
+    fi
+    if [ "$s" != "mcpowers-reverse-app" ] && grep -qE '^\|.*`mcpowers-reverse-' "$f" 2>/dev/null; then
+        echo "  ✗ $s 的编排递归调用了其他逆向专项，应只读辅助规范并返回重新分流证据"
+        REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
+    fi
+    if ! grep -E '^\|' "$ROUTER_SKILL" 2>/dev/null | grep -qF "\`$s\`"; then
+        echo "  ✗ 主路由表缺少 reverse 专项: $s"
+        REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
+    fi
+done
+
+APP_ROUTER="$REPO_DIR/skills/mcpowers-reverse-app/SKILL.md"
+for child in mcpowers-reverse-android mcpowers-reverse-ios mcpowers-reverse-flutter mcpowers-reverse-hybrid; do
+    if ! grep -qF "$child" "$APP_ROUTER" 2>/dev/null; then
+        echo "  ✗ App 二级入口缺少下游: $child"
+        REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
+    fi
+done
+
+if [ "$REVERSE_TOPOLOGY_FAIL" -eq 0 ]; then
+    echo "  ✓ reverse 分层拓扑与公共合同完整"
+else
+    FAIL=$((FAIL + REVERSE_TOPOLOGY_FAIL))
+fi
+
+# ============== 12. 浏览器/CDP 外部资源所有权（v2.13.0） ==============
+echo "[12/12] 校验浏览器/CDP 外部资源所有权门禁"
+BROWSER_OWNERSHIP_FAIL=0
+CRAWLER_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫分析规范.md"
+OWNERSHIP_FILES="$CRAWLER_SKILL
+$REPO_DIR/skills/mcpowers-reverse-web/SKILL.md
+$REPO_DIR/skills/mcpowers-reverse-hybrid/SKILL.md
+$REPO_DIR/skills/mcpowers-reverse-miniprogram/SKILL.md
+$CRAWLER_SPEC"
+
+while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if [ ! -f "$f" ] || ! grep -qF "外部接管资源不可关闭" "$f" 2>/dev/null; then
+        echo "  ✗ 缺少外部接管资源不可关闭铁律: $f"
+        BROWSER_OWNERSHIP_FAIL=$((BROWSER_OWNERSHIP_FAIL + 1))
+    fi
+done <<< "$OWNERSHIP_FILES"
+
+if grep -qF "browser.contexts[0] or browser.new_context()" "$CRAWLER_SPEC" 2>/dev/null; then
+    echo "  ✗ 爬虫分析规范仍允许接管失败时静默新建 context"
+    BROWSER_OWNERSHIP_FAIL=$((BROWSER_OWNERSHIP_FAIL + 1))
+fi
+if grep -qF "bb-browser daemon stop &&" "$CRAWLER_SPEC" 2>/dev/null; then
+    echo "  ✗ 爬虫分析规范仍会无所有权判断地停止外部 daemon"
+    BROWSER_OWNERSHIP_FAIL=$((BROWSER_OWNERSHIP_FAIL + 1))
+fi
+if grep -qF "关闭浏览器/App/RPC 后" "$CRAWLER_SKILL" 2>/dev/null; then
+    echo "  ✗ 纯协议验收仍可能关闭用户浏览器，应改为停止依赖且保持外部资源存活"
+    BROWSER_OWNERSHIP_FAIL=$((BROWSER_OWNERSHIP_FAIL + 1))
+fi
+
+if [ "$BROWSER_OWNERSHIP_FAIL" -eq 0 ]; then
+    echo "  ✓ 浏览器/CDP 外部资源所有权门禁完整"
+else
+    FAIL=$((FAIL + BROWSER_OWNERSHIP_FAIL))
 fi
 
 # ============== 汇总 ==============

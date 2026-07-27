@@ -125,12 +125,12 @@ fi
 
 # ============== 5. 规范库 ==============
 echo "[5/7] 断言：mcpowers-shared 规范库完整"
-SPEC_COUNT=$(find "$REPO_DIR/skills/mcpowers-shared/docs" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$SPEC_COUNT" -ge 23 ]; then
-    echo "  ✓ 规范数=$SPEC_COUNT (≥23)"
+SPEC_COUNT=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$SPEC_COUNT" -ge 24 ]; then
+    echo "  ✓ 技术规范数=$SPEC_COUNT (≥24)"
     PASS=$((PASS + 1))
 else
-    echo "  ✗ 规范数=$SPEC_COUNT (<23)"
+    echo "  ✗ 技术规范数=$SPEC_COUNT (<24)"
     FAIL=$((FAIL + 1))
 fi
 assert "mcpowers-spec-index 存在" "[ -d '$REPO_DIR/skills/mcpowers-shared/mcpowers-spec-index' ]"

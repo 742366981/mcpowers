@@ -8,7 +8,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 |:-----|:-----|
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
-| `skills/mcpowers-*` | **24 个可路由技能**（场景层 16 + 方法层 8，扁平化） |
+| `skills/mcpowers-*` | **31 个可路由技能**（场景层 23 + 方法层 8，扁平化） |
 | `skills/mcpowers-shared/` | 规范资产库（24 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
@@ -35,7 +35,14 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **自动化测试/E2E/测试报告/跑 pytest/跑 Playwright/跑 DrissionPage/跑 Selenium/跑 Cypress** → `mcpowers-autoTest`（新增自动化默认 Python；先查项目证据，已有套件沿用）
 - **前后端联调/API契约/接口文档** → `mcpowers-api-contract`
 - **安装基础技能/一键装基础** → `mcpowers-install-basics-skills`
-- **爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/RPC 逆向/纯协议/半自动化/纯自动化/一次性报文/token 复用/并发稳定性/模块真实可用** → `mcpowers-crawler-reverse`
+- **爬虫逆向/接口分析/抓包分析/加密参数还原/RPC逆向/纯协议/半自动化/纯自动化/一次性报文/token复用/并发稳定性/模块真实可用/目标类型不明** → `mcpowers-crawler-reverse`（统一入口）
+- **网站逆向/Web JS反混淆/浏览器抓包/CDP接管/WASM/bb-browser** → `mcpowers-reverse-web`
+- **App逆向但平台或运行时未知/识别App技术栈** → `mcpowers-reverse-app`（二级入口）
+- **Android逆向/安卓/APK/AAB/Kotlin/Java/JNI/jadx/frida hook/LSPosed** → `mcpowers-reverse-android`
+- **iOS逆向/苹果App/IPA/Mach-O/Swift/Objective-C/LLDB** → `mcpowers-reverse-ios`
+- **Flutter逆向/Dart AOT/libapp.so/App.framework/Platform Channel** → `mcpowers-reverse-flutter`
+- **混合App逆向/uni-app/React Native/Cordova/Capacitor/WebView/JSBridge/Hermes** → `mcpowers-reverse-hybrid`
+- **小程序逆向/小游戏/微信小程序/支付宝小程序/抖音小程序/百度小程序/wxapkg** → `mcpowers-reverse-miniprogram`
 - **抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用** → `mcpowers-extract`
 - **装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules** → `mcpowers-doc-sync-install`
 - **commit/提交** → `mcpowers-git-commit`
@@ -82,7 +89,7 @@ git@github.com:742366981/mcpowers.git
 #### CI 物理门禁（v2.5.2+）
 
 `.github/workflows/doc-sync.yml` 在 PR 涉及 `skills/`、`hooks/`、`.claude-plugin/`、`scripts/`、`tests/`、规范变化时自动跑：
-- `bash scripts/check-readme-sync.sh`（7 类一致性：技能/规范清单、frontmatter、场景编排、版本号、description ≤800c、文档数字声明）
+- `bash scripts/check-readme-sync.sh`（12 类一致性：技能/规范清单、frontmatter、场景编排、版本号、description ≤800c、文档数字、引用、逆向分层拓扑、公共合同、浏览器所有权门禁）
 - `bash tests/plugin-verify.sh`（插件结构 + Hook 行为 + 事件组数 = 4 + 引用脚本存在）
 - 检查 CLAUDE.md 或 README.md 是否在同一 PR 中变化（**未变化则 PR 红 X**，从"AI 自觉"升级为"合并前硬阻止"）
 
@@ -187,6 +194,14 @@ for f in sorted(os.listdir('skills')):
 - **安全边界**：并发仅做小规模 2 → 5 可用性验证，不做压力测试；出现 429、验证码增加、账号提示、目标异常或授权/条款边界时立即停止。
 - **版本策略**：v2.11.1 → v2.12.0 是 minor bump，因为新增了用户可见的验收阶段、生命周期分类和并发门禁，不是纯文档修正。
 
+### 历史教训（v2.13.0 逆向分层与浏览器所有权）
+
+- **v2.13.0**：原 `mcpowers-crawler-reverse` 同时装载 Web、Android/iOS App、Flutter/Hybrid、小程序和公共验收，导致平台无关任务也加载全部工具链。现拆为统一入口 + Web + App 二级入口 + Android/iOS/Flutter/Hybrid/小程序 7 个专项；公共前置、阶段 5.5、生命周期和落地门禁仍由统一入口唯一维护。
+- **分类原则**：先按载体，再按运行时；Kotlin/Java/JNI 归 Android，Swift/Objective-C 归 iOS，uni-app/RN/Cordova/Capacitor/WebView 归 Hybrid，单个平台小程序暂不继续平铺。专项只交标准证据，禁止复制公共验收或自行宣布 PASS。
+- **浏览器所有权铁律**：通过 CDP/WebView/daemon 接管的 browser/context/page/tab 和外部 daemon 一律视为外部所有。正常收尾、异常和回退都不得 `browser.close()`、`context.close()`、关闭既有 page、kill 用户 Chrome 或 stop 外部 daemon；纯协议验收通过停止依赖并独立调用完成，绝不能为了测试而关闭用户本身的浏览器。
+- **门禁**：`check-readme-sync.sh` 增至 12 类检查，新增 reverse 拓扑/公共合同与外部资源所有权断言，防止后续合并回单体或恢复危险清理逻辑。
+- **版本策略**：新增 7 个用户可见场景技能与二级路由，`2.12.0 → 2.13.0` 为 minor bump。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）
@@ -234,7 +249,7 @@ for f in sorted(os.listdir('skills')):
 
 ## 设计维度
 
-- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（24 个可路由技能），按意图关键词精准分流
+- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（31 个可路由技能），按意图关键词精准分流
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断

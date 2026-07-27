@@ -10,7 +10,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 24 个技能（16 场景 + 8 方法）按用户意图关键词精准分流，「加个用户列表接口」→ 自动命中 `mcpowers-feat` |
+| 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
 | 2 | **📋 24 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md`） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
@@ -34,7 +34,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **编排显式化**：16 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
+- **编排显式化**：23 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
 - **规范元数据化**：24 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 5 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write) + PostToolUse）、冒烟测试 + 同步校验脚本
 
@@ -57,10 +57,10 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── pre-write-confirm-api-hint.sh  # 接口变更时提示同步 API 文档
 │   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/                            # 技能（扁平化：1 路由器 + 23 技能 + 1 规范库）
+├── skills/                            # 技能（扁平化：1 路由器 + 31 个可路由技能 + 1 规范库）
 │   ├── mcpowers/                      # 主入口路由器（每次对话注入）
 │   │
-│   │ ── 场景层（16 个，用户输入直接命中）──
+│   │ ── 场景层（23 个，用户输入直接命中）──
 │   ├── mcpowers-feat/                 # 加功能
 │   ├── mcpowers-bugfix/               # 修 bug
 │   ├── mcpowers-refactor/             # 重构
@@ -75,7 +75,14 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-autoTest/             # 自动化测试（v2.1.0 新增；v2.10.0 默认 Python + 项目证据优先选框架）
 │   ├── mcpowers-api-contract/         # API 契约/前后端联调（v2.2.0 新增）
 │   ├── mcpowers-install-basics-skills/# 全局一键装基础技能（v2.5.0 新增，4 条 npx skills add）
-│   ├── mcpowers-crawler-reverse/      # 爬虫逆向分析（v2.7.0 新增，v2.9.4 强化，v2.9.5 全面升级接管+弹窗+协作+置信度，v2.10.0 集成 bb-browser 可选依赖，v2.11.1 补实操链路，**v2.12.0 新增阶段 1 交付形态选择、RPC 逆向方式、阶段 5.5 真实可用性+报文生命周期+有界并发验收门禁**）
+│   ├── mcpowers-crawler-reverse/      # 逆向统一入口（v2.13.0：公共前置合同 + 类型分流 + 公共验收/落地）
+│   ├── mcpowers-reverse-web/          # 网站/H5/JS/WASM/CDP/bb-browser 逆向专项（外部浏览器不可关闭）
+│   ├── mcpowers-reverse-app/          # App 二级判断入口（Android/iOS/Flutter/Hybrid 指纹分流）
+│   ├── mcpowers-reverse-android/      # Android/Kotlin/Java/JNI/DEX/so 逆向专项
+│   ├── mcpowers-reverse-ios/          # iOS/Swift/Objective-C/IPA/Mach-O 逆向专项
+│   ├── mcpowers-reverse-flutter/      # Flutter/Dart AOT/Platform Channel 逆向专项
+│   ├── mcpowers-reverse-hybrid/       # uni-app/RN/Cordova/Capacitor/WebView/JSBridge 专项
+│   ├── mcpowers-reverse-miniprogram/  # 微信/支付宝/抖音/百度小程序与小游戏专项
 │   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
 │   │
 │   │ ── 方法层（8 个，被场景层调用）──
@@ -147,6 +154,25 @@ mcpowers/                              # 仓库根 = 插件根
 └── .gitignore
 ```
 
+### v2.13.0 逆向分层
+
+```text
+mcpowers-crawler-reverse（公共前置合同）
+├── Web → mcpowers-reverse-web
+├── 未知 App → mcpowers-reverse-app
+│   ├── Android → mcpowers-reverse-android
+│   ├── iOS → mcpowers-reverse-ios
+│   ├── Flutter → mcpowers-reverse-flutter
+│   └── Hybrid → mcpowers-reverse-hybrid
+└── 小程序/小游戏 → mcpowers-reverse-miniprogram
+        ↓
+mcpowers-crawler-reverse（公共收尾合同：模块化 + 生命周期 + 真实可用性验收）
+```
+
+专项技能只负责平台证据和逆向方法，统一返回标准证据；`verification-report.md`、生命周期分类、2 → 5 有界并发和 `PASS` 落地门禁仍由统一入口唯一维护。
+
+> **浏览器安全铁律**：接管用户 Chrome/CDP/WebView 后绝不关闭用户本身的浏览器。外部 browser/context/page/tab 和 daemon 均不可 close/kill/stop；纯协议验收通过停止依赖并独立调用完成，用户 Chrome 必须保持运行。
+
 ---
 
 ## 触发条件
@@ -172,7 +198,14 @@ mcpowers/                              # 仓库根 = 插件根
 | 自动化测试/跑测试出报告/bug等级分类/哪一端的问题/自动化回归/e2e/跑 pytest/跑 Playwright/跑 DrissionPage/跑 Selenium/跑 Cypress | `mcpowers-autoTest`（新增自动化默认 Python；先查项目证据，已有套件沿用） |
 | 前后端联调/接口对接/API文档/自动生成接口规范/接口契约/swagger/openapi/前端怎么拿到接口类型 | `mcpowers-api-contract`（v2.2.0 新增） |
 | 装基础技能/一键装基础/装上所有基础/装全部基础技能/全局安装基础技能/npx skills add | `mcpowers-install-basics-skills`（v2.5.0 新增） |
-| 爬虫逆向/加密参数还原/抓包分析/逆向工程/JS反混淆/APP逆向/frida hook/SSL Pinning/RPC 逆向/纯协议/半自动化/纯自动化/一次性报文/token 复用/并发稳定性/模块真实可用 | `mcpowers-crawler-reverse`（v2.7.0 新增，v2.12.0 交付形态与可用性验收门禁） |
+| 爬虫逆向/接口分析/抓包分析/加密参数还原/RPC逆向/纯协议/半自动化/纯自动化/一次性报文/token复用/并发稳定性/模块真实可用/目标类型不明 | `mcpowers-crawler-reverse`（统一入口，v2.13.0 分层） |
+| 网站逆向/Web JS反混淆/浏览器抓包/CDP接管/WASM/bb-browser | `mcpowers-reverse-web` |
+| App逆向但平台或运行时未知/识别App技术栈 | `mcpowers-reverse-app`（二级入口） |
+| Android逆向/安卓/APK/AAB/Kotlin/Java/JNI/jadx/frida hook/LSPosed | `mcpowers-reverse-android` |
+| iOS逆向/苹果App/IPA/Mach-O/Swift/Objective-C/LLDB | `mcpowers-reverse-ios` |
+| Flutter逆向/Dart AOT/libapp.so/App.framework/Platform Channel | `mcpowers-reverse-flutter` |
+| 混合App逆向/uni-app/React Native/Cordova/Capacitor/WebView/JSBridge/Hermes | `mcpowers-reverse-hybrid` |
+| 小程序逆向/小游戏/微信小程序/支付宝小程序/抖音小程序/百度小程序/wxapkg | `mcpowers-reverse-miniprogram` |
 | 抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用 | `mcpowers-extract`（v2.8.0 新增） |
 | 装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules | `mcpowers-doc-sync-install`（v2.9.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
@@ -200,7 +233,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 24 个场景/方法技能（`mcpowers-feat` 等）
+- ✅ 31 个场景/方法技能（23 场景 + 8 方法）
 - ✅ 24 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
@@ -273,7 +306,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 23 技能 + 24 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 31 个可路由技能 + 24 技术规范 + 4 个 Hook 事件组 / 5 个脚本全功能 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |
@@ -489,7 +522,7 @@ git push origin master
 | 工具 | 用途 | 跑法 |
 |:-----|:-----|:-----|
 | `tests/plugin-verify.sh` | 插件结构验证 | `bash tests/plugin-verify.sh`（30+ 断言） |
-| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（7 类断言：技能/规范清单、frontmatter、场景编排、版本号、description ≤800c、文档数字声明） |
+| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（12 类断言：清单、frontmatter、编排、版本、description、数字、引用、逆向拓扑、公共合同、浏览器所有权） |
 | `bash hooks/session-start.sh` | 验证铁律输出正确 | `bash hooks/session-start.sh`，看输出是否完整 |
 | `.github/workflows/doc-sync.yml` | **CI 物理门禁**（v2.5.2+） | PR 涉及技能体系变化时自动跑，CLAUDE.md/README.md 未同步则红 X |
 
@@ -504,7 +537,7 @@ bash scripts/check-readme-sync.sh && bash tests/plugin-verify.sh
 `.github/workflows/doc-sync.yml` 把"AI 自觉同步文档"升级为"合并前硬阻止"：
 
 - **触发条件**：PR 涉及 `skills/`、`hooks/`、`.claude-plugin/`、`scripts/`、`tests/`、`skills/mcpowers-shared/docs/` 任意路径变化
-- **运行校验**：自动跑 `check-readme-sync.sh`（7 类断言）+ `plugin-verify.sh`（37 类断言）
+- **运行校验**：自动跑 `check-readme-sync.sh`（12 类断言）+ `plugin-verify.sh`（37 类断言）
 - **变更联动**：检测到技能体系变更时，要求 `CLAUDE.md` 或 `README.md` 至少有一个变化，否则 PR 标记失败
 - **目标**：完全消除"改了技能忘了改文档"的人工遗漏
 

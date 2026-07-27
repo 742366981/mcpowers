@@ -35,6 +35,10 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 8. **bb-browser 是可选增强**：不可用时完整回退 Playwright/CDP + popup-handler.py，不得中断主链路。
 9. **真实可用才落地**：`verification-report.md` 为 `PASS` 后才能进入阶段 6/7。
 10. **RPC 是逆向实现方式，不是最终交付形态**。
+11. **抓不到 ≠ 不存在**：阶段 2 抓包失败必须先走《爬虫工具与抓包规范》§3.9
+    漏抓 7 层 6 问自检，**禁止**直接把"抓不到"等同于"接口不存在"；cURL 是
+    已知接口最高价值告知，§3.0.1 模式 C 必须按 §3.0.7 12 项快速帮助清单
+    最大化利用，并按 §3.0.8 SOP 在线转换为 Python 代码实测。
 
 ---
 
@@ -45,6 +49,12 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 ### 1. 目标画像与交付形态
 
 **输入至少包含一项**：URL、App 包名、IPA/APK 路径、小程序 AppID/名称、应用名或明确平台。
+
+> **v2.16.0 新增输入形式**：用户提供目标接口的 **cURL 命令** 也算合法输入——
+> 按《爬虫分析规范》§3.0.1 模式 C + §3.0.7 cURL 12 项快速帮助 + §3.0.8
+> cURL → 代码转换 SOP 处理（不直接录入即用 `python -c` + `curlconverter`
+> 生成 Python 代码实测）。cURL 不包含响应体 / 端口 / TLS 指纹 / 中间产物，
+> 仍需询问用户。
 
 **目标画像必须记录**：
 
@@ -214,6 +224,7 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - ❌ 接管失败时静默 `launch()` 或 `browser.new_context()`。
 - ❌ 外部 daemon 异常时擅自 stop/restart；应标记 unavailable 并回退。
 - ❌ 把 RPC 当最终交付形态或暴露公网。
+- ❌ **v2.16.0 新增**：阶段 2 抓包失败直接切 B/C/D，**未走**《爬虫工具与抓包规范》§3.9.2 漏抓 7 层 6 问自检——必须先按铁律 #11 排除 7 层漏抓根因再切协作模式。
 
 ## 完成后自检清单
 
@@ -227,3 +238,11 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - [ ] `verification-report.md` 最终为 `PASS` 后才进入阶段 6/7。
 - [ ] 已询问案例沉淀与落地方式。
 - [ ] 已运行 `bash scripts/check-readme-sync.sh` 与 `bash tests/plugin-verify.sh`。
+- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走）：
+  - ☐ L1：已用 `curl http://localhost:9222/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？
+  - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）
+  - ☐ L3：是否走 `Target.createTarget` 拉了 tab？（必须从 `user.contexts[i].pages` 中挑选）
+  - ☐ L4：DevTools Network 是否抓到 `(failed)` 空白请求？（若是，先解决证书/SSLKEYLOGFILE）
+  - ☐ L5：DevTools Filter 是否启用了 Hide data URLs / Fetch-XHR 单选？（若是，先关闭）
+  - ☐ L6：目标 API 是否走 WebSocket / SSE / sendBeacon / HTTP/3 / Cache 命中？（若是，切到对应 DevTools 标签）
+  - 详见《爬虫工具与抓包规范》§3.9。

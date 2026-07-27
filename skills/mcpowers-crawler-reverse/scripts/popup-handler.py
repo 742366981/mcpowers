@@ -1,5 +1,5 @@
 """
-popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路径同步）
+popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路径同步，v2.16.0 Chrome 150+ 提示）
 
 本模块是 mcpowers-crawler-reverse 阶段 2「弹窗清理」步骤的核心实现。
 字典库与《爬虫工具与抓包规范》§4 弹窗字典一一对应，新弹窗类型先追加字典再写逻辑。
@@ -12,6 +12,13 @@ popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路�
 
 详细方法论：见《爬虫工具与抓包规范》§4 + 附录与 popup-handler.py 对应关系
 DEFAULT_BB_BROWSER_PROBE 文档参考《爬虫工具与抓包规范》§6（bb-browser 可选增强）
+
+v2.16.0 Chrome 150+ 提示：本模块被调用时，调用方必须满足两个前置条件——
+1. Chrome 启动命令已带 `--remote-allow-origins=*`（Chrome 150+ 必传，否则
+   `connect_over_cdp` 会被 403 Forbidden）；
+2. AI 必须 attach 用户真实 page target（从 `user.contexts[i].pages` 中按 URL /
+   title 匹配），**禁止**用 `Target.createTarget` 自己拉新 tab。
+详见《爬虫工具与抓包规范》§3.5 / §3.6 / §3.9 与《爬虫分析规范》§3.0.6 实战案例。
 """
 
 from __future__ import annotations
@@ -158,6 +165,11 @@ DEFAULT_PAUSE_PATTERNS: list[str] = [
 DEFAULT_BB_BROWSER_PROBE: str = (
     "bb-browser 为可选依赖。使用前先运行 `bb-browser status`；"
     "未安装或不可用时继续使用 Chrome CDP + Playwright 原链路。"
+    "\n\n"
+    "v2.16.0 补充：调用本模块的 cleanup_all() 前，调用方必须先确认"
+    "（1）Chrome 启动命令已带 --remote-allow-origins=*（Chrome 150+ 必传）；"
+    "（2）AI attach 的是用户真实 page target，禁止 Target.createTarget 自己拉 tab。"
+    "详见《爬虫工具与抓包规范》§3.7 + §3.9.3 与《爬虫分析规范》§3.0.6。"
 )
 
 

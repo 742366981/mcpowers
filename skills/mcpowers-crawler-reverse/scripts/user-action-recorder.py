@@ -20,6 +20,12 @@ DEFAULT_USER_ACTION_RECORDER 文档参考《爬虫工具与抓包规范》§8.0�
   popup-handler.cleanup_all() → start_recording() → 用户操作 → stop_recording() → replay_actions()。
 - Playwright `record_har_path` 参数在 connect_over_cdp 模式不可用（只对 launch() / launch_persistent_context()
   创建的 context 生效），本模块手写 page.on("request"/"response") 落 JSONL 格式 HAR。
+
+v2.16.0 Chrome 150+ 实战案例（真实用户复盘 2026-07）：强校验表单场景，
+AI 必须 attach 用户真实 page target（如 `4252F91C4CC929918E03`），**禁止**用
+`Target.createTarget` 自己拉新 tab 后 attach；强校验表单 AI 不驱动表单，让用户
+手动点一次触发 POST，1s 内可抓到 200。详见《爬虫分析规范》§3.0.6 实战案例
+与《爬虫工具与抓包规范》§3.9.3 实战案例摘要。
 """
 
 from __future__ import annotations
@@ -53,7 +59,13 @@ DEFAULT_USER_ACTION_RECORDER: str = (
     "  - Playwright `record_har_path` 参数在 `connect_over_cdp` 模式不可用，本模块手写 page.on('request'/'response') 落 JSONL；\n"
     "  - 录制/重放全程遵守外部资源所有权铁律：禁止 browser.close() / context.close() / page.close() / kill 用户 Chrome；\n"
     "  - 本模块不替代 popup-handler.py（弹窗清理）也不替代 bb-browser（站点级结构化操作），仅做操作流 + 网络关联录制；\n"
-    "  - 录制前应先跑 popup-handler.py 的 cleanup_all() 清弹窗，避免 popup 操作污染录制序列。"
+    "  - 录制前应先跑 popup-handler.py 的 cleanup_all() 清弹窗，避免 popup 操作污染录制序列。\n"
+    "\n"
+    "v2.16.0 补充：start_recording() 调用前，调用方必须先确认（1）Chrome 启动命令\n"
+    "已带 --remote-allow-origins=*（Chrome 150+ 必传）；（2）page 参数是 attach 的\n"
+    "用户真实 page target，禁止 Target.createTarget 自己拉 tab。强校验表单场景\n"
+    "AI 不驱动表单，让用户手动点一次触发 POST。详见《爬虫工具与抓包规范》§3.9.3\n"
+    "与《爬虫分析规范》§3.0.6。"
 )
 
 # 脱敏黑名单（v1 仅脱敏，不加密）

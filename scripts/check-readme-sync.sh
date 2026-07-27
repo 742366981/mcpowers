@@ -413,6 +413,10 @@ check_crawler_gate "### 4.1 RPC 逆向方式" "RPC 逆向实现方式"
 check_crawler_gate "纯协议 / 半自动化 / 纯自动化" "三种最终交付形态"
 check_crawler_gate "group/name" "RPC 运行时隔离标识"
 check_crawler_gate "运行态存储边界" "半自动化/RPC 运行态存储边界"
+# v2.16.0 新增：抓包失败 7 层诊断 + cURL 快速帮助
+check_crawler_gate "Chrome 150+" "Chrome 150+ Origin 校验警告"
+check_crawler_gate "§3.9" "漏抓 7 层诊断决策树引用"
+check_crawler_gate "§3.0.7" "cURL 12 项快速帮助清单引用"
 
 if [ "$CRAWLER_GATE_FAIL" -eq 0 ]; then
     echo "  ✓ crawler-reverse 可用性验收门禁完整"

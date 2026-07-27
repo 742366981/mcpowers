@@ -39,6 +39,13 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 重放可用 `replay_actions(page, actions_json_path, screenshot_each_step=True)` 验证。
 详见《爬虫工具与抓包规范》§8。
 
+**v2.16.0 实战提示**：Chrome 150+ 时代协作模式 B 已成为强校验表单场景的
+**默认入口**——AI 必须 attach 用户真实 page target（如 `4252F91C4CC929918E03`），
+**禁止**用 `Target.createTarget` 自己拉新 tab 后 attach；强校验表单场景
+AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200。详见
+《爬虫分析规范》§3.0.6 Chrome 150+ 协作模式 B 实战案例与《爬虫工具与抓包规范》
+§3.9.3 实战案例摘要。
+
 注意：录制/重放全程遵守 §1 外部资源所有权铁律——禁止 `browser.close()` /
 `context.close()` / `page.close()` / kill Chrome；监听器通过
 `page.remove_listener()` 注销，不靠进程结束清理。
@@ -73,6 +80,9 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 - ❌ adapter 命中直接标 `[🎯]`，跳过网络实测。
 - ❌ 读混淆代码死磕而不先 Hook 入参/出参。
 - ❌ Python 复现失败就放弃 Node/RPC 候选。
+- ❌ **v2.16.0 新增**：抓不到就静默切协作模式，不走《爬虫工具与抓包规范》§3.9 漏抓 7 层 6 问自检。
+- ❌ **v2.16.0 新增**：`Target.createTarget` 拉新 tab（必须从 `user.contexts[i].pages` 中挑选真实 page target）。
+- ❌ **v2.16.0 新增**：Chrome 启动命令漏 `--remote-allow-origins=*`（Chrome 150+ 会 403）。
 
 ## 完成后自检清单
 
@@ -82,3 +92,11 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 - [ ] 核心接口有响应样本、来源和置信度。
 - [ ] 核心算法已有 ≥3 组不同输入对照。
 - [ ] 已按专项证据交接合同返回，并进入公共收尾合同。
+- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走）：
+  - ☐ L1：已用 `curl http://localhost:9222/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？
+  - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）
+  - ☐ L3：是否走 `Target.createTarget` 拉了 tab？（必须从 `user.contexts[i].pages` 中挑选）
+  - ☐ L4：DevTools Network 是否抓到 `(failed)` 空白请求？（若是，先解决证书/SSLKEYLOGFILE）
+  - ☐ L5：DevTools Filter 是否启用了 Hide data URLs / Fetch-XHR 单选？（若是，先关闭）
+  - ☐ L6：目标 API 是否走 WebSocket / SSE / sendBeacon / HTTP/3 / Cache 命中？（若是，切到对应 DevTools 标签）
+  - 详见《爬虫工具与抓包规范》§3.9。

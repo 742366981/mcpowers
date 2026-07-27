@@ -223,6 +223,21 @@ for f in sorted(os.listdir('skills')):
 - **版本策略**：新增用户可见工具 + 协作模式 B 工具化 = minor bump `2.14.0 → 2.15.0`。
 - **同步面**：本次横跨 8 类文件改动——1 新增工具 + 2 技能 SKILL.md（reverse-web §1.5 / 爬虫分析规范 §3.0.1 模式 B）+ 2 工具/抓包规范（frontmatter + 索引 + §8 全文 + §7.2 + 附录对应）+ 2 版本文件（plugin.json / marketplace.json）+ 2 维护文档（CLAUDE.md / README.md）。
 
+### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
+
+- **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——
+  - **缺口 A**：抓包失败不是单点原因，而是 7 个相互叠加的坑。最关键的 3 个是：(1) Playwright/DrissionPage 默认只 attach 到顶层 page Target，SPA 内部 fetch 走了 worker/iframe 副 target → `Network.requestWillBeSent` 根本不发到主 session；(2) Chrome 150 起新增 `--remote-allow-origins` Origin 校验 → 任何非浏览器/扩展来源的 WebSocket 直连 9222 都会被 403 Forbidden；(3) AI 自己 `Target.createTarget` 拉起了新 tab，但最终在 attach 时挑中了自己创建的那个 tab（EAF22CC9AD995855B401），而不是用户 Chrome 自己的结果页 tab（4252F91C4CC929918E03），所以一直收不到 POST。
+  - **缺口 B**：用户提供 cURL 时缺少快速帮助 SOP——cURL 是已知接口最高价值告知形式，但 §3.0.1 模式 C 只说"用户告知接口 → 直接录入"，没有 cURL 12 项快速帮助清单和 cURL → 代码转换 SOP。
+- **关键修复**：
+  - **A**：新增《爬虫工具与抓包规范》§3.9 漏抓诊断 7 层决策树 + §3.9.2 切换模式前 6 问自检（强门禁）；§3.7 Chrome 启动命令加 Chrome 150+ `--remote-allow-origins=*` 必传警告；§3.5/§3.6 新增"禁止 `Target.createTarget`"反模式；§1.1 加 HTTPS 解密验证清单（L4）；§1.1.1 新增抓包过滤器反向风险与请求类型可见性表（L5/L6）。
+  - **B**：新增《爬虫分析规范》§3.0.7 cURL 12 项快速帮助清单（直接获得 6 项 + 快速验证 4 项 + 工具化增益 2 项 + 不包含 4 项）+ §3.0.8 cURL → 代码转换 SOP 提示；§3.0.1 模式 C 扩展支持 cURL 输入；§3.0.3 切换触发条件新增"用户贴 cURL"行。
+  - **实战案例**：attach 真实 page target（4252F91C4CC929918E03）+ 不驱动表单 + 让用户手动点一次触发 POST → 1 秒内抓到 200 响应——Chrome 150+ 时代协作模式 B 已成为强校验表单场景的默认入口（§3.0.6）。
+- **关键决策**：cURL 优化是**分析能力扩展**而非**新工具脚本**——❌ **不**引入独立 `curl_parser.py` 工具（YAGNI 守边界，避免 `DEFAULT_CURL_PARSER` 常量、模块 docstring、check-readme-sync 校验项等同步开销）；✅ AI 用 `python -c` + `curlconverter` 库在线转换（除非未来 ≥ 3 个不同项目都需要稳定 cURL 解析，再升级为独立工具）。
+- **铁律新增**：`mcpowers-crawler-reverse/SKILL.md` 第 11 条铁律——"抓不到 ≠ 不存在"；`mcpowers-reverse-web/SKILL.md` 反模式节新增 3 条；§3.0 末尾反模式新增 5 条。
+- **校验强化**：`scripts/check-readme-sync.sh` §10 增加 3 个 v2.16.0 字符串校验（`Chrome 150+` / `§3.9` / `§3.0.7`），确保后续修改不会误删新门禁。
+- **版本策略**：新增用户可见能力（漏抓 7 层决策树 + cURL 快速帮助 + cURL → 代码 SOP）+ 跨多文件改动 + 强化阶段 2 强门禁 = minor bump `2.15.0 → 2.16.0`。
+- **同步面**：本次横跨 11 个文件改动——2 主规范（爬虫工具与抓包规范 / 爬虫分析规范）+ 2 技能 SKILL.md（crawler-reverse / reverse-web）+ 2 工具脚本注释更新（popup-handler.py / user-action-recorder.py）+ 1 校验脚本（check-readme-sync.sh）+ 2 顶层维护文档（CLAUDE.md / README.md）+ 2 版本文件（plugin.json / marketplace.json）。**未**新增 `curl_parser.py` 独立工具脚本（YAGNI 守住）。
+
 ### 反模式（禁止）
 
 - ❌ 多行 `|` 字面量块（截断风险首要元凶）

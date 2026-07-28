@@ -180,14 +180,14 @@ mcpowers-crawler-reverse（公共收尾合同：模块化 + 生命周期 + 真�
 
 > **浏览器安全铁律**：接管用户 Chrome/CDP/WebView 后绝不关闭用户本身的浏览器。外部 browser/context/page/tab 和 daemon 均不可 close/kill/stop；纯协议验收通过停止依赖并独立调用完成，用户 Chrome 必须保持运行。
 
-### v2.18.0 浏览器自动化 DrissionPage 全场景默认
+### v2.18.0 浏览器自动化 DrissionPage 全场景默认（v2.18.1 反检测描述精准化）
 
-**核心变更**（[真实用户复盘 2026-07-28](https://github.com/742366981/mcpowers)）：DrissionPage 接管模式比 Playwright 代码量少 30~50%、内置反检测、对国内站点专项优化，从 v2.18.0 起作为浏览器自动化**全场景默认**（分析阶段 + 封装阶段 + 国内/海外统一）；Playwright 降为 fallback 路径（Cloudflare / 海外 SPA / 复杂 Shadow DOM）。
+**核心变更**（[真实用户复盘 2026-07-28](https://github.com/742366981/mcpowers)）：DrissionPage 接管模式比 Playwright 代码量少 30~50%、接管便利性 + 国内站点适配（5秒盾/Turnstile 自动化通过率优势），从 v2.18.0 起作为浏览器自动化**全场景默认**（分析阶段 + 封装阶段 + 国内/海外统一）；Playwright 降为 fallback 路径。
 
-| 工具 | 优势 | 适用场景（v2.18.0 起） |
-|:-----|:-----|:---------------------|
-| **DrissionPage** | 国产、**内置接管浏览器 + 内置反检测**、代码量少、中文文档极佳 | **全场景默认**：分析阶段 + 封装阶段 + 国内/海外 |
-| **Playwright-Python** | 跨浏览器、内置指纹伪装（需 `playwright-stealth`） | **fallback 路径**：DrissionPage 弱场景（Cloudflare / 海外 SPA / 复杂 Shadow DOM） |
+| 工具 | 优势 | 适用场景（v2.18.0 起，v2.18.1 补） |
+|:-----|:-----|:-----------------------------------|
+| **DrissionPage** | 国产、**接管便利性 + 国内站点适配**（5秒盾/Turnstile 自动化通过率优势）、代码量少 30~50%、中文文档极佳 | **全场景默认**：分析阶段 + 封装阶段 + 国内/海外。**重度反指纹场景需 [rebrowser-playwright-python](https://github.com/rebrowser/rebrowser-playwright-python) / [puppeteer-real-browser-go](https://github.com/r0vx/puppeteer-real-browser-go) 配合**（DrissionPage 仍泄露 `navigator.webdriver`） |
+| **Playwright-Python** | 跨浏览器、内置指纹伪装（需 `playwright-stealth`） | **fallback 路径 5 类**（v2.18.1 补）：(1) Cloudflare Bot Management（5秒盾后还有 Turnstile/滑块/行为分析） / (2) 海外 SPA 复杂交互 / (3) 复杂 Shadow DOM / iframe 嵌套 / (4) **重度反指纹检测**（需 [rebrowser-playwright](https://github.com/rebrowser/rebrowser-playwright-python) / puppeteer-real-browser 配合） / (5) **复杂行为分析风控**（2026 CF 行为序列/滑块轨迹/代理 IP 纯度） |
 | **seleniumbase** | UC Mode 成熟 | **fallback 备选**：Selenium 兼容 + UC 反检测 |
 
 **DrissionPage 接管语法**（v2.18.0 默认）：

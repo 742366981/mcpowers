@@ -271,6 +271,30 @@ for f in sorted(os.listdir('skills')):
 - **版本策略**：新增用户可见能力（DrissionPage 全场景默认 + 接管语法对照 + 漏抓 7 层重新映射 + 2 脚本 DrissionPage 适配 + 8 reverse SKILL 工具栈同步）= minor bump `2.17.0 → 2.18.0`。
 - **同步面**：本次横跨 **18 文件 / ~1500 行 / 14/14 校验全绿**——1 主规范（《爬虫工具与抓包规范》§2.1/§2.5/§3.5/§3.6/§3.9.1/§3.9.2/§3.9.4/§7.2/§3.9 实战案例引用）+ 2 工具脚本（popup-handler.py / user-action-recorder.py 全文件改写）+ 1 校验脚本（check-readme-sync.sh §14 新增 23 校验项）+ 8 reverse SKILL.md（crawler-reverse + reverse-web + reverse-app 改动；6 个 App/小程序专项无引用）+ 2 顶层维护文档（CLAUDE.md / README.md）+ 2 版本文件（plugin.json / marketplace.json × 2）。
 
+### 历史教训（v2.18.1 DrissionPage 反检测描述精准化 + Playwright fallback 补 rebrowser 提示）
+
+- **v2.18.1 真实复盘**（commit eb638a8 → 用户反馈"上网确认"）：v2.18.0 §2.1/§7.2 主表第 1 行 DrissionPage 描述为"**内置接管浏览器 + 内置反检测**"——**与公开实测不符**。CSDN 2026-07 三大框架对比 / Python 爬虫三剑客对比（2026-04）等公开资料显示：DrissionPage 优势在 5秒盾/Turnstile **自动化通过率**，**反指纹能力（`navigator.webdriver` 泄露）反而弱于 Playwright + rebrowser / puppeteer-real-browser**。Playwright fallback 路径仅列 3 类场景也漏了 2 类（重度反指纹检测 / 复杂行为分析风控）。
+- **关键修复**（3 处描述精准化 + 1 处实测参考链接）：
+  1. **§2.1 主表第 1 行 DrissionPage 描述**："**接管便利性 + 国内站点适配**（5秒盾/Turnstile 自动化通过率优势）"+ "**重度反指纹场景需 [rebrowser-playwright-python](https://github.com/rebrowser/rebrowser-playwright-python) / puppeteer-real-browser 配合**（DrissionPage 仍泄露 `navigator.webdriver`）"。
+  2. **§2.1 主表第 2 行 Playwright fallback 场景**：从 3 类（Cloudflare/海外 SPA/复杂 Shadow DOM）扩展到 **5 类**——新增 (4) 重度反指纹检测（需 rebrowser-playwright / puppeteer-real-browser 配合）/ (5) 复杂行为分析风控（2026 CF 行为序列/滑块轨迹/代理 IP 纯度）。
+  3. **§7.2 主表**：同步 §2.1 两处变更。
+  4. **§2.1 段头描述**："Playwright 降为 fallback 路径（DrissionPage 弱场景 5 类——Cloudflare Bot Management / 海外 SPA 复杂交互 / 复杂 Shadow DOM / iframe 嵌套 / 重度反指纹检测 / 复杂行为分析风控，详见 §2.1 主表）"。
+  5. **§3.7 加 Chrome 136+ 独立 user data dir 实操代码 + 4 个实测参考链接**：[DrissionPage 官网连接浏览器](https://www.drissionpage.cn/browser_control/connect_browser/) + [Chrome 136 修复方案](https://blog.csdn.net/IHaoT/article/details/147920867) + [Chrome 浏览器启动参数大全](https://www.cnblogs.com/gurenyumao/p/14721035.html) + **v2.18.1 真实接管链路 1 次验证**（v2.18.0 缺失，下个真实场景实测）。
+  6. **README.md v2.18.0 章节同步改**：主表第 1 行 DrissionPage 描述精准化 + Playwright fallback 5 类场景 + rebrowser 链接。
+  7. **CLAUDE.md 本段历史教训**。
+  8. **plugin.json + marketplace.json × 2** patch bump 2.18.0 → 2.18.1。
+- **关键决策**：
+  - ✅ **保留 v2.18.0 主要技术决策**（DrissionPage 默认 + Playwright fallback + duck type 双实现），只精准化描述，不撤回主决策。
+  - ✅ **不引入 rebrowser / puppeteer-real-browser 作为新主工具**——YAGNI 守边界，仅在 fallback 路径作为提示。
+  - ✅ **不重做 §14 校验项**——v2.18.0 的 23 个 string 校验与 v2.18.1 描述变更不冲突。
+  - ❌ **不立即跑真实接管链路 1 次验证**——v2.18.1 仅修描述，不引入新 SOP 实测；真实接管验证留到下次真实项目。
+- **关键风险**：
+  - **真实接管链路仍未实测**：v2.18.0 缺真实接管实测，v2.18.1 仍缺——下次真实场景跑 1 次接管（用户启动 Chrome 加 `--remote-allow-origins=*` + 独立 user data dir + `set_local_port(9222)` + DrissionPage 接管）才允许声明实测通过。
+  - **v2.18.0 已 commit + push**：v2.18.1 是 patch 修正，GitHub 上 v2.18.0 commit 仍带原描述（不可修改历史 commit）。下次 `/plugin install` 拉到 v2.18.1 即可，但已经拉到 v2.18.0 的用户需要 update。
+- **铁律强化**："**未上网确认的事实禁止写进主表 description**"——v2.18.0 复盘发现仅靠工具官网 + 第三方博客还不够，需要 2026 实战对比 + 反指纹能力实测才能精准描述。后续新增工具描述前必须 1 次 WebSearch 验证。
+- **版本策略**：精准化描述（不撤回主决策）+ 4 个参考链接 + 不新增工具 = patch bump `2.18.0 → 2.18.1`。
+- **同步面**：本次横跨 **4 文件**——1 主规范（《爬虫工具与抓包规范》§2.1 段头 + §2.1/§7.2 主表 + §3.7 Chrome 136+ 独立 user data dir + 4 个参考链接）+ 1 README 章节（v2.18.0 主表 2 行精准化）+ 1 CLAUDE.md 历史教训（本段）+ 2 版本文件（plugin.json + marketplace.json × 2 patch bump）。
+
 ### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
 
 - **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——

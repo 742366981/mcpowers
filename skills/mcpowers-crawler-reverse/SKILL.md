@@ -302,8 +302,8 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - [ ] `验收报告.md` 最终为 `PASS` 后才进入阶段 6/7。
 - [ ] 已询问案例沉淀与落地方式。
 - [ ] 已运行 `bash scripts/check-readme-sync.sh` 与 `bash tests/plugin-verify.sh`。
-- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化**）：
-  - ☐ L1：已用 `curl http://localhost:9222/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？
+- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化，v2.20.0 端口独立**）：
+  - ☐ L1：已用 `curl http://localhost:<port>/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？（`v2.20.0` 起 `<port>` 取自《会话状态.json》`chrome_port` 字段，由 `reverse-analysis-session.py init` 自动分配）
   - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）
   - ☐ L3：是否走 `Target.createTarget` / `page.new_tab()` 不带 url 拉了 tab？（**v2.18.0 DrissionPage 化**——必须从 `page.tab_ids` 中按 URL / title 挑选真实 page target）
   - ☐ L4：DevTools Network 是否抓到 `(failed)` 空白请求？（若是，先解决证书/SSLKEYLOGFILE）

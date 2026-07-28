@@ -18,7 +18,11 @@
 #  12. 浏览器/CDP 外部资源所有权门禁（v2.13.0）
 #  13. 模块产物封装形式约束（v2.17.0 新增：类式 + quick_test + 顶层文档中文）
 #  14. DrissionPage 全场景默认化（v2.18.0 新增：浏览器自动化工具栈主表 + 漏抓 7 层 DrissionPage 重新映射 + popup-handler / user-action-recorder DrissionPage 适配）
+#  15. reverse-analysis-session 强制起手式（v2.19.0 新增：init → web-start → web-stop 状态机 + 浏览器指纹一致性审计）
+#  16. 项目独立端口（v2.20.0 新增：pick_free_port + chrome_port 字段 + 文档占位符 <port>）
 #
+# v2.20.0：新增 section 16
+# v2.19.0：新增 section 15
 # v2.18.0：新增 section 14
 # v2.17.0：新增 section 13
 # v2.9.0：新增 section 8/9
@@ -629,7 +633,7 @@ fi
 
 # ============== 14. DrissionPage 全场景默认化（v2.18.0 新增） ==============
 # 防止后续修改把 DrissionPage 默认化回退到 Playwright 默认、或漏改 6 问自检 L3。
-echo "[14/14] 校验 DrissionPage 全场景默认化（v2.18.0）"
+echo "[14/16] 校验 DrissionPage 全场景默认化（v2.18.0）"
 DRISSIONPAGE_FAIL=0
 CRAWLER_TOOLS_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫工具与抓包规范.md"
 CRAWLER_SKILL_DOC="$REPO_DIR/skills/mcpowers-shared/skills/mcpowers-crawler-reverse/SKILL.md"
@@ -655,7 +659,8 @@ check_drissionpage() {
 
 # §2.1 工具栈主表 + 接管语法（爬虫工具与抓包规范）
 check_drissionpage "$CRAWLER_TOOLS_SPEC" "**DrissionPage**（v2.18.0 默认）" "§2.1 工具栈主表 DrissionPage 默认"
-check_drissionpage "$CRAWLER_TOOLS_SPEC" "ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))" "§2.1 DrissionPage 接管语法示例"
+# v2.20.0：§2.1 接管语法示例中的端口必须改为占位符 <port>，禁止回退硬编码 9222
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(<port>))" "§2.1 DrissionPage 接管语法示例（v2.20.0 占位符）"
 # §7.2 封装阶段工具栈
 check_drissionpage "$CRAWLER_TOOLS_SPEC" "**DrissionPage**（v2.18.0 默认）" "§7.2 工具栈主表 DrissionPage 默认（可能与 §2.1 共用）"
 # §3.5 接管粒度 DrissionPage 重新映射
@@ -707,7 +712,7 @@ else
 fi
 
 # ============== 15. reverse-analysis-session 强制起手式（v2.19.0 新增） ==============
-echo "[15/15] 校验 reverse-analysis-session 强制起手式（v2.19.0）"
+echo "[15/16] 校验 reverse-analysis-session 强制起手式（v2.19.0）"
 SESSION_FAIL=0
 SESSION_SCRIPT="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py"
 SESSION_VERIFY="$REPO_DIR/tests/reverse-analysis-session-verify.py"
@@ -769,6 +774,61 @@ if [ "$SESSION_FAIL" -eq 0 ]; then
     echo "  ✓ reverse-analysis-session 强制起手式（v2.19.0）完整"
 else
     FAIL=$((FAIL + SESSION_FAIL))
+fi
+
+# ============== 16. 项目独立端口（v2.20.0 新增） ==============
+# 物理门禁：pick_free_port 必须存在；init 必须写 chrome_port；文档必须用 <port> 占位符，
+# 禁止回退到硬编码 9222（除非历史注释/反例说明文本）。
+echo "[16/16] 校验项目独立端口（v2.20.0）"
+PORT_FAIL=0
+SESSION_SCRIPT="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py"
+
+check_port() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file"
+        PORT_FAIL=$((PORT_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        PORT_FAIL=$((PORT_FAIL + 1))
+    fi
+}
+
+# 1. pick_free_port 函数 + 端口池常量
+check_port "$SESSION_SCRIPT" "def pick_free_port" "pick_free_port 函数定义"
+check_port "$SESSION_SCRIPT" "PORT_POOL_START = 9222" "端口池起点常量"
+check_port "$SESSION_SCRIPT" "PORT_POOL_END = 9300" "端口池终点常量"
+check_port "$SESSION_SCRIPT" "def resolve_port" "resolve_port 三级优先级函数"
+
+# 2. chrome_port 字段写入 init 阶段
+check_port "$SESSION_SCRIPT" "chrome_port=port" "init 阶段写 chrome_port"
+
+# 3. probe_cdp / detect_host_environment 默认值改 None（函数签名层面）
+check_port "$SESSION_SCRIPT" "def probe_cdp(port: int | None = None" "probe_cdp 默认 None"
+check_port "$SESSION_SCRIPT" "def detect_host_environment(port: int | None = None" "detect_host_environment 默认 None"
+check_port "$SESSION_SCRIPT" "default=None, help=\"Chrome CDP 端口" "start_parser --port default=None"
+
+# 4. run_web_session 改用 resolve_port
+check_port "$SESSION_SCRIPT" "port = resolve_port(workspace, args.port)" "run_web_session 用 resolve_port 解析端口"
+
+# 5. 文档占位符 <port>（§2.1 接管语法 + §3.0.6 SOP + 2 个 SKILL.md L1 自检）
+check_port "$CRAWLER_TOOLS_SPEC" "set_local_port(<port>)" "工具册 §2.1 接管语法用 <port> 占位符"
+check_port "$CRAWLER_ANALYSIS_SPEC" "curl http://localhost:<port>/json" "分析册 §3.0.6 SOP 用 <port> 占位符"
+check_port "$CRAWLER_SKILL" "curl http://localhost:<port>/json" "crawler-reverse SKILL L1 自检占位符"
+check_port "$REVERSE_WEB_SKILL" "localhost:<port>" "reverse-web SKILL §1 接管预检占位符"
+
+# 6. 测试脚本新增第 10 类断言
+SESSION_VERIFY="$REPO_DIR/tests/reverse-analysis-session-verify.py"
+check_port "$SESSION_VERIFY" "[10/10] pick_free_port" "测试脚本新增第 10 类断言"
+
+if [ "$PORT_FAIL" -eq 0 ]; then
+    echo "  ✓ 项目独立端口（v2.20.0）完整"
+else
+    FAIL=$((FAIL + PORT_FAIL))
 fi
 
 # ============== 汇总 ==============

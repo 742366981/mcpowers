@@ -28,11 +28,11 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 
 1. 由 `reverse-analysis-session.py web-start` 内部完成探测、启动和接管，AI 不得绕过该工具。
 2. 探测 bb-browser 状态；失败只记 unavailable。
-3. 探测用户指定 CDP endpoint（默认示例 `localhost:9222`），列出 contexts/tabs。
-4. 已有 CDP + 目标 tab → 只接管真实 tab；已有 CDP 但无目标 tab → 在用户 context 中用**带目标 URL** 的新 tab；无 CDP → 按当前 OS 启动 task-owned 独立 profile 浏览器，参数固定含 `--remote-debugging-port=9222 --remote-allow-origins=* --user-data-dir=...`。
+3. 探测用户指定 CDP endpoint（**v2.20.0 起端口由 `reverse-analysis-session.py init` 自动分配**，从《会话状态.json》`chrome_port` 字段读取），列出 contexts/tabs。
+4. 已有 CDP + 目标 tab → 只接管真实 tab；已有 CDP 但无目标 tab → 在用户 context 中用**带目标 URL** 的新 tab；无 CDP → 按当前 OS 启动 task-owned 独立 profile 浏览器，参数固定含 `--remote-debugging-port=<port> --remote-allow-origins=* --user-data-dir=...`（`v2.20.0` 起 `<port>` 由工具分配，**禁止硬编码 9222**）。
 5. 写入 `01-目标画像/资源清单.json`（resource、origin、owner、允许清理动作）。
 
-**外部接管资源不可关闭**：DrissionPage `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))`（v2.18.0 默认）/ Playwright `connect_over_cdp`（fallback）得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。`web-start` 自身停止时也不关闭任何外部资源，浏览器默认保留供用户继续检查。
+**外部接管资源不可关闭**：DrissionPage `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(<port>))`（v2.18.0 默认 + v2.20.0 占位符）/ Playwright `connect_over_cdp`（fallback）得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。`web-start` 自身停止时也不关闭任何外部资源，浏览器默认保留供用户继续检查。
 
 ### 1.5 用户操作录制（v2.15.0 新增，v2.19.0 强制默认入口）
 
@@ -106,8 +106,8 @@ AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200�
 - [ ] 核心接口有响应样本、来源和置信度。
 - [ ] 核心算法已有 ≥3 组不同输入对照。
 - [ ] 已按专项证据交接合同返回，并进入公共收尾合同。
-- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化**）：
-  - ☐ L1：已用 `curl http://localhost:9222/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？
+- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化，v2.20.0 端口独立**）：
+  - ☐ L1：已用 `curl http://localhost:<port>/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？（`v2.20.0` 起 `<port>` 取自《会话状态.json》`chrome_port` 字段）
   - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）
   - ☐ L3：是否走 `Target.createTarget` / `page.new_tab()` 不带 url 拉了 tab？（**v2.18.0 DrissionPage 化**——必须从 `page.tab_ids` 中按 URL / title 挑选真实 page target）
   - ☐ L4：DevTools Network 是否抓到 `(failed)` 空白请求？（若是，先解决证书/SSLKEYLOGFILE）

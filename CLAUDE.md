@@ -426,6 +426,83 @@ for f in sorted(os.listdir('skills')):
   - 2 顶层维护：`CLAUDE.md`（本段历史教训）/ `README.md`（v2.19.0 节）；
   - 3 版本文件：`plugin.json` + `marketplace.json`（顶层 + `plugins[0]`，三处一致）。
 
+### 历史教训（v2.20.0 项目独立端口）
+
+- **v2.20.0**：v2.19.0 把逆向起手式收敛为 `init → web-start → web-stop` 单状态机后，真实多任务并行场景暴露新的体系缺口：
+  - **缺口 A（端口硬编码冲突）**：所有项目共享 `9222`，并行启动第二个 `web-start` 直接 `bind: address already in use`，用户必须手动 `--port` 才跑得通；与"AI 全自动接管"承诺相悖。
+  - **缺口 B（端口与工作区未绑定）**：端口逻辑只在 CLI 默认值 9222 中隐含，《会话状态.json》只记录 `state / session_id / target / slug`，跨进程无法自动恢复端口；`web-stop` 后再 `web-start` 需要重新 `--port`，破坏了 `init` 的幂等性。
+  - **缺口 C（DrissionPage `set_local_port(0)` 兼容性未确认）**：直接传 0 是否让 DrissionPage 自动探测 OS ephemeral 端口**未在所有 OS 上验证**，YAGNI 守边界，禁止在 v2.20.0 假设 DrissionPage 接管一定能 bind 0；改用纯 socket 层探测后再传给 DrissionPage。
+
+- **关键修复**（8 类文件改动）：
+  1. **新增 `pick_free_port(preferred, max_attempts=100) -> int`**（`reverse-analysis-session.py`）：
+     - 优先级 1：`socket.bind(('127.0.0.1', 0))` → 拿 OS ephemeral 端口，立即关闭由调用方抢占；
+     - 优先级 2：bind 0 失败 → 端口池 fallback `9222..9300`（`PORT_POOL_START / PORT_POOL_END` 常量）；
+     - 超过 `max_attempts=100` 次仍冲突 → `SessionError("建议 --port 指定空闲端口")`；
+     - SRP 单函数，`tests/reverse-analysis-session-verify.py` 第 10 类断言覆盖 6 个分支。
+  2. **新增 `resolve_port(workspace, explicit_port)`**：三级优先级 `CLI explicit > JSON chrome_port > 重新分配`，
+     `web-start` 统一通过此函数取端口，禁止调用方直接 `args.port`。
+  3. **`init` 阶段决定端口并写入《会话状态.json》**：
+     - `ensure_analysis_workspace` 末尾调用 `pick_free_port()` + `_write_state(..., chrome_port=port)`；
+     - `web-start` 通过 `resolve_port` 读 JSON 中的端口，多项目并行互不冲突。
+  4. **CLI 默认值语义改 None**：
+     - `start_parser.add_argument("--port", default=None, ...)`；
+     - `probe_cdp(port: int | None = None)` / `detect_host_environment(port: int | None = None)`；
+     - None 触发"读 JSON → 缺失则 SessionError"。
+  5. **`run_web_session` 状态机在 ENV_READY / BROWSER_READY 阶段写 `chrome_port` 字段**：
+     确保 `web-stop` / `status` / 跨进程 web-start 都能读到一致端口。
+  6. **规范文档占位符化**：
+     - 《爬虫工具与抓包规范》§2.1 / §3.4 / §3.5 / §3.5.1 / §3.6 / §3.7 / §3.8 / §3.9 + **§3.7.1 新增端口独立分配 SOP** +
+       §7.2 工具对照表 `reverse-analysis-session.py` 行扩展；
+     - 《爬虫分析规范》§3.0.6 SOP 提炼 + §3.2 L2 坑；
+     - 2 个 SKILL.md（L1 自检清单 + 接管预检 SOP）。
+  7. **物理门禁 §16**：`scripts/check-readme-sync.sh` 新增第 16 段校验：
+     `pick_free_port` 函数存在 / `PORT_POOL_START/END` 常量 / `chrome_port` 字段写入 /
+     `probe_cdp` / `start_parser --port` 默认 None / 文档占位符 `<port>` 出现 /
+     反向校验硬编码 `set_local_port(9222)` 必须为 0 处（保留反例/历史/端口池常量说明）；
+     测试脚本同步新增第 10 类断言。
+  8. **CLAUDE.md + README.md + 3 版本文件**：本段历史教训 + README.md v2.20.0 节 +
+     `plugin.json` / `marketplace.json` 三处 `2.19.0 → 2.20.0`。
+
+- **关键决策（YAGNI 守边界）**：
+  - ❌ **不**拆出独立 `chrome-starter.py` / `port-manager.py` —— 端口是 `reverse-analysis-session.py`
+    的子职责，按 §3.5 单一职责保持在原文件内；
+  - ❌ **不**把端口池写成配置文件 —— `9222..9300` 是硬编码常量，足够覆盖 79 个项目并行场景；
+  - ❌ **不**改 DrissionPage `set_local_port` 行为 —— 通过 `reverse-analysis-session.py` 在外部探测端口后传入，
+    完全绕过 DrissionPage 0 端口兼容性未确认风险；
+  - ❌ **不**改 `popup-handler.py` / `user-action-recorder.py` —— 它们不直接接触 CDP 端口；
+  - ✅ **保留** v2.19.0 的 `_write_state` extra 字段机制 —— `chrome_port` 作为 schema 字段直接复用，
+    不引入独立持久化层（DRY）；
+  - ✅ **保留** 外部资源所有权铁律 + `_resource_document` 端口透传（仅把 `args.port` 改为本地变量 `port`）。
+
+- **关键风险与未实测项**：
+  - **真实并行场景 v2.20.0 仍未跑**：本次只完成自测（10 类断言 + `tests/plugin-verify.sh` 第 7.5 段 +
+    `check-readme-sync.sh` §16 物理门禁），真实两个 `web-start` 并行 Chrome 互不冲突需要下次真实场景中由用户手动驱动；自检脚本明确**不**
+    冒充实测通过。
+  - **bind 0 在 Windows / macOS / Linux 全平台兼容**：CPython `socket.bind(('127.0.0.1', 0))`
+    是 POSIX/Winsock 通用行为，理论上全平台支持；但若未来发现某些受限容器（如 Docker 默认网络）
+    bind 0 失败，端口池 fallback 自动接管。
+  - **端口冲突的语义边界**：bind 0 成功 ≠ 后续 `chrome.exe --remote-debugging-port=port` 一定成功，
+    Chrome 启动与 OS socket 释放之间存在 ~1s TIME_WAIT；`pick_free_port` 立即关闭 socket 后
+    Chrome 抢占同一端口的极小概率失败留给 Chrome 启动阶段兜底（当前 `launch_debug_browser`
+    15s 探测循环自然消化）。
+
+- **铁律新增**：
+  - `mcpowers-crawler-reverse/SKILL.md` 铁律 14（v2.20.0）：端口必须由 `reverse-analysis-session.py init`
+    自动分配，禁止全局共享 9222；
+  - 端口与工作区一一对应，《会话状态.json》`chrome_port` 字段是唯一可信源。
+
+- **版本策略**：minor bump `2.19.0 → 2.20.0`——新增端口独立能力 + 文档占位符化 + 物理门禁，
+  用户可见行为变化（多项目可并行 + init 决定端口），符合 minor bump 语义。
+
+- **同步面**：本次横跨 **8 类文件**：
+  - 1 工具增强：`reverse-analysis-session.py`（新增 `pick_free_port` + `resolve_port` + `import socket` + 默认值 None 化，约 90 行新增 + 8 行修改）；
+  - 1 测试增强：`tests/reverse-analysis-session-verify.py` 新增第 10 类断言（约 50 行）；
+  - 1 校验强化：`scripts/check-readme-sync.sh` 新增第 16 段 + §14 `set_local_port(9222)` 校验改 `<port>` 占位符；
+  - 4 规范：《爬虫工具与抓包规范》/《爬虫分析规范》 + 占位符 + 新增 §3.7.1；
+  - 2 SKILL.md：`mcpowers-crawler-reverse` / `mcpowers-reverse-web` L1 自检清单 + 接管预检 SOP；
+  - 2 顶层维护：`CLAUDE.md`（本段历史教训）/ `README.md`（v2.20.0 节）；
+  - 3 版本文件：`plugin.json` + `marketplace.json`（顶层 + `plugins[0]`，三处 `2.19.0 → 2.20.0`）。
+
 ### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
 
 - **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——

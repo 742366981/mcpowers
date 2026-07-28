@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import socket  # v2.20.0：第 10 类断言需要 socket 真实探测端口
 import sys
 import tempfile
 import threading
@@ -81,7 +82,7 @@ def assert_raises(label: str, exc_type: type[BaseException], fn: Any, *args: Any
 # 1. slug 与工作区幂等
 # ----------------------------------------------------------------------------
 
-print("[1/9] slug 与工作区幂等")
+print("[1/10] slug 与工作区幂等")
 slug = session.derive_slug("https://example.com/path?x=1")
 assert_eq("URL 推导 slug", slug, "example")
 assert_raises("路径穿越 slug 拒绝", session.SessionError, session.derive_slug, "https://x.com", explicit_slug="../etc")
@@ -115,7 +116,7 @@ with tempfile.TemporaryDirectory() as tmp:
 # 2. 状态机越级拒绝
 # ----------------------------------------------------------------------------
 
-print("[2/9] 状态机越级拒绝")
+print("[2/10] 状态机越级拒绝")
 with tempfile.TemporaryDirectory() as tmp:
     workspace = session.ensure_analysis_workspace(target="https://demo.com/", parent_dir=tmp)
 
@@ -158,7 +159,7 @@ with tempfile.TemporaryDirectory() as tmp:
 # 3. 浏览器候选路径矩阵
 # ----------------------------------------------------------------------------
 
-print("[3/9] 浏览器候选路径矩阵")
+print("[3/10] 浏览器候选路径矩阵")
 windows_env = {
     "PROGRAMFILES": str(Path("C:/Program Files")),
     "PROGRAMFILES(X86)": str(Path("C:/Program Files (x86)")),
@@ -182,7 +183,7 @@ assert_eq("未知 OS 候选为空", unknown_candidates, [])
 # 4. 指纹判定分级
 # ----------------------------------------------------------------------------
 
-print("[4/9] 浏览器指纹一致性审计分级")
+print("[4/10] 浏览器指纹一致性审计分级")
 host_environment = {
     "host_os": "Windows",
     "browser_major": 150,
@@ -252,7 +253,7 @@ assert_true("警告项包含 plugins=0", any("plugins" in item for item in finge
 # 5. 步骤证据关联
 # ----------------------------------------------------------------------------
 
-print("[5/9] 步骤证据关联")
+print("[5/10] 步骤证据关联")
 with tempfile.TemporaryDirectory() as tmp:
     session_dir = Path(tmp)
     (session_dir / "user-actions.json").write_text(
@@ -337,7 +338,7 @@ with tempfile.TemporaryDirectory() as tmp:
 # 6. 录制器脱敏
 # ----------------------------------------------------------------------------
 
-print("[6/9] 录制器脱敏")
+print("[6/10] 录制器脱敏")
 redacted_value = recorder._redact_value("Authorization=Bearer abc123 token=secret")
 assert_eq("值内容含 token 脱敏", redacted_value, "***REDACTED***")
 
@@ -368,7 +369,7 @@ assert_true("JSON body 普通字段保留", '"name":"alice"' in redacted_body, r
 # 7. JS 监控脚本片段校验
 # ----------------------------------------------------------------------------
 
-print("[7/9] JS 监控脚本关键逻辑")
+print("[7/10] JS 监控脚本关键逻辑")
 assert_true("fetch 包覆存在", "const originalFetch = window.fetch" in session.JS_MONITOR_SCRIPT)
 assert_true("XHR open/send 包覆存在", "XMLHttpRequest.prototype.open" in session.JS_MONITOR_SCRIPT)
 assert_true("WebSocket send 包覆存在", "WebSocket.prototype.send" in session.JS_MONITOR_SCRIPT)
@@ -383,7 +384,7 @@ assert_true("ready 时间点声明", "ready 时间点之前补采" in SESSION_SC
 # 8. 中文注释/docstring/日志
 # ----------------------------------------------------------------------------
 
-print("[8/9] 中文注释/docstring/日志")
+print("[8/10] 中文注释/docstring/日志")
 session_text = SESSION_SCRIPT.read_text(encoding="utf-8")
 recorder_text = RECORDER_SCRIPT.read_text(encoding="utf-8")
 assert_true("会话脚本首部 docstring 中文", "逆向分析工作区与 Web 协作会话编排工具" in session_text)
@@ -414,11 +415,97 @@ assert_eq("无英文注释残留（已豁免纯 ASCII 分隔线）", suspicious_
 # 9. JS 监控器 flush 上限
 # ----------------------------------------------------------------------------
 
-print("[9/9] JS 监控器 flush 上限")
+print("[9/10] JS 监控器 flush 上限")
 assert_eq("单次 flush 事件上限=200", session.MAX_JS_EVENTS_PER_FLUSH, 200)
 assert_eq("单条事件字符上限=1000", session.MAX_JS_EVENT_CHARS, 1000)
 assert_eq("JS 日志总字节上限=5MiB", session.MAX_JS_LOG_BYTES, 5 * 1024 * 1024)
 assert_eq("证据关联时间窗=1000ms", session.EVIDENCE_WINDOW_MS, 1000)
 
 
-print("\n全部 9 类断言通过。")
+# ----------------------------------------------------------------------------
+# 10. pick_free_port + chrome_port 解析（v2.20.0 新增）
+# ----------------------------------------------------------------------------
+
+print("[10/10] pick_free_port + chrome_port 解析")
+assert_true("pick_free_port 函数存在", callable(getattr(session, "pick_free_port", None)), "")
+assert_true("resolve_port 函数存在", callable(getattr(session, "resolve_port", None)), "")
+assert_true("_try_bind 函数存在", callable(getattr(session, "_try_bind", None)), "")
+assert_eq("PORT_POOL_START=9222", session.PORT_POOL_START, 9222)
+assert_eq("PORT_POOL_END=9300", session.PORT_POOL_END, 9300)
+
+# 真实探测：bind 0 在干净环境下应成功
+port_from_bind0 = session.pick_free_port()
+assert_true(
+    "pick_free_port() 返回 int 且 1..65535",
+    isinstance(port_from_bind0, int) and 1 <= port_from_bind0 <= 65535,
+    str(port_from_bind0),
+)
+
+# preferred=None 干净探测
+assert_true("pick_free_port(None) 干净环境成功", session.pick_free_port(None) > 0, "")
+
+# preferred 端口被占 → 抛 SessionError
+occupied_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+occupied_sock.bind(("127.0.0.1", 0))
+occupied_port = occupied_sock.getsockname()[1]
+try:
+    assert_raises(
+        "preferred 端口被占用时抛 SessionError",
+        session.SessionError,
+        session.pick_free_port,
+        occupied_port,
+    )
+finally:
+    occupied_sock.close()
+
+# 端到端：init → 验证 chrome_port 已写 JSON + resolve_port 三级优先级
+with tempfile.TemporaryDirectory() as tmp:
+    workspace = session.ensure_analysis_workspace(
+        target="https://port-test.example/",
+        parent_dir=tmp,
+    )
+    state_doc = json.loads((workspace / "会话状态.json").read_text(encoding="utf-8"))
+    stored_port = state_doc.get("chrome_port")
+    assert_true(
+        "init 后 chrome_port 已落 JSON（int 且 1..65535）",
+        isinstance(stored_port, int) and 1 <= stored_port <= 65535,
+        str(stored_port),
+    )
+
+    # resolve_port 不传 explicit → 读 JSON
+    resolved = session.resolve_port(workspace)
+    assert_eq("resolve_port 从 JSON 读 chrome_port", resolved, stored_port)
+
+    # resolve_port 传 explicit → 覆盖 JSON
+    assert_eq("resolve_port(explicit) 优先于 JSON", session.resolve_port(workspace, 9233), 9233)
+
+    # 两次 explicit 调用同一个不同端口应返回传入值（resolve_port 不应再覆盖到别的）
+    assert_eq(
+        "resolve_port(explicit=9234) 独立传值",
+        session.resolve_port(workspace, 9234),
+        9234,
+    )
+
+# probe_cdp port=None → SessionError
+assert_raises(
+    "probe_cdp(None) 抛 SessionError",
+    session.SessionError,
+    session.probe_cdp,
+    None,
+)
+
+# detect_host_environment port=None → 内部 probe_cdp 抛 SessionError（冒泡）
+assert_raises(
+    "detect_host_environment(None) 抛 SessionError",
+    session.SessionError,
+    session.detect_host_environment,
+    None,
+)
+
+# start_parser --port default=None（通过 build_parser 拿 subparser）
+parser = session.build_parser()
+args = parser.parse_args(["web-start", "--url", "https://x.example/"])
+assert_eq("start_parser --port default=None", args.port, None)
+
+
+print("\n全部 10 类断言通过。")

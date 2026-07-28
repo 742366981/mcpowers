@@ -343,6 +343,65 @@ bash scripts/check-readme-sync.sh                # 第 15 段 5 类校验（必�
 + 3 SKILL.md + 4 规范 + 2 顶层维护 + 3 版本文件（`plugin.json` / `marketplace.json` 顶层 /
 `marketplace.json.plugins[0]`，三处 `2.18.2 → 2.19.0`）。
 
+### v2.20.0 项目独立端口（v2.19.0 起手式的多任务并行补全）
+
+v2.19.0 把逆向起手式收敛为 `init → web-start → web-stop` 单状态机后，
+真实多任务并行场景暴露**端口冲突**体系缺口：所有项目共享 `9222`，
+并行启动第二个 `web-start` 直接 `bind: address already in use`，用户必须手动 `--port`。
+
+**v2.20.0 修复**：
+
+```bash
+# 第一动作：自动分配端口并写入《会话状态.json》chrome_port 字段
+python skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py init \
+  --target "https://project-a.com/" --parent ./projects \
+  --target-type web --authorization "自测授权" --deliverable "待确认"
+
+# web-start 自动读 JSON 中的端口，--port 可选（覆盖场景）
+python skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py web-start \
+  --url "https://project-a.com/"
+```
+
+**端口选取算法**（详见 `reverse-analysis-session.py:pick_free_port`）：
+
+1. 优先 `socket.bind(('127.0.0.1', 0))` 让 OS 分配 ephemeral 端口（Windows 10+ / macOS / Linux 全支持）；
+2. bind 0 失败（如受限容器）→ 端口池 fallback `9222..9300`，每个 +1 探测；
+3. 探测 100 次仍冲突 → `SessionError("建议显式 --port 指定空闲端口")`。
+
+**多项目并行示例**：
+
+```bash
+# 项目 A（自动获得端口）和 项目 B 可以在两个终端同时启动
+python reverse-analysis-session.py init --target "https://project-a.com/" --parent ./projects
+python reverse-analysis-session.py init --target "https://project-b.com/" --parent ./projects
+
+# 终端 1
+python reverse-analysis-session.py web-start --url "https://project-a.com/"
+
+# 终端 2（同时）
+python reverse-analysis-session.py web-start --url "https://project-b.com/"
+```
+
+**关键约束**：
+
+- 端口与工作区一一对应，《会话状态.json》`chrome_port` 字段是**唯一可信源**；`web-stop` 后再 `web-start` 自动恢复。
+- 文档统一改 `<port>` 占位符（《爬虫工具与抓包规范》§2.1/§3.4/§3.5/§3.5.1/§3.6/§3.7/§3.8/§3.9 + 《爬虫分析规范》§3.0.6/§3.2 + 2 个 SKILL.md L1 自检清单）；
+  反向校验（`scripts/check-readme-sync.sh` §16）禁止回退硬编码 9222（仅允许反例/历史/端口池常量说明）。
+- DrissionPage `set_local_port(0)` 是否支持**未确认**；v2.20.0 通过外部 socket 探测后再传入，绕开 DrissionPage 0 端口兼容性风险。
+- 外部资源所有权铁律不变：浏览器 / context / page / tab / daemon 仍**不可关闭**。
+
+**配套自检**：
+
+```bash
+python tests/reverse-analysis-session-verify.py  # 10 类断言（新增第 10 类端口独立断言）
+bash tests/plugin-verify.sh                       # 第 7.5 段会调用上述自检
+bash scripts/check-readme-sync.sh                 # 第 16 段 6 类校验（pick_free_port + chrome_port + 占位符 + reverse-web 占位符 + 测试脚本第 10 类断言）
+```
+
+**同步面**：本次横跨 8 类文件——1 工具增强 + 1 测试增强 + 1 校验强化（§16 新增 + §14 占位符化） +
+4 规范（《爬虫工具与抓包规范》§3.7.1 新增 + 占位符 + 《爬虫分析规范》占位符） +
+2 SKILL.md + 2 顶层维护 + 3 版本文件（`plugin.json` / `marketplace.json` 顶层 / `plugins[0]`，三处 `2.19.0 → 2.20.0`）。
+
 ### v2.17.0 模块产物封装形式
 
 逆向产物 `04-模块封装/{module}/` 强制 4 类约束：

@@ -30,6 +30,7 @@ import platform
 import re
 import shutil
 import signal
+import socket  # v2.20.0：pick_free_port 用 socket.bind(('127.0.0.1', 0)) 探测 OS ephemeral 端口
 import subprocess
 import sys
 import threading
@@ -538,7 +539,17 @@ def ensure_analysis_workspace(
         )
 
     if not _state_path(workspace).exists():
-        _write_state(workspace, STATE_WORKSPACE_READY, None, target=target, slug=slug)
+        # v2.20.0：init 阶段决定端口并写入《会话状态.json》
+        # 让 web-start 不需要重新探测；多项目并行时各自工作区拥有独立端口。
+        port = pick_free_port()
+        _write_state(
+            workspace,
+            STATE_WORKSPACE_READY,
+            None,
+            target=target,
+            slug=slug,
+            chrome_port=port,
+        )
     return workspace
 
 
@@ -657,9 +668,116 @@ def _major_version(version_text: str | None) -> int | None:
     return int(match.group(1) or match.group(2))
 
 
-def probe_cdp(port: int = 9222, timeout: float = 2.0) -> dict[str, Any]:
-    """探测 Chrome CDP 版本和所有 target。"""
+# v2.20.0：端口独立分配算法
+# 优先级：socket.bind 0（OS ephemeral）→ 端口池 fallback 9222..9300。
+# 单函数可单测：详见 tests/reverse-analysis-session-verify.py 第 10 类断言。
+PORT_POOL_START = 9222
+PORT_POOL_END = 9300
 
+
+def _try_bind(port: int) -> bool:
+    """在 127.0.0.1:port 上尝试 bind；返回是否成功。Windows / macOS / Linux 共用。"""
+
+    sock: socket.socket | None = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", port))
+        sock.listen(1)
+        return True
+    except OSError:
+        return False
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+
+def pick_free_port(preferred: int | None = None, max_attempts: int = 100) -> int:
+    """探测一个空闲端口并返回。
+
+    优先级：
+      1. preferred 非空 → 直接尝试 1 次；
+      2. socket.bind(('127.0.0.1', 0)) 让 OS 分配 ephemeral 端口 → 立即关闭由调用方抢占；
+      3. 端口池 fallback PORT_POOL_START..PORT_POOL_END（9222..9300），每个 +1 探测；
+      4. max_attempts 次仍未找到 → 抛 SessionError 让用户 --port。
+
+    副作用：bind 0 后立即 close socket；调用方需注意 Chrome 抢占时可能遇到 ~1s
+    TIME_WAIT（OS 释放 socket 后立刻 bind 同一端口的极小概率失败，留给 Chrome 启动
+    阶段兜底；launch_debug_browser 的 15s 探测循环会自然消化）。
+    """
+
+    if preferred is not None:
+        if _try_bind(preferred):
+            return preferred
+        raise SessionError(f"指定端口 {preferred} 已被占用")
+
+    # 策略 1：bind 0（OS ephemeral）
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        sock.close()
+        return port
+    except OSError:
+        # 某些受限环境不允许 bind 0 → 走端口池 fallback
+        pass
+
+    # 策略 2：端口池 fallback
+    pool = list(range(PORT_POOL_START, PORT_POOL_END + 1))
+    attempts = 0
+    for port in pool:
+        if attempts >= max_attempts:
+            break
+        attempts += 1
+        if _try_bind(port):
+            return port
+
+    raise SessionError(
+        f"端口冲突：{PORT_POOL_START}..{PORT_POOL_END} 共 {len(pool)} 个端口全部占用，"
+        f"且 OS ephemeral 端口分配失败。请显式 --port 指定空闲端口后重试"
+    )
+
+
+def resolve_port(
+    workspace: Path,
+    explicit_port: int | None = None,
+) -> int:
+    """解析 CDP 端口：explicit_port 优先；否则从《会话状态.json》读 chrome_port；缺失则分配新端口并回写。
+
+    三级优先级：
+      1. explicit_port 非 None → 直接返回；
+      2. JSON 中 chrome_port 存在且 1..65535 → 返回；
+      3. 缺失 → 调 pick_free_port() 分配新端口 + _write_state 回写（保持 init / web-start 幂等）。
+    """
+
+    if explicit_port is not None:
+        return explicit_port
+    state = _read_json(_state_path(workspace), {}) or {}
+    stored = state.get("chrome_port")
+    if isinstance(stored, int) and 1 <= stored <= 65535:
+        return stored
+    # 未分配：当场分配 + 回写（保持 init / web-start 之间幂等）
+    port = pick_free_port()
+    current_state = state.get("state") or STATE_WORKSPACE_READY
+    current_session = state.get("session_id")
+    _write_state(
+        workspace,
+        current_state,
+        current_session,
+        chrome_port=port,
+    )
+    return port
+
+
+def probe_cdp(port: int | None = None, timeout: float = 2.0) -> dict[str, Any]:
+    """探测 Chrome CDP 版本和所有 target。port=None 时调用方必须后续传入显式端口。"""
+
+    if port is None:
+        raise SessionError("未找到端口配置，请先 init（reverse-analysis-session.py init）")
     result: dict[str, Any] = {
         "available": False,
         "port": port,
@@ -696,8 +814,8 @@ def probe_cdp(port: int = 9222, timeout: float = 2.0) -> dict[str, Any]:
     return result
 
 
-def detect_host_environment(port: int = 9222) -> dict[str, Any]:
-    """识别宿主 OS、浏览器实现和 CDP 能力。"""
+def detect_host_environment(port: int | None = None) -> dict[str, Any]:
+    """识别宿主 OS、浏览器实现和 CDP 能力。port=None 时调用方必须传入 init 阶段已分配的端口。"""
 
     system_name = platform.system()
     candidates = browser_candidates(system_name)
@@ -1234,13 +1352,16 @@ def run_web_session(args: argparse.Namespace) -> Path:
     previous_sigterm = signal.signal(signal.SIGTERM, request_stop)
 
     try:
-        host_environment = detect_host_environment(args.port)
+        # v2.20.0：三级优先级解析端口（CLI explicit > JSON chrome_port > 重新分配并回写）
+        port = resolve_port(workspace, args.port)
+        host_environment = detect_host_environment(port)
         _atomic_write_json(workspace / "01-目标画像" / "宿主环境报告.json", host_environment)
         _write_state(
             workspace,
             STATE_ENV_READY,
             session_id,
             session_dir=str(session_dir),
+            chrome_port=port,
             environment_report="01-目标画像/宿主环境报告.json",
         )
 
@@ -1248,7 +1369,7 @@ def run_web_session(args: argparse.Namespace) -> Path:
             browser_path = host_environment.get("browser_path")
             if not browser_path:
                 raise SessionError("未检测到可用 Chromium 系浏览器，无法自动打开目标站")
-            launch_info = launch_debug_browser(browser_path, workspace, args.port)
+            launch_info = launch_debug_browser(browser_path, workspace, port)
             browser_owner = "task"
             host_environment["cdp"] = launch_info["cdp"]
             host_environment["browser_version"] = launch_info["cdp"].get("version")
@@ -1262,19 +1383,20 @@ def run_web_session(args: argparse.Namespace) -> Path:
 
         browser, page, tab_owner, target_already_open = connect_target_tab(
             target_url=args.url,
-            port=args.port,
+            port=port,
             profile_dir=launch_info.get("profile_dir") if launch_info else None,
             browser_owner=browser_owner,
         )
         _atomic_write_json(
             workspace / "01-目标画像" / "资源清单.json",
-            _resource_document(browser_owner, tab_owner, args.port, launch_info),
+            _resource_document(browser_owner, tab_owner, port, launch_info),
         )
         _write_state(
             workspace,
             STATE_BROWSER_READY,
             session_id,
             session_dir=str(session_dir),
+            chrome_port=port,
             browser_owner=browser_owner,
             tab_owner=tab_owner,
             target_already_open=target_already_open,
@@ -1436,7 +1558,7 @@ def build_parser() -> argparse.ArgumentParser:
     start_parser.add_argument("--url", required=True, help="完整目标 URL")
     start_parser.add_argument("--parent", default=".", help="工作区父目录")
     start_parser.add_argument("--slug", help="稳定英文 slug")
-    start_parser.add_argument("--port", type=int, default=9222, help="Chrome CDP 端口")
+    start_parser.add_argument("--port", type=int, default=None, help="Chrome CDP 端口；缺省从《会话状态.json》读 chrome_port（v2.20.0 init 阶段自动分配）")
     start_parser.add_argument("--authorization", default="待确认", help="授权边界摘要")
     start_parser.add_argument("--deliverable", default="待确认", help="最终交付形态")
 

@@ -30,7 +30,12 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 3. **专项只交证据，不宣布可交付**：只有公共阶段 5.5 能给出最终状态。
 4. **结果必须实测**：算法至少 3 组样本；模块还需重复、生命周期、跨会话和有界并发证据。
 5. **合规优先**：授权、robots.txt、服务条款和法律边界不清时先询问；越界即停。
-6. **外部接管资源不可关闭**：接管的用户 browser/context/page、既有标签页和外部 daemon 一律视为外部所有；收尾、异常和回退只能停止使用/断开客户端，禁止 `browser.close()`、`context.close()`、关闭既有 page、kill 用户 Chrome 或擅自 stop 外部 daemon。
+6. **资源所有权铁律（v2.19.0 重新声明）——外部接管资源不可关闭**：通过 CDP / 调试端口 / 外部 daemon
+   接管的用户 browser / context / page / tab 一律视为外部所有；任何阶段（启动、
+   接管、监控、收尾、异常、回退）都不得 `browser.close()` / `context.close()` /
+   关闭既有 page / kill 用户 Chrome / 擅自 stop 外部 daemon；收尾与回退只能
+   停止使用/断开客户端；`reverse-analysis-session.py web-stop` 自身也保持
+   浏览器存活。
 7. **资源所有权必须显式记录**：任务创建的资源写明 owner、创建方式和清理权限；用户 Chrome 中新开的标签页默认保留，仅在用户明确确认后清理。
 8. **bb-browser 是可选增强**：不可用时完整回退 DrissionPage（v2.18.0 默认）/ Playwright + popup-handler.py，不得中断主链路。
 9. **真实可用才落地**：`验收报告.md` 为 `PASS` 后才能进入阶段 6/7。
@@ -39,12 +44,45 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
     漏抓 7 层 6 问自检，**禁止**直接把"抓不到"等同于"接口不存在"；cURL 是
     已知接口最高价值告知，§3.0.1 模式 C 必须按 §3.0.7 12 项快速帮助清单
     最大化利用，并按 §3.0.8 SOP 在线转换为 Python 代码实测。
+12. **Web 默认进入“用户操作 + AI 持续监控”**（v2.19.0）：拿到目标 URL 后
+    第一动作是 `reverse-analysis-session.py web-start`；固定顺序
+    `工作区 → 宿主环境与浏览器实现 → 浏览器资源所有权 → 指纹一致性审计 →
+    接管/打开 → 弹窗清理 → 启动录制 + JS 监控 → 等用户操作 → web-stop`。
+    **禁止**先自由分析 A 模式、绕开指纹门禁、让 AI 反复自动点击。
+13. **浏览器指纹只做“一致性审计”，不证明绝对真实**（v2.19.0）：
+    `navigator.webdriver=true`、HeadlessChrome、UA 与 CDP 主版本矛盾、宿主 OS
+    与 `navigator.platform` 明显矛盾、关键 API 缺失属**阻断项**，命中即拒绝继续；
+    警告项（语言/locale、屏幕/viewport、Canvas 抖动、WebGL 软件渲染等）允许
+    继续但必须写入 `01-目标画像/浏览器指纹报告.json`；
+    公网 IP/代理、TLS/JA3/JA4、服务端行为画像**无法由本地 JS 证明**，必须保留
+    `unknown`，**禁止**在工具描述或对用户话术中宣称 DrissionPage "内置反指纹"，
+    也不得把"接管便利性 + 国内站点自动化通过率优势"包装成反指纹能力。
 
 ---
 
 ## 触发即执行（统一入口 → 专项 → 统一收尾）
 
 ## 公共前置合同
+
+### 0. 第一时间创建工作区（v2.19.0 起强制）
+
+> 拿到目标标识（URL / 包名 / AppID / 稳定名称）后**第一个动作**必须调用：
+>
+> ```bash
+> python skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py init \
+>   --target "https://example.com/path" \
+>   --parent . \
+>   --target-type web \
+>   --authorization "自测授权" \
+>   --deliverable "待确认"
+> ```
+>
+> 该命令是**幂等**的：已有工作区只复用不覆盖；同一 slug 复用同一目录。
+> 工作区包含 4 个标准中文子目录（`01-目标画像/`、`02-接口分析/`、`03-逆向攻坚/`、`04-模块封装/`）、
+> `分析计划.md` 与《会话状态.json》。`05-案例沉淀.md` 必须等阶段 5.5 `PASS` 后才生成。
+>
+> 不得先做"AI 自由分析"再补目录；不得把目录结构、slug、授权、目标类型、交付形态留给
+> "之后再补"。
 
 ### 1. 目标画像与交付形态
 
@@ -248,6 +286,9 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - ❌ 外部 daemon 异常时擅自 stop/restart；应标记 unavailable 并回退。
 - ❌ 把 RPC 当最终交付形态或暴露公网。
 - ❌ **v2.16.0 新增**：阶段 2 抓包失败直接切 B/C/D，**未走**《爬虫工具与抓包规范》§3.9.2 漏抓 7 层 6 问自检——必须先按铁律 #11 排除 7 层漏抓根因再切协作模式。
+- ❌ **v2.19.0 新增**：绕过 `reverse-analysis-session.py` 直接"AI 自由分析"。任何逆向任务必须先调 `init` 落工作区与《分析计划.md》，Web 任务再依次 `web-start` → 等用户操作 → `web-stop`，不得先分析再补目录。
+- ❌ **v2.19.0 新增**：在浏览器指纹存在阻断项（`navigator.webdriver=true`、UA 含 HeadlessChrome、UA 与 CDP 主版本矛盾、宿主 OS 与 navigator.platform 明显矛盾、关键 API 缺失）时仍继续目标业务操作。
+- ❌ **v2.19.0 新增**：把 DrissionPage 的"自动化通过率优势"或"接管便利性"包装成"内置反指纹检测"。自动化通过率与反指纹是两件事，不得混说。
 
 ## 完成后自检清单
 

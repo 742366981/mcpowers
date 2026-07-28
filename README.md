@@ -281,6 +281,68 @@ popup_handler.cleanup_all(page)                    # ✓ 8/8 类全部识别并�
 - 2 版本文件：`.claude-plugin/plugin.json` + `marketplace.json × 2` patch bump `2.18.1 → 2.18.2`
 - 1 测试留痕：`C:\Users\Administrator\AppData\Local\Temp\scraper_test\`（不入库，YAGNI；下次撞坑可直接复用）
 
+### v2.19.0 逆向工作区与 Web 协作会话强制起手式
+
+`reverse-analysis-session.py`（v2.19.0 新增）把逆向任务的执行顺序收敛为**单条状态机**，
+AI 不得先自由分析再补目录、不得先 4 选 1 协作模式再开工：
+
+```bash
+# 第一动作：立即建标准中文工作区 + 写《分析计划.md》 + 《会话状态.json》
+python skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py init \
+  --target "https://example.com/" --parent . --target-type web \
+  --authorization "自测授权" --deliverable "待确认"
+
+# Web 默认进入“用户操作 + AI 持续监控”（B 模式直接默认，不再先 4 选 1）
+python skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py web-start \
+  --url "https://example.com/" --port 9222
+
+# 用户完成操作后由另一个进程写入停止信号
+python skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py web-stop \
+  --workspace ./example-crawler-reverse
+```
+
+`web-start` 内部按顺序执行：
+
+1. **WORKSPACE_READY**（init 阶段已完成）。
+2. **ENV_READY**——按 OS 自动探测 Chrome / Edge / Chromium 候选路径、必要时启动 task-owned
+   独立 profile 浏览器（`--remote-debugging-port=9222 --remote-allow-origins=* --user-data-dir=...`）。
+3. **BROWSER_READY**——接管用户真实 tab 或在用户 context 中用**带目标 URL**的新 tab。
+4. **FINGERPRINT_READY**——跑 `audit_browser_fingerprint`，分**阻断 / 警告 / 不可本地证明**
+   三档写 `01-目标画像/浏览器指纹报告.json`；阻断项命中即拒绝继续。
+5. **MONITORING**——`popup-handler.cleanup_all()` → `user_action_recorder.start_recording()`
+   → `start_js_monitor()` 注入 fetch/XHR/WebSocket + console/error/unhandledrejection + 性能补采 →
+   等用户操作；JS 监控每条事件 1000 字符上限、单次 flush 200 条、整体 5MB 上限。
+6. **STOPPED**（web-stop 后）——flush 监听器、生成 `01-目标画像/录制/会话-XXX/步骤证据索引.json`
+   （按时间窗 1000ms 关联操作/HAR/JS 三份证据）；**浏览器、context、page、tab 一律保留不关闭**。
+
+**关键约束**：
+
+- 工作区结构固定为 `{slug}-crawler-reverse/{01-目标画像,02-接口分析,03-逆向攻坚,04-模块封装}/`
+  + `分析计划.md`；`05-案例沉淀.md` 必须等阶段 5.5 `PASS` 才生成（`reverse-analysis-session.py`
+  不会自动创建）。
+- 浏览器指纹**只做一致性审计**，不证明"绝对真实"——公网 IP/代理、TLS/JA3/JA4、服务端行为画像
+  必须保留 `unknown`。DrissionPage 优势是**接管便利性 + 国内站点自动化通过率**，
+  **不得**描述为"内置反指纹"；重度反指纹场景需 Playwright + `rebrowser-playwright-python` /
+  `puppeteer-real-browser-go` 配合。
+- `web-stop` 写入 `会话状态.json` 与 `步骤证据索引.json` 后，**不**关闭任何外部资源。
+- `user-action-recorder.py` v2.19.0 强化脱敏：DOM 层按 `type=password` / id / name / 提示语
+  命中即 `***REDACTED***`；HAR 层对 `Authorization` / `Cookie` / `Set-Cookie` / `X-CSRF-Token` 等
+  Header 与 form-urlencoded / JSON 敏感键统一脱敏。
+- 全部 Python 注释 / docstring / 用户提示语强制中文（`tests/reverse-analysis-session-verify.py`
+  第 8 类断言会扫描）。
+
+**配套自检**：
+
+```bash
+python tests/reverse-analysis-session-verify.py  # 9 类断言（slug / 状态机 / OS 矩阵 / 指纹分级 / 证据关联 / 脱敏 / JS 监控 / 中文注释 / flush 上限）
+bash tests/plugin-verify.sh                       # 第 7.5 段会调用上述自检
+bash scripts/check-readme-sync.sh                # 第 15 段 5 类校验（必备文件 / 反模式残留 / 必含段 / B 模式默认 / Web 册 v2.19.0 标注）
+```
+
+**同步面**：本次横跨 12 类文件——1 新工具 + 1 新测试 + 1 测试增强 + 1 校验强化 + 1 脚本加固
++ 3 SKILL.md + 4 规范 + 2 顶层维护 + 3 版本文件（`plugin.json` / `marketplace.json` 顶层 /
+`marketplace.json.plugins[0]`，三处 `2.18.2 → 2.19.0`）。
+
 ### v2.17.0 模块产物封装形式
 
 逆向产物 `04-模块封装/{module}/` 强制 4 类约束：

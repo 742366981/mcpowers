@@ -45,7 +45,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 | 自动化测试 / 跑测试出报告 / bug 等级分类 / 哪一端的问题 / 自动化回归 / e2e / auto test / 跑 pytest / 跑 Playwright / 跑 DrissionPage / 跑 Selenium / 跑 Cypress | `mcpowers-autoTest` | 场景层 | `mcpowers-autoTest/SKILL.md` description |
 | 前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 / swagger / openapi / 接口文档怎么自动生成 / 前端怎么拿到接口类型 | `mcpowers-api-contract` | 场景层 | `mcpowers-api-contract/SKILL.md` description |
 | 装基础技能 / 一键装基础 / 装上所有基础 / 装基础技能 / 装全部基础技能 / 全局安装基础技能 / npx skills add | `mcpowers-install-basics-skills` | 场景层 | `mcpowers-install-basics-skills/SKILL.md` description |
-| 爬虫逆向 / 接口分析 / 抓包分析 / 加密参数还原 / 逆向工程 / RPC 逆向 / 纯协议 / 半自动化 / 纯自动化 / 一次性报文 / token 复用 / 并发稳定性 / 模块真实可用 / 目标类型不明 | `mcpowers-crawler-reverse` | 场景层（统一入口） | `mcpowers-crawler-reverse/SKILL.md` description |
+| 爬虫逆向 / 接口分析 / 抓包分析 / 加密参数还原 / 逆向工程 / RPC 逆向 / 纯协议 / 半自动化 / 纯自动化 / 一次性报文 / token 复用 / 并发稳定性 / 模块真实可用 / 目标类型不明 / 用户操作 + AI 抓包 / 用户操作 + AI 持续监控 / Web 接管用户 Chrome / 第一动作建目录 / 中文分析目录 / 工作区第一时间创建 | `mcpowers-crawler-reverse` | 场景层（统一入口） | `mcpowers-crawler-reverse/SKILL.md` description |
 | 网站逆向 / Web JS 反混淆 / 浏览器抓包 / CDP 接管 / WASM / bb-browser | `mcpowers-reverse-web` | 场景层（专项） | `mcpowers-reverse-web/SKILL.md` description |
 | APP 逆向但平台或运行时未知 / 先识别 App 技术栈 | `mcpowers-reverse-app` | 场景层（二级入口） | `mcpowers-reverse-app/SKILL.md` description |
 | Android 逆向 / 安卓 / APK / AAB / Kotlin / Java / JNI / jadx / frida hook / LSPosed | `mcpowers-reverse-android` | 场景层（专项） | `mcpowers-reverse-android/SKILL.md` description |

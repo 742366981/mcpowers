@@ -115,16 +115,31 @@ _INJECT_LISTENERS_JS: str = """
     });
   }, true);
 
-  // input / fill
+  // input / fill（v2.19.0 强化：DOM 层按字段属性命中即写 ***REDACTED***）
+  const __isSensitiveField = (el) => {
+    if (!el || el.nodeType !== 1) return false;
+    if ((el.getAttribute('type') || '').toLowerCase() === 'password') return true;
+    const attrs = [
+      el.id, el.name,
+      el.getAttribute('autocomplete'),
+      el.getAttribute('aria-label'),
+      el.getAttribute('placeholder'),
+    ];
+    const re = /password|passwd|pwd|token|secret|api[-_]?key|信用卡|卡号|身份证|otp|验证码/i;
+    return attrs.some((value) => value && re.test(String(value)));
+  };
   document.addEventListener('input', (e) => {
     const t = e.target;
+    const raw = t.value;
+    const value = __isSensitiveField(t) ? '***REDACTED***' : raw;
     window.__userActionBuffer.push({
       ts: Date.now(), type: 'fill',
       tag: t.tagName, id: t.id || null, name: t.name || null,
       data_testid: t.getAttribute('data-testid') || null,
       aria_label: t.getAttribute('aria-label') || null,
       placeholder: t.getAttribute('placeholder') || null,
-      value: t.value,
+      value: value,
+      redacted: __isSensitiveField(t),
       css: _cssPath(t),
     });
   }, true);
@@ -217,14 +232,108 @@ class RecorderHandle:
 # ----------------------------------------------------------------------------
 
 def _redact_value(value: str | None) -> str | None:
-    """按 SENSITIVE_KEYWORDS 脱敏（v1 仅替换为占位符，不加密）。"""
+    """按 SENSITIVE_KEYWORDS 脱敏（v2.19.0 起仅作为值内容兜底；DOM 层已按属性判定）。"""
     if value is None or not value:
         return value
-    # 直接黑名单匹配（精确字段名 / 内容含敏感词）
+    # 兜底匹配：值内容本身含敏感词时强制脱敏（DOM 注入失败/外部 action 也覆盖）
     for kw in SENSITIVE_KEYWORDS:
         if kw.lower() in value.lower():
             return "***REDACTED***"
     return value
+
+
+_HEADER_SENSITIVE_KEYS: tuple[str, ...] = (
+    "authorization",
+    "cookie",
+    "set-cookie",
+    "x-csrf-token",
+    "csrf-token",
+    "x-xsrf-token",
+    "x-api-key",
+    "apikey",
+    "x-auth-token",
+    "x-token",
+)
+
+
+def _redact_headers(headers: Any) -> dict[str, str]:
+    """对请求/响应 Headers 做大小写不敏感的敏感字段脱敏。"""
+
+    if not headers:
+        return {}
+    try:
+        items = dict(headers).items()
+    except Exception:
+        try:
+            items = list(headers)
+        except Exception:
+            return {}
+    safe: dict[str, str] = {}
+    for key, value in items:
+        normalized = str(key or "").lower()
+        if normalized in _HEADER_SENSITIVE_KEYS or SENSITIVE_KEYWORDS and any(
+            kw.lower() in normalized
+            for kw in SENSITIVE_KEYWORDS
+        ):
+            safe[str(key)] = "***REDACTED***"
+        else:
+            text = str(value) if value is not None else ""
+            if any(kw.lower() in text.lower() for kw in SENSITIVE_KEYWORDS) and "token" in normalized:
+                safe[str(key)] = "***REDACTED***"
+            else:
+                safe[str(key)] = text
+    return safe
+
+
+def _redact_post_data(post_data: Any) -> Any:
+    """对请求体/表单/JSON 内的敏感字段统一脱敏。"""
+
+    if post_data is None:
+        return None
+    if isinstance(post_data, (bytes, bytearray)):
+        try:
+            text = post_data.decode("utf-8", errors="replace")
+        except Exception:
+            return "***BINARY***"
+        return _redact_post_data(text)
+    if isinstance(post_data, str):
+        # form-urlencoded 风格字段也走敏感键判定
+        if "=" in post_data and "&" in post_data and "\n" not in post_data:
+            parts: list[str] = []
+            for segment in post_data.split("&"):
+                if "=" not in segment:
+                    parts.append(segment)
+                    continue
+                key, _, value = segment.partition("=")
+                if any(kw in key.lower() for kw in SENSITIVE_KEYWORDS) or key.lower() in _HEADER_SENSITIVE_KEYS:
+                    parts.append(f"{key}=***REDACTED***")
+                else:
+                    parts.append(segment)
+            return "&".join(parts)[:2000]
+        return _redact_value(post_data)
+    return post_data
+
+
+def _redact_body_preview(body: str | None) -> str | None:
+    """对响应体预览按敏感键做粗粒度清洗，避免敏感字段直显。"""
+
+    if body is None:
+        return None
+    cleaned = body[:1024]
+    for kw in SENSITIVE_KEYWORDS:
+        cleaned = re.sub(
+            rf'("{re.escape(kw)}"\s*:\s*)"[^"]*"',
+            r'\1"***"',
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(
+            rf'({re.escape(kw)}\s*[:=]\s*)([^\s,&;{{}}]+)',
+            r'\1***',
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+    return cleaned
 
 
 def _css_path_fallback(el: Any) -> str:
@@ -323,26 +432,31 @@ def _har_append(handle: RecorderHandle, kind: str, payload: Any) -> None:
         entry["url"] = payload.url
         entry["method"] = payload.method
         try:
-            entry["headers"] = dict(payload.headers or {})
-            entry["post_data"] = payload.post_data
+            entry["headers"] = _redact_headers(payload.headers)
         except Exception:
             entry["headers"] = {}
+        try:
+            entry["post_data"] = _redact_post_data(payload.post_data)
+        except Exception:
+            entry["post_data"] = None
     elif kind == "response":
         entry["url"] = payload.url
         entry["status"] = payload.status
         try:
-            entry["headers"] = dict(payload.headers or {})
+            entry["headers"] = _redact_headers(payload.headers)
         except Exception:
             entry["headers"] = {}
         # 响应体过大时不落（避免 HAR 爆盘；只标记 status）
         # v2.18.0 兼容 DrissionPage response.body（属性）与 Playwright response.body()（方法）
+        # v2.19.0 增加：响应体预览按敏感键再次脱敏，避免 Cookie/token 出现在 body_preview。
         try:
             body = payload.body() if callable(payload.body) else payload.body
             if body is not None and len(body) < 1024 * 64:  # 64KB 阈值
                 if isinstance(body, bytes):
-                    entry["body_preview"] = body[:1024].decode("utf-8", errors="replace")
+                    preview = body[:1024].decode("utf-8", errors="replace")
                 else:
-                    entry["body_preview"] = str(body)[:1024]
+                    preview = str(body)[:1024]
+                entry["body_preview"] = _redact_body_preview(preview)
         except Exception:
             pass
 
@@ -438,7 +552,7 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
     for sel in selectors:
         try:
             # v2.18.0 DrissionPage 化：page.ele('css:sel', timeout=1) 替代
-            # page.locator(sel).first + loc.count() + loc.is_visible(timeout=1000)
+            # 老版 Playwright 的 page.locator(sel).first + loc.count() + loc.is_visible
             # DrissionPage ele() 不存在或不可见时抛异常，需 try/except
             el = page.ele(f"css:{sel}", timeout=1)
             if el and el.states.is_displayed:
@@ -521,7 +635,7 @@ def start_recording(
         )
         handle._flush_thread.start()
     else:
-        # Playwright fallback
+        # Playwright fallback 路径
         def _on_request(req: Request) -> None:
             _har_append(handle, "request", req)
 
@@ -573,13 +687,13 @@ def stop_recording(handle: RecorderHandle) -> str:
 
     # 注销监听器——v2.18.0 DrissionPage 化（v2.18.2 修 duck-type bug，匹配 start_recording）
     if hasattr(handle.page, "listen"):
-        # DrissionPage: page.listen.stop()
+        # DrissionPage 默认接管模式，停止 page.listen 监听
         try:
             handle.page.listen.stop()
         except Exception:
             pass
     else:
-        # Playwright fallback: page.remove_listener()
+        # Playwright fallback 路径：用 page.remove_listener 注销
         if handle._req_listener is not None:
             try:
                 handle.page.remove_listener("request", handle._req_listener)

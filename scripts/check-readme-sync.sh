@@ -706,6 +706,71 @@ else
     FAIL=$((FAIL + DRISSIONPAGE_FAIL))
 fi
 
+# ============== 15. reverse-analysis-session 强制起手式（v2.19.0 新增） ==============
+echo "[15/15] 校验 reverse-analysis-session 强制起手式（v2.19.0）"
+SESSION_FAIL=0
+SESSION_SCRIPT="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py"
+SESSION_VERIFY="$REPO_DIR/tests/reverse-analysis-session-verify.py"
+CRAWLER_SKILL="$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md"
+REVERSE_WEB_SKILL="$REPO_DIR/skills/mcpowers-reverse-web/SKILL.md"
+CRAWLER_ANALYSIS_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫分析规范.md"
+CRAWLER_WEB_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫Web逆向规范.md"
+
+check_session() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file"
+        SESSION_FAIL=$((SESSION_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        SESSION_FAIL=$((SESSION_FAIL + 1))
+    fi
+}
+
+# 必备文件
+[ -f "$SESSION_SCRIPT" ] || { echo "  ✗ reverse-analysis-session.py 缺失"; SESSION_FAIL=$((SESSION_FAIL + 1)); }
+[ -f "$SESSION_VERIFY" ] || { echo "  ✗ tests/reverse-analysis-session-verify.py 缺失"; SESSION_FAIL=$((SESSION_FAIL + 1)); }
+
+# 反模式（v2.18.0 残留的"DrissionPage 内置指纹伪装/反检测"必须删除）
+for f in "$CRAWLER_TOOLS_SPEC" "$REVERSE_WEB_SKILL" "$CRAWLER_SKILL" "$README_DOC"; do
+    if [ -f "$f" ] && grep -qF "DrissionPage 内置" "$f"; then
+        echo "  ✗ $f 仍含 'DrissionPage 内置' 残留描述（v2.19.0 必改）"
+        SESSION_FAIL=$((SESSION_FAIL + 1))
+    fi
+done
+
+# 第一动作建目录：crawler-reverse SKILL 必须显式声明
+check_session "$CRAWLER_SKILL" "第一时间创建工作区" "crawler-reverse SKILL 第一动作声明"
+check_session "$CRAWLER_SKILL" "reverse-analysis-session.py init" "crawler-reverse SKILL init 命令示例"
+check_session "$CRAWLER_SKILL" "资源所有权铁律" "crawler-reverse SKILL 资源所有权声明"
+
+# reverse-web SKILL 必须把 web-start 列为唯一公开起手式
+check_session "$REVERSE_WEB_SKILL" "reverse-analysis-session.py web-start" "reverse-web SKILL 必含 web-start"
+check_session "$REVERSE_WEB_SKILL" "资源所有权铁律" "reverse-web SKILL 资源所有权声明"
+
+# 工具与抓包规范 §8.6 / §8.7 必须新增 JS 监控与指纹审计
+check_session "$CRAWLER_TOOLS_SPEC" "§8.6" "工具册 §8.6 JS 监控存在"
+check_session "$CRAWLER_TOOLS_SPEC" "§8.7" "工具册 §8.7 指纹审计存在"
+check_session "$CRAWLER_TOOLS_SPEC" "一致性审计" "工具册指纹审计标题"
+check_session "$CRAWLER_TOOLS_SPEC" "**无内置反指纹**" "工具册 §2.1 接管语法对照表无内置反指纹声明"
+
+# 爬虫分析规范必须把 B 模式设为 Web 默认
+check_session "$CRAWLER_ANALYSIS_SPEC" "B 模式直接默认" "主册 B 模式默认声明"
+check_session "$CRAWLER_ANALYSIS_SPEC" "v2.19.0 新增" "主册 v2.19.0 变更声明"
+
+# 爬虫 Web 逆向规范必须引用 v2.19.0 起手式
+check_session "$CRAWLER_WEB_SPEC" "v2.19.0" "Web 册 v2.19.0 标注"
+
+if [ "$SESSION_FAIL" -eq 0 ]; then
+    echo "  ✓ reverse-analysis-session 强制起手式（v2.19.0）完整"
+else
+    FAIL=$((FAIL + SESSION_FAIL))
+fi
+
 # ============== 汇总 ==============
 echo ""
 if [ "$FAIL" -eq 0 ]; then

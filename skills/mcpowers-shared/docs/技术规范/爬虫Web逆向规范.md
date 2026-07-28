@@ -3,8 +3,8 @@ title: 爬虫Web逆向规范
 type: tech-spec
 applies_to: [crawler-reverse, web]
 priority: recommended
-version: 2.14.0
-last_updated: 2026-07-27-v2.14.0
+version: 2.19.0
+last_updated: 2026-07-28-v2.19.0
 description: Web JS 反混淆、补环境、算法复现与正确性校验的方法论；与 `mcpowers-reverse-web` 1:1 对应。与《爬虫工具与抓包规范》§3 浏览器复用配合使用抓包；以《爬虫分析规范》§9.4 模块真实可用性验收收尾。Web 逆向必读；非 Web 任务不读。
 ---
 
@@ -17,6 +17,8 @@ description: Web JS 反混淆、补环境、算法复现与正确性校验的方
 >   见主《爬虫分析规范.md》。
 > - 抓包 / CDP 接管 / bb-browser 等运行时复用见《爬虫工具与抓包规范.md》§3+§6。
 > - 工具与脚本角色边界（adapter / Playwright / popup-handler）见工具册 §6.1。
+> - **v2.19.0 新增**：Web 任务固定起手式见工具册 §8.6 / §8.7 与
+>   `reverse-analysis-session.py`（init → web-start → web-stop）。
 >
 > **外部接管资源所有权铁律**：本规范的 §2 涉及接管用户 Chrome 时必须遵守主《爬虫
 > 分析规范》§1.3 铁律——**外部接管资源不可关闭**。

@@ -332,6 +332,100 @@ for f in sorted(os.listdir('skills')):
   - 2 版本文件：`.claude-plugin/plugin.json` + `marketplace.json × 2` patch bump `2.18.1 → 2.18.2`
   - 1 真实接管链路留痕：`C:\Users\Administrator\AppData\Local\Temp\scraper_test\` 测试脚本与产物（**不**入库，YAGNI 守边界；下次用户撞坑时可直接复用）
 
+### 历史教训（v2.19.0 逆向工作区与 Web 协作会话强制起手式 + 浏览器指纹一致性审计）
+
+- **v2.19.0**：v2.18.2 修完 4 个 bug 后真实用户复盘发现**新的体系缺口**：
+  - **缺口 A（执行顺序）**：AI 拿到目标后**不会第一时间落工作区**——目录结构只在 `01-目标画像/` 等描述里出现，但脚本不会自动创建；《分析计划.md》经常到结束才补，slug / 授权边界 / 目标类型都靠"约定"；用户不得不反复追问。
+  - **缺口 B（网站逆向）**：Web 默认仍是 A「AI 全自动」，4 选 1 协作模式仍要求用户先决定，但 Chrome 150+ / 强校验表单场景下**用户操作 + AI 抓包才有效**。旧流程让 AI 反复自动点击，既抓不到关键 POST，又让用户被动等待。
+  - **缺口 C（OS/浏览器实现）**：宿主 OS、Chrome 路径/版本、CDP 状态、Chrome 136+ 独立 user data dir、Chrome 150+ `--remote-allow-origins=*` 这些前置条件散落在 §3.1/§3.7/§3.9 多个小节，AI 实际使用时容易跳过；浏览器启动方式没有"按 OS 自动选路径"的脚本。
+  - **缺口 D（指纹真实性）**：v2.18.0 描述 DrissionPage 时用过"接管便利性 + 内置反检测"等模糊表述，主《爬虫分析规范》也未规定 Web 任务的指纹门禁；AI 容易把"自动化通过率优势"误读成"反指纹"或"指纹真实"，进而继续驱动被风控的目标页。
+  - **缺口 E（JS 证据）**：现有 `user-action-recorder.py` 只录操作 + HTTP 流量，没有 JS 运行时（脚本加载、fetch 调用栈、console.error、未处理 reject）的持续证据；AI 在 B 模式后只能看到"用户点了按钮 → 一次 POST"，看不到"为什么是这一次 POST"。
+  - **缺口 F（代码注释）**：现有脚本大量英文注释（`# Playwright fallback`、`# DrissionPage: page.listen.stop()`），不利于后续维护者快速理解。
+
+- **关键修复**（11 类文件改动）：
+  1. **新增唯一公开起手工具** `skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py`：
+     - 公开 4 个子命令 `init / web-start / web-stop / status`；
+     - 固定状态机 `WORKSPACE_READY → ENV_READY → BROWSER_READY → FINGERPRINT_READY → MONITORING → STOPPED`，
+       写入 `会话状态.json`，越级或 session_id 不一致直接 `SessionError`；
+     - `init` 第一时间幂等创建 `{slug}-crawler-reverse/`、4 个标准中文子目录（含 `01-目标画像/录制/会话-XXX/`）、
+       《分析计划.md》和 `会话状态.json`；`05-案例沉淀.md` 必须等阶段 5.5 `PASS` 才生成；
+     - `web-start` 内部按 OS 自动探测 Chrome 候选路径，必要时启动 task-owned 独立 profile 浏览器
+       （`--remote-debugging-port=9222 --remote-allow-origins=* --user-data-dir=...`），
+       然后跑 `audit_browser_fingerprint`；
+     - 浏览器指纹报告分 `阻断 / 警告 / 不可本地证明` 三档：
+       - **阻断**：`navigator.webdriver=true`、HeadlessChrome、UA 与 CDP 主版本矛盾、宿主 OS 与 `navigator.platform` 明显矛盾、关键 API 缺失；
+       - **警告**：语言/locale 不一致、时区异常、屏幕/viewport 不合理、plugins/mimeTypes=0、Canvas 不稳定、WebGL 软件渲染；
+       - **不可本地证明**：公网 IP/代理、TLS/JA3/JA4、服务端行为画像（必须保留 `unknown`）；
+     - 串联 `popup-handler.cleanup_all()` → `user_action_recorder.start_recording()` → `start_js_monitor()`
+       （注入 fetch/XHR/WebSocket 包覆 + console/error/unhandledrejection + 性能记录补采）→ 等用户操作 → `web-stop`
+       flush 监听器 + 生成 `步骤证据索引.json`（按时间窗 1000ms 关联操作/HAR/JS 三份证据）；
+     - 停止时**不关闭**任何外部资源——浏览器、context、page、tab 全部保留供用户继续检查。
+  2. **JS 监控最小可用**（仅覆盖 4 类高价值通道）：
+     - `<script>` URL、fetch/XHR/WebSocket、console.warn/error、`window.error`/`unhandledrejection`；
+     - **不上**全局函数 Hook，**不保存整份源码**；每条事件 1000 字符上限、单次 flush 200 条、整体 5MB 上限；
+     - 明确声明 ready 时间点之前已加载的脚本**只能拿 URL**（浏览器限制，**不是工具能力短板**）。
+  3. **`user-action-recorder.py` 强化脱敏**（保持 3 个公开函数签名）：
+     - DOM 层按 `type=password` / id / name / autocomplete / aria-label / placeholder 命中敏感词 → 直接 `***REDACTED***`；
+     - HAR 层对 `Authorization` / `Cookie` / `Set-Cookie` / `X-CSRF-Token` 等 Header 与 form-urlencoded / JSON 敏感键统一脱敏；
+     - 中文注释覆盖原 Playwright fallback / DrissionPage 段。
+  4. **配套测试** `tests/reverse-analysis-session-verify.py`：9 类断言（slug + 工作区幂等、状态机越级、浏览器候选矩阵、指纹判定分级、证据关联、录制器脱敏、JS 监控脚本关键逻辑、中文注释、flush 上限）；接入 `tests/plugin-verify.sh` 第 7.5 段。
+  5. **规范收敛**：
+     - 《爬虫分析规范》§3.0.2 模式选择：Web 任务**不再先问 4 选 1**，直接由 `web-start` 收 B 模式；
+     - 《爬虫工具与抓包规范》§2.1 接管语法对照表：删除"指纹伪装：DrissionPage 内置"，改为
+       "**无内置反指纹**（DrissionPage 仍泄露 navigator.webdriver；重度反指纹需 Playwright + rebrowser / puppeteer-real-browser）"；
+     - 《爬虫工具与抓包规范》§7.2 工具对照表：新增 `reverse-analysis-session.py` 行 + 末尾对应关系扩展到 4 行；
+     - 《爬虫工具与抓包规范》新增 §8.6 JS 运行时持续监控 + §8.7 浏览器环境与指纹一致性审计；
+     - 《爬虫Web逆向规范》头部声明 v2.19.0 起手式入口；
+     - `mcpowers-spec-index` 第 1 段新增"逆向工作区与 Web 协作会话编排"查表行。
+  6. **技能收敛**：
+     - `skills/mcpowers/SKILL.md` 强制分流表追加"中文分析目录 / 工作区第一时间创建"等触发词；
+     - `skills/mcpowers-crawler-reverse/SKILL.md` 公共前置合同新增 §0 第一时间建工作区 + 铁律 12/13 + 3 条 v2.19.0 反模式 + `资源所有权铁律` 重新声明；
+     - `skills/mcpowers-reverse-web/SKILL.md` 编排表第 2 步改为 `reverse-analysis-session.py web-start` 唯一入口、§1.5 协作模式 B 描述改为"强制默认入口"、反模式新增 2 条 v2.19.0 项。
+  7. **物理门禁**：`scripts/check-readme-sync.sh` 新增第 15 段，校验：必备文件 2 项 / 反模式残留检测（"DrissionPage 内置"必须从所有可见文件删除）/ crawler-reverse 第一动作声明 / reverse-web web-start 唯一入口 / 工具册 §8.6/§8.7 必含 / B 模式默认声明 / Web 册 v2.19.0 标注；现有 14 段全部不动。
+  8. **CLAUDE.md + README.md**：本段历史教训 + README.md v2.19.0 节。
+  9. **中文注释强制**：新增/修改 Python 区域的所有 docstring / 注释 / 提示语必须中文；ASCII 分隔线 `# ---` 显式豁免；测试脚本会扫 `^#\s*[\x00-\x7f]+$` 整行注释并断言必须含中文字符。
+  10. **版本号三处一致**：`plugin.json` / `marketplace.json` 顶层 / `marketplace.json.plugins[0]` 全部 `2.18.2 → 2.19.0`。
+  11. **历史教训可见性**：所有 v2.18.x 的真实接管链路 / Duck-type bug 修复**继续保留**作为前置，但 v2.19.0 显式声明这些修复不证明"指纹绝对真实"——反指纹是另一条对抗线，**禁止**把自动化通过率描述成反指纹。
+
+- **关键决策（YAGNI 守边界）**：
+  - ❌ **不**为 Chrome 150+ / 反指纹引入新工具脚本（`chrome_starter.py` / `rebrowser_helper.py`）——`web-start` 内部已经处理 OS 探测 + 参数拼装，工具化违反 KISS；
+  - ❌ **不**为 JS 监控引入独立 `js_monitor.py`——它是 `reverse-analysis-session.py` 的子职责，按 §3.5 单一职责与 recorder / popup-handler 严格分工；
+  - ❌ **不**为指纹检查引入外部 IP/TLS 服务（公网查询 API 风险 + YAGNI），unknown 状态必须显式标注；
+  - ❌ **不**改 6 个 App/小程序专项的工具栈——它们继承统一入口 §0 / §1.3 公共合同即可；
+  - ❌ **不**改 `popup-handler.py` 的 8 类弹窗字典（v2.18.2 已补齐 notification）；
+  - ✅ **保留** v2.18.x 的 DrissionPage 接管语法 + bb-browser 可选增强 + Playwright fallback；
+  - ✅ **保留** v2.17.0 的类式封装 + 零前置参数 + quick_test + 中文文件名；
+  - ✅ **保留** 外部资源所有权铁律（用户 browser/context/page/tab 永不可关）。
+
+- **关键风险与未实测项**：
+  - **真实接管链路 v2.19.0 仍未跑**：本次只完成自测（9 类断言 + `tests/plugin-verify.sh` 第 7.5 段），
+    `web-start` 在 Chrome 150+ + DrissionPage 接管模式下的真实端到端验证需要下次真实场景
+    中由用户手动驱动；自检脚本明确**不**冒充实测通过。
+  - **JS 监控基于页面 JS 包覆**：对某些 SRI + CSP 严格的页面，`page.run_js(JS_MONITOR_SCRIPT)`
+    可能被拒绝注入；监控会失败但**不会**影响 popup-handler / recorder 主链路，AI 必须读
+    `会话状态.json` 的 `fingerprint_status` 字段而非"我以为启动了"做判断。
+  - **指纹审计 ≠ 反指纹**：本工具只能判断字段一致性与明显伪造；服务端行为画像、公网 IP、TLS
+    指纹全部 `unknown`——AI 严禁把"本地 JS 检查通过"等同于"指纹真实"。
+  - **公开状态机可能让 AI 误以为可以调用同一命令两次**：`web-start` 第二次调用会被状态机
+    拒绝（已有 MONITORING 时 init 失败），AI 必须先 `web-stop` 才能再次启动。
+
+- **铁律新增**：
+  - `mcpowers-crawler-reverse/SKILL.md` 铁律 12/13 强制 `init → web-start → web-stop` + 指纹门禁；
+  - 资源所有权铁律（铁律 6）从原"参考 §1.3 引用"改为本技能"重新声明"——AI 在 SKILL.md
+    局部 Read 时不必再跨文件跳转。
+- **版本策略**：用户可见新流程（init / web-start / web-stop）+ 新工具 + 指纹审计 + JS 监控 +
+  录制器脱敏 + 中文注释 = minor bump `2.18.2 → 2.19.0`。
+- **同步面**：本次横跨 **12 类文件**：
+  - 1 新工具：`reverse-analysis-session.py`（~700 行，全部中文注释/docstring）；
+  - 1 新测试：`tests/reverse-analysis-session-verify.py`；
+  - 1 测试增强：`tests/plugin-verify.sh` 第 7.5 段调用新测试；
+  - 1 校验强化：`scripts/check-readme-sync.sh` 第 15 段（约 50 行）；
+  - 1 脚本加固：`user-action-recorder.py`（DOM/HAR/Body 脱敏 + 注释中文化，约 100 行新增）；
+  - 3 SKILL.md：`mcpowers` / `mcpowers-crawler-reverse` / `mcpowers-reverse-web`；
+  - 4 规范：《爬虫分析规范》/《爬虫工具与抓包规范》/《爬虫Web逆向规范》/ `mcpowers-spec-index`；
+  - 2 顶层维护：`CLAUDE.md`（本段历史教训）/ `README.md`（v2.19.0 节）；
+  - 3 版本文件：`plugin.json` + `marketplace.json`（顶层 + `plugins[0]`，三处一致）。
+
 ### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
 
 - **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——

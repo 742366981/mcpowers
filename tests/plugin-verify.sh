@@ -246,6 +246,18 @@ set -e
 assert_eq "pre-write 放行 README.md（exit 0）" "$RC_README" "0"
 assert_eq "pre-write 放行 tests/foo.sh（exit 0）" "$RC_TEST" "0"
 
+# ============== 7.5 逆向会话编排自检 ==============
+echo "[7.5] 逆向会话编排工具自检"
+SESSION_VERIFY="$REPO_DIR/tests/reverse-analysis-session-verify.py"
+assert "逆向会话自检脚本存在" "[ -f '$SESSION_VERIFY' ]"
+if [ -f "$SESSION_VERIFY" ] && [ -n "$PY_BIN" ]; then
+    set +e
+    $PY_BIN "$SESSION_VERIFY" >/dev/null 2>&1
+    RC_SESSION=$?
+    set -e
+    assert_eq "逆向会话自检通过（exit 0）" "$RC_SESSION" "0"
+fi
+
 # ============== 旧安装脚本不应残留 ==============
 echo ""
 echo "[旧资产清理] 断言：旧安装脚本已删除"

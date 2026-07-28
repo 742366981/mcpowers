@@ -11,33 +11,43 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 
 | 步骤 | 调用对象 | 类型 | 触发条件 | 失败时 |
 |:-----|:---------|:-----|:---------|:-------|
-| 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中本技能时必读 | 缺目标/授权/交付形态则中断 |
-| 2 | `爬虫Web逆向规范.md` + `爬虫工具与抓包规范.md` §3 | 规范 | 必读 | 按 spec-index 重新定位 |
-| 3 | DrissionPage（v2.18.0 默认）+ CDP | 执行链 | 浏览器证据与动态触发 | 切换协作模式，不擅自 `ChromiumPage()` 无参 launch |
-| 4 | bb-browser + popup-handler.py | 可选增强 | daemon/adapter 可用 | 回退 DrissionPage 原链路（Playwright 作 fallback） |
-| 5 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | 专项证据交接后 | 缺证据则返回本技能补齐 |
+| 1 | `mcpowers-crawler-reverse` 公共前置合同 + v2.19.0 强制 `init` | 公共合同 | 直接命中本技能时必读 | 缺目标/授权/交付形态或工作区未创建则中断 |
+| 2 | `reverse-analysis-session.py web-start`（v2.19.0 强制） | 编排工具 | Web URL 已知时**唯一入口** | 走 `web-start` 状态机，跳过/绕道视为反模式 |
+| 3 | `爬虫Web逆向规范.md` + `爬虫工具与抓包规范.md` §3 | 规范 | 必读 | 按 spec-index 重新定位 |
+| 4 | DrissionPage（v2.18.0 默认）+ CDP | 执行链 | `web-start` 内部接管 | 切换协作模式，不擅自 `ChromiumPage()` 无参 launch |
+| 5 | bb-browser + popup-handler.py | 可选增强 | daemon/adapter 可用 | 回退 DrissionPage 原链路（Playwright 作 fallback） |
+| 6 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | `web-stop` 后专项证据交接 | 缺证据则返回本技能补齐 |
 
 **防循环**：只 Read 统一入口中的「公共前置合同」「公共收尾合同」，不得再次调用入口分流。
+**v2.19.0 强制**：Web 任务必须把 `reverse-analysis-session.py init → web-start → web-stop`
+作为唯一公开起手式；不再先做 4 选 1 协作模式询问。
 
 ## Web 专项流程
 
 ### 1. 接管预检与资源所有权
 
-1. 探测 bb-browser 状态；失败只记 unavailable。
-2. 探测用户指定 CDP endpoint（默认示例 `localhost:9222`），列出 contexts/tabs。
-3. 发现目标 tab 时询问接管既有 tab 或在用户 context 新开 tab；未发现时询问启动调试 Chrome、由任务创建隔离浏览器、协议直连或取消。
-4. 写入资源清单：resource、origin（user/external/task）、owner、允许清理动作。
+1. 由 `reverse-analysis-session.py web-start` 内部完成探测、启动和接管，AI 不得绕过该工具。
+2. 探测 bb-browser 状态；失败只记 unavailable。
+3. 探测用户指定 CDP endpoint（默认示例 `localhost:9222`），列出 contexts/tabs。
+4. 已有 CDP + 目标 tab → 只接管真实 tab；已有 CDP 但无目标 tab → 在用户 context 中用**带目标 URL** 的新 tab；无 CDP → 按当前 OS 启动 task-owned 独立 profile 浏览器，参数固定含 `--remote-debugging-port=9222 --remote-allow-origins=* --user-data-dir=...`。
+5. 写入 `01-目标画像/资源清单.json`（resource、origin、owner、允许清理动作）。
 
-**外部接管资源不可关闭**：DrissionPage `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))`（v2.18.0 默认）/ Playwright `connect_over_cdp`（fallback）得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。
+**外部接管资源不可关闭**：DrissionPage `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))`（v2.18.0 默认）/ Playwright `connect_over_cdp`（fallback）得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。`web-start` 自身停止时也不关闭任何外部资源，浏览器默认保留供用户继续检查。
 
-### 1.5 用户操作录制（v2.15.0 新增，协作模式 B 工具支撑）
+### 1.5 用户操作录制（v2.15.0 新增，v2.19.0 强制默认入口）
 
-当用户切换到协作模式 B（"用户操作 + AI 抓包"，见《爬虫分析规范》§3.0.1）时，
-先 `popup-handler.cleanup_all(page)` 清弹窗，再
-`user_action_recorder.start_recording(page, output_dir=...)` 启动录制，让用户完成
-关键操作后 `stop_recording()` 落 `user-actions.json` + `user-session.har.jsonl`。
-重放可用 `replay_actions(page, actions_json_path, screenshot_each_step=True)` 验证。
-详见《爬虫工具与抓包规范》§8。
+`reverse-analysis-session.py web-start` 内部已经串联：
+`cleanup_all()` → `start_recording()` → JS 运行时监控 → 等用户操作 →
+`web-stop` 触发 `stop_recording()` + flush JS 监控 + 生成 `步骤证据索引.json`。
+AI 在用户操作期间**只持续采证**，不得抢操作、不得擅自驱动强校验表单、不得
+先死磕 bundle。
+
+**v2.19.0 协作模式收敛**（v2.9.5 旧 4 选 1 已**不再**在阶段 2 开头问询）：
+
+- Web URL + 无现成 cURL/HAR：**B 模式（用户操作 + AI 持续监控）直接默认**；
+- 用户贴 cURL/HAR：直接 C（《爬虫分析规范》§3.0.7 + §3.0.8）；
+- 目标页位置不明确：D 引导到目标后立即转 B；
+- A「AI 全自动」仅在用户明确要求时启用，并仍先过工作区、环境、指纹三道门禁。
 
 **v2.16.0 实战提示**：Chrome 150+ 时代协作模式 B 已成为强校验表单场景的
 **默认入口**——AI 必须 attach 用户真实 page target（如 `4252F91C4CC929918E03`），
@@ -85,6 +95,8 @@ AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200�
 - ❌ **v2.16.0 新增**：抓不到就静默切协作模式，不走《爬虫工具与抓包规范》§3.9 漏抓 7 层 6 问自检。
 - ❌ **v2.16.0 新增，v2.18.0 DrissionPage 化**：`Target.createTarget` / `page.new_tab()` 不带 url 拉新 tab（必须从 `page.tab_ids` 中挑选真实 page target）。
 - ❌ **v2.16.0 新增**：Chrome 启动命令漏 `--remote-allow-origins=*`（Chrome 150+ 会 403）。
+- ❌ **v2.19.0 新增**：绕过 `reverse-analysis-session.py` 自由拼接 A 模式自动分析；先分析再补工作区。
+- ❌ **v2.19.0 新增**：把 DrissionPage 描述为"内置反指纹 / 内置指纹伪装"。DrissionPage 优势是**接管便利性 + 国内站点适配（5秒盾/Turnstile 自动化通过率）**；重度反指纹场景需 Playwright + rebrowser / puppeteer-real-browser 配合，**反指纹是另一条线**。
 
 ## 完成后自检清单
 

@@ -64,7 +64,7 @@ android sslpinning disable
 **frida 自写 SSL Bypass**：
 
 ```javascript
-// 保存到 03-reverse/hooks/ssl-bypass.js
+// 保存到 03-逆向攻坚/钩子/ssl-bypass.js
 Java.perform(function() {
     var TrustManagerImpl = Java.use('com.android.org.conscrypt.TrustManagerImpl');
     TrustManagerImpl.verifyChain.implementation = function() { return []; };
@@ -101,7 +101,7 @@ Java.perform(function() {
 **Hook 加密函数**（**核心**，直接拿到入参/出参）：
 
 ```javascript
-// 保存到 03-reverse/hooks/app-sign-hook.js
+// 保存到 03-逆向攻坚/钩子/app-sign-hook.js
 Java.perform(function() {
     var EncryptUtil = Java.use('com.target.app.utils.EncryptUtil');
     EncryptUtil.sign.implementation = function(input) {
@@ -159,11 +159,11 @@ justtrustme / TrustUserCerts + PC 端 mitmproxy。
 Android 模块的最终验收必须走主《爬虫分析规范》§9.4：
 - 至少 3 组不同业务输入与真实请求对照
 - 记录 Android/包名/版本/架构/签名版本限制
-- `verification-report.md` 最终状态 = **`PASS`** 才算 Android 模块可用
+- `验收报告.md` 最终状态 = **`PASS`** 才算 Android 模块可用
 
 ### §6.4 跨专项指纹交接（指向主册 §10.9）
 
-Android 二级入口需产出 `01-target-profile/runtime-fingerprint.md`，包含证据路径、
+Android 二级入口需产出 `01-目标画像/运行时指纹.md`，包含证据路径、
 OS/包格式、运行时、核心逻辑候选层、置信度、主专项、辅助专项和未确认项。
 指纹冲突时保持 `unknown` 并设计最小验证，不得同时展开全部工具链。
 

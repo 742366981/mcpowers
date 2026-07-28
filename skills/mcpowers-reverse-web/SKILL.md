@@ -55,7 +55,7 @@ AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200�
 - 先运行 popup-handler.py 清理可自动处理弹窗；登录墙、年龄验证和合规同意截图后询问。
 - 根据协作模式触发目标业务动作，采集 XHR/fetch、调用栈、initiator、请求/响应和 Cookie 变化。
 - bb-browser adapter 只提供站点导航和结构化线索；URL/Method/响应必须由 Playwright 或 `curl_cffi` 实测。
-- `api-inventory.md` 标注来源和置信度；过滤 CDN、上报、字体、心跳。
+- `接口清单.md` 标注来源和置信度；过滤 CDN、上报、字体、心跳。
 
 ### 3. JavaScript/WASM 逆向
 

@@ -51,7 +51,7 @@ iOS 不复用 Android 的 DEX/jadx 路线。先记录 IPA/Bundle ID/版本/架�
 
 **frida iOS SSL Bypass 关键 Hook 点**：
 ```javascript
-// 保存到 03-reverse/hooks/ios-ssl-bypass.js
+// 保存到 03-逆向攻坚/钩子/ios-ssl-bypass.js
 // 1. NSURLSession delegate
 // 2. SecTrustEvaluate 强制返回 true
 // 3. AFNetworking / Alamofire 的安全模块（按需）
@@ -89,7 +89,7 @@ iOS 不复用 Android 的 DEX/jadx 路线。先记录 IPA/Bundle ID/版本/架�
 
 **Hook 网络请求**：
 ```javascript
-// 保存到 03-reverse/hooks/ios-network-hook.js
+// 保存到 03-逆向攻坚/钩子/ios-network-hook.js
 // Hook NSURLSession 的 dataTaskWithRequest:completionHandler:
 // 拿到最终请求体
 ```
@@ -123,11 +123,11 @@ iOS 抓包默认走 HTTP 代理 + 系统信任证书。详见《爬虫工具与�
 iOS 模块的最终验收必须走主《爬虫分析规范》§9.4：
 - 至少 3 组不同业务输入与真实请求对照
 - 记录 iOS/设备/签名版本限制
-- `verification-report.md` 最终状态 = **`PASS`** 才算 iOS 模块可用
+- `验收报告.md` 最终状态 = **`PASS`** 才算 iOS 模块可用
 
 ### §5.3 跨专项指纹交接（指向主册 §10.9）
 
-iOS 二级入口需产出 `01-target-profile/runtime-fingerprint.md`，包含证据路径、
+iOS 二级入口需产出 `01-目标画像/运行时指纹.md`，包含证据路径、
 运行时、核心逻辑候选层、置信度、主专项、辅助专项和未确认项。指纹冲突时保持
 `unknown` 并设计最小验证。
 

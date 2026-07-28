@@ -33,7 +33,7 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 6. **外部接管资源不可关闭**：接管的用户 browser/context/page、既有标签页和外部 daemon 一律视为外部所有；收尾、异常和回退只能停止使用/断开客户端，禁止 `browser.close()`、`context.close()`、关闭既有 page、kill 用户 Chrome 或擅自 stop 外部 daemon。
 7. **资源所有权必须显式记录**：任务创建的资源写明 owner、创建方式和清理权限；用户 Chrome 中新开的标签页默认保留，仅在用户明确确认后清理。
 8. **bb-browser 是可选增强**：不可用时完整回退 Playwright/CDP + popup-handler.py，不得中断主链路。
-9. **真实可用才落地**：`verification-report.md` 为 `PASS` 后才能进入阶段 6/7。
+9. **真实可用才落地**：`验收报告.md` 为 `PASS` 后才能进入阶段 6/7。
 10. **RPC 是逆向实现方式，不是最终交付形态**。
 11. **抓不到 ≠ 不存在**：阶段 2 抓包失败必须先走《爬虫工具与抓包规范》§3.9
     漏抓 7 层 6 问自检，**禁止**直接把"抓不到"等同于"接口不存在"；cURL 是
@@ -82,15 +82,17 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 
 ```text
 {slug}-crawler-reverse/
-├── 01-target-profile/
-├── 02-interfaces/
-├── 03-reverse/
-├── 04-modules/
-├── 05-case-study.md
-└── ANALYSIS_PLAN.md
+├── 01-目标画像/                    # 目标画像 + 运行时指纹
+├── 02-接口分析/                    # 接口清单 + 反爬评估 + 响应样本
+├── 03-逆向攻坚/                    # 算法还原 + 钩子 + 抓包样本
+├── 04-模块封装/                    # 内部 client.py + quick_test.py + verify.py + 验收报告
+├── 05-案例沉淀.md
+└── 分析计划.md
 ```
 
-`ANALYSIS_PLAN.md` 写明目标、授权边界、slug、交付形态、目标类型、专项技能、候选逆向方式和验收契约草案。
+`分析计划.md` 写明目标、授权边界、slug、交付形态、目标类型、专项技能、
+候选逆向方式和验收契约草案。**v2.17.0 起子目录 + 内部文件全部强制中文**，
+详见《爬虫分析规范》§9.4.6.5。
 
 ### 2. 目标类型判断与路由
 
@@ -111,7 +113,7 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 专项执行前后都必须遵守：
 
 - 核心接口结论必须有 Playwright、`curl_cffi`、代理抓包、Hook 或运行时观测证据。
-- `api-inventory.md` 至少包含 URL/动作、Method、来源、置信度、动态参数、业务语义和响应样本。
+- `接口清单.md` 至少包含 URL/动作、Method、来源、置信度、动态参数、业务语义和响应样本。
 - `[🎯]` 仅代表接口语义已实测，不代表模块可重复、跨会话或并发可用。
 - 阶段结束前 `[❓]` 必须转为 `[🎯]` / `[⚠️]` 或删除。
 - 敏感样本脱敏；临时 token、Cookie、nonce、challenge 不得写入常量。
@@ -127,7 +129,7 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 5. **state_clues**：timestamp、nonce、sign、token、Cookie、challenge 的生命周期线索。
 6. **platform_limits**：设备、账号、地区、版本、壳、宿主或工具限制。
 7. **module_inputs**：进入阶段 5 所需的稳定常量、生成逻辑、状态接口和公开业务动作。
-8. **evidence_paths**：`01-target-profile/`、`02-interfaces/`、`03-reverse/` 下的证据索引。
+8. **evidence_paths**：`01-目标画像/`、`02-接口分析/`、`03-逆向攻坚/` 下的证据索引。
 
 证据不完整时返回缺口，不得用平台专项的“成功”替代公共阶段 5.5。
 
@@ -145,23 +147,44 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 
 产出可独立 import 的轻量模块，完成一次真实业务调用必需的最小 token/challenge/session 生命周期必须实现或通过清晰接口注入。
 
+**封装形式（v2.17.0 起强制）**：模块产物默认以**类（class）** 形式封装——
+除非类无法满足（如纯算法、字典常量）。详细约定见《爬虫分析规范》§9.4.6，
+本节只描述骨架与边界。
+
 ```text
-04-modules/{module}/
-├── __init__.py
-├── functions.py
-├── constants.py
-├── README.md
-├── verify.py
-└── verification-report.md
+04-模块封装/{module}/
+├── __init__.py          # 暴露主入口类（from .client import ModuleClient）
+├── client.py            # 模块入口类（v2.17.0 起替代 functions.py）
+├── constants.py         # 稳定常量（不含抓包临时值）
+├── README.md            # 模块公开 API + 业务用例
+├── quick_test.py        # 手动快速验证（if __name__ == "__main__"）
+├── test_*.py            # pytest 单元测试（可选）
+├── verify.py            # 阶段 5.5 真实可用性验收脚本
+└── 验收报告.md
 ```
+
+**4 类核心约束**（详见《爬虫分析规范》§9.4.6）：
+
+1. **类式封装**：默认 `client.py` 入口类，提供 `build_request` /
+   `do_request` / `parse_response` + `request_and_parse` 便捷方法。
+2. **请求与解析分离**：`do_request` 只发请求返回原始 Response，
+   `parse_response` 只解析响应，`request_and_parse` 串行调用两者。
+3. **零前置参数调用**：业务调用方法只接收业务参数（item_id 等），
+   token / cookie / sign / nonce / timestamp 模块内部自动生成。
+4. **`quick_test.py` 必备**：手动快速验证入口，禁止 `sys.argv` 传参。
 
 **运行态存储边界**：半自动化/RPC 状态与抓包样本、稳定常量分离；记录类型、生成/过期时间、账号/session/设备绑定和刷新方式；原子写入、默认 Git 忽略、日志脱敏。禁止引入 Session 池、Redis 队列、调度器等当前交付不需要的设施。
 
 **浏览器安全边界**：纯协议验证不是关闭用户 Chrome，而是停止调用浏览器/App/RPC 参数生成链路，在外部资源保持存活且未被修改的前提下，从模块公开入口独立完成业务。
 
+**顶层分析文件命名（v2.17.0 起强制中文）**：`ANALYSIS_PLAN.md` → `分析计划.md`、
+`05-case-study.md` → `05-案例沉淀.md`、子目录 `01-target-profile/` → `01-目标画像/` 等。
+**所有分析文件名 + 子目录强制中文**（详见《爬虫分析规范》§9.4.6.5）。
+子目录 + 内部文件保持英文（避免破坏现有引用）。
+
 ### 5.5 真实可用性验收
 
-> `functions.py` 已生成、HTTP 200、单次业务成功或 3 组 sign 一致，都不等于可交付。`verify.py` 必须真实执行，且 `verification-report.md` 最终为 `PASS`。
+> `client.py` 已生成、HTTP 200、单次业务成功或 3 组 sign 一致，都不等于可交付。`verify.py` 必须真实执行，且 `验收报告.md` 最终为 `PASS`。
 
 #### 5.5.1 验收契约
 
@@ -193,15 +216,15 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 | `CONDITIONAL` | 功能可用但有未被契约接受的限制或关键状态未知 | 调整契约并补测 |
 | `FAIL` | 核心业务失败、无法持续生成有效报文或状态污染 | 返回接口/逆向/封装阶段 |
 
-`verification-report.md` 至少包含测试环境、验收契约、串行结果、生命周期矩阵、并发结果、停止原因、限制、最终状态和证据路径。`CONDITIONAL` 不能靠口头确认变成 `PASS`。
+`验收报告.md` 至少包含测试环境、验收契约、串行结果、生命周期矩阵、并发结果、停止原因、限制、最终状态和证据路径。`CONDITIONAL` 不能靠口头确认变成 `PASS`。
 
 ### 6. 案例沉淀
 
-仅 `PASS` 后生成 `05-case-study.md`，记录目标、平台指纹、接口、动态参数、定位过程、还原方案、可复用入口、生命周期和关键决策。是否追加到《爬虫分析规范》附录 C 必须询问用户；同意后同步更新规范 `last_updated`。
+仅 `PASS` 后生成 `05-案例沉淀.md`，记录目标、平台指纹、接口、动态参数、定位过程、还原方案、可复用入口、生命周期和关键决策。是否追加到《爬虫分析规范》附录 C 必须询问用户；同意后同步更新规范 `last_updated`。
 
 ### 7. 落地决策
 
-仅当 `verification-report.md` 最终状态为 `PASS` 时展示：
+仅当 `验收报告.md` 最终状态为 `PASS` 时展示：
 
 - 完整爬虫项目 → `mcpowers-init`
 - 基于轻量模块继续开发 → `mcpowers-feat`
@@ -235,7 +258,7 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - [ ] 纯协议测试通过停止依赖完成，用户 Chrome 保持运行。
 - [ ] 模块无临时状态硬编码，运行态存储边界明确。
 - [ ] `verify.py` 已真实执行，生命周期与并发证据完整。
-- [ ] `verification-report.md` 最终为 `PASS` 后才进入阶段 6/7。
+- [ ] `验收报告.md` 最终为 `PASS` 后才进入阶段 6/7。
 - [ ] 已询问案例沉淀与落地方式。
 - [ ] 已运行 `bash scripts/check-readme-sync.sh` 与 `bash tests/plugin-verify.sh`。
 - [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走）：

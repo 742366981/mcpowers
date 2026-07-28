@@ -402,7 +402,7 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
 
 def start_recording(
     page: Page,
-    output_dir: str = "01-target-profile/recording/",
+    output_dir: str = "01-目标画像/录制/",
 ) -> RecorderHandle:
     """
     启动录制（v2.15.0 新增）。
@@ -657,7 +657,7 @@ if __name__ == "__main__":
     print("详细用法见《爬虫工具与抓包规范》§8（用户操作录制与重放）")
     print()
     print("公开 API：")
-    print("  - start_recording(page, output_dir='01-target-profile/recording/') -> RecorderHandle")
+    print("  - start_recording(page, output_dir='01-目标画像/录制/') -> RecorderHandle")
     print("  - stop_recording(handle) -> str  # 返回 user-actions.json 绝对路径")
     print("  - replay_actions(page, actions_json_path, screenshot_each_step=False) -> dict")
     print()

@@ -11,7 +11,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
-| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
+| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助 + v2.17.0 模块产物封装形式标准化） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
@@ -20,7 +20,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 31 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 31 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物类式封装 + 顶层文档中文）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -176,9 +176,45 @@ mcpowers-crawler-reverse（公共前置合同）
 mcpowers-crawler-reverse（公共收尾合同：模块化 + 生命周期 + 真实可用性验收）
 ```
 
-专项技能只负责平台证据和逆向方法，统一返回标准证据；`verification-report.md`、生命周期分类、2 → 5 有界并发和 `PASS` 落地门禁仍由统一入口唯一维护。
+专项技能只负责平台证据和逆向方法，统一返回标准证据；`验收报告.md`、生命周期分类、2 → 5 有界并发和 `PASS` 落地门禁仍由统一入口唯一维护。
 
 > **浏览器安全铁律**：接管用户 Chrome/CDP/WebView 后绝不关闭用户本身的浏览器。外部 browser/context/page/tab 和 daemon 均不可 close/kill/stop；纯协议验收通过停止依赖并独立调用完成，用户 Chrome 必须保持运行。
+
+### v2.17.0 模块产物封装形式
+
+逆向产物 `04-模块封装/{module}/` 强制 4 类约束：
+
+```text
+04-模块封装/{module}/
+├── __init__.py          # 暴露主入口类（from .client import ModuleClient）
+├── client.py            # 主入口类（替代 functions.py）
+├── constants.py         # 稳定常量（不含抓包临时值）
+├── README.md            # 模块公开 API + 业务用例
+├── quick_test.py        # 手动快速验证（if __name__ == "__main__"）
+├── test_*.py            # pytest 单元测试（可选）
+├── verify.py            # 阶段 5.5 真实可用性验收脚本
+└── 验收报告.md
+```
+
+| 约束 | 含义 |
+|:-----|:-----|
+| **类式封装** | 默认 `client.py` 主入口类（`ModuleClient`），提供 `build_request` / `do_request` / `parse_response` + `request_and_parse` 便捷方法 |
+| **请求与解析分离** | `do_request` 只发请求返回原始 Response，`parse_response` 只解析响应 |
+| **零前置参数调用** | 业务调用方法只接收业务参数（`item_id` 等），token / cookie / sign / nonce 模块内部按生命周期自洽生成 |
+| **`quick_test.py` 必备** | `if __name__ == "__main__":` 模式演示 3 类典型用法，禁止 `sys.argv` 传参；与 `verify.py`（验收）、`test_*.py`（单测）三者职责分明 |
+
+**分析文件命名（v2.17.0 起强制全中文）**：
+
+- 子目录：`01-target-profile/` → `01-目标画像/`、`02-interfaces/` → `02-接口分析/`、
+  `03-reverse/` → `03-逆向攻坚/`、`04-modules/` → `04-模块封装/`
+- 顶层：`ANALYSIS_PLAN.md` → `分析计划.md`、`05-case-study.md` → `05-案例沉淀.md`
+- 内部：`api-inventory.md` → `接口清单.md`、`verification-report.md` → `验收报告.md`、
+  `algo-restore.md` → `算法还原.md`、`anti-crawl-eval.md` → `反爬评估.md`、
+  `runtime-fingerprint.md` → `运行时指纹.md`、`popups/` → `弹窗截图/`
+
+Python 模块名（`client.py` / `quick_test.py` / `verify.py` 等）保留英文（PEP 8 + 工具链兼容性）。
+
+详见《爬虫分析规范》§9.4.6 全段 6 小节。
 
 ---
 
@@ -241,7 +277,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 31 个场景/方法技能（23 场景 + 8 方法）
-- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.16.0 抓包失败 7 层诊断 + cURL 12 项快速帮助）
+- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.16.0 抓包失败 7 层诊断 + cURL 12 项快速帮助；v2.17.0 模块产物类式封装 + 顶层文档中文）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。

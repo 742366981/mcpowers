@@ -388,7 +388,7 @@ def close_popup(page: Page, popup: dict[str, Any], mode: str = "smart") -> bool:
 def cleanup_all(
     page: Page,
     pause_for_user_patterns: list[str] | None = None,
-    screenshot_dir: str = "01-target-profile/popups/",
+    screenshot_dir: str = "01-目标画像/弹窗截图/",
     ask_user_callback: Any = None,
 ) -> list[str]:
     """

@@ -96,11 +96,11 @@ with sync_playwright() as p:
 Hybrid 模块的最终验收必须走主《爬虫分析规范》§9.4：
 - 至少 3 组不同业务输入与真实请求对照
 - 记录 JS/Bridge/Native 三层证据
-- `verification-report.md` 最终状态 = **`PASS`** 才算 Hybrid 模块可用
+- `验收报告.md` 最终状态 = **`PASS`** 才算 Hybrid 模块可用
 
 ### §3.2 跨专项指纹交接（指向主册 §10.9）
 
-Hybrid 二级入口需产出 `01-target-profile/runtime-fingerprint.md`，包含证据路径、
+Hybrid 二级入口需产出 `01-目标画像/运行时指纹.md`，包含证据路径、
 运行时、核心逻辑候选层、置信度、主专项、辅助专项和未确认项。
 
 ### §3.3 与 Android / iOS 规范的引用

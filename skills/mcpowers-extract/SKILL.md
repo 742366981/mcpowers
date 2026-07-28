@@ -52,7 +52,7 @@ description: "抽离公共模块 / 抽离通用能力 / 提取可复用组件 / 
 先 Read `mcpowers-shared/mcpowers-spec-index/SKILL.md` 查表，再定向加载：
 - `docs/技术规范/代码规范.md`（**必读**，SOLID/KISS/DRY/YAGNI，抽离边界判据）
 - `docs/技术规范/代码同步修改规范.md`（**必读**，切依赖时波及原项目引用点）
-- 爬虫项目：`docs/技术规范/爬虫规范.md`（模块命名/分层）+ `docs/技术规范/爬虫分析规范.md` §9.4 + `docs/技术规范/爬虫Web逆向规范.md` §3（逆向层封装参照，复用阶段 5 `04-modules/` 骨架）
+- 爬虫项目：`docs/技术规范/爬虫规范.md`（模块命名/分层）+ `docs/技术规范/爬虫分析规范.md` §9.4 + §9.4.6（模块产物封装形式约束：类式 + 请求解析分离 + 零前置参数 + quick_test）+ `docs/技术规范/爬虫Web逆向规范.md` §3（逆向层封装参照，复用阶段 5 `04-模块封装/` 骨架）
 - 涉及接口封装：`docs/技术规范/接口契约规范.md`（docstring 5 字段标准）
 
 ---
@@ -85,13 +85,25 @@ description: "抽离公共模块 / 抽离通用能力 / 提取可复用组件 / 
 
 ```
 extracted-modules/{module}/
-├── __init__.py        # 暴露对外可复用接口
-├── functions.py       # 核心函数（可独立 import，docstring 5 字段齐全）
-├── constants.py       # 常量（URL/Header/Key 模板等）
+├── __init__.py        # 暴露对外可复用接口（v2.17.0 起主入口类）
+├── client.py          # 模块入口类（v2.17.0 起替代 functions.py）
+├── constants.py       # 常量（URL/Header/Key 模板等；不含抓包临时值）
 ├── cli.py             # 可选：脚本随时调用入口（python -m / 直接 run）
+├── quick_test.py      # v2.17.0 必备：手动快速验证（if __name__ == "__main__"）
 ├── README.md          # 使用说明：≥2 个 import + CLI 复用示例
-└── verify.py          # 复用前快速验证脚本
+└── verify.py          # 真实可用性验证脚本
 ```
+
+**v2.17.0 封装形式约束**（详见《爬虫分析规范》§9.4.6）：
+
+1. **类式封装**：默认 `client.py` 入口类，提供 `build_request` / `do_request` /
+   `parse_response` + `request_and_parse` 便捷方法（除非纯算法/字典常量）。
+2. **请求与解析分离**：`do_request` 只发请求返回原始 Response，`parse_response`
+   只解析响应。
+3. **零前置参数调用**：业务调用方法只接收业务参数，token / cookie / sign /
+   nonce 模块内部自动生成。
+4. **`quick_test.py` 必备**：手动快速验证入口，禁止 `sys.argv` 传参。
+
 - 命名/分层遵循 `爬虫规范.md`（爬虫类）或 `代码规范.md`（通用类）。
 - 逆向层与业务层**分成不同 module**，不混装。
 
@@ -119,6 +131,9 @@ extracted-modules/{module}/
 - ❌ **爬虫项目把逆向层和业务层一锅端**（必须分层剥离）
 - ❌ 逆向类算法只验 1 组样本就声称抽离成功（需 ≥3 组）
 - ❌ 产物散落工作区不按 `extracted-modules/{module}/` 归档
+- ❌ **v2.17.0 新增**：抽离产物仍用 `functions.py` 函数式（必须改为 `client.py` 类式封装，详见《爬虫分析规范》§9.4.6.1）
+- ❌ **v2.17.0 新增**：业务调用方法要求传 `token` / `cookie` / `sign` 等抓包临时参数（违反 §9.4.6.3 零前置参数）
+- ❌ **v2.17.0 新增**：`if __name__ == "__main__": sys.argv` 传参（违反 §9.4.6.4 KISS）
 
 ---
 
@@ -127,7 +142,7 @@ extracted-modules/{module}/
 - [ ] 抽离候选清单已按"技术能力层 vs 业务层"分类（爬虫含逆向层 vs 业务层）
 - [ ] 每个抽离项过了阶段 2 三道门禁（复用频率/耦合/依赖成本）
 - [ ] 依赖已切割：模块无残留原项目全局/config/业务字段引用
-- [ ] `extracted-modules/{module}/` 结构齐全，`functions.py` docstring 5 字段
+- [ ] `extracted-modules/{module}/` 结构齐全，`client.py` 主入口类 + `quick_test.py` 手动验证 + `verify.py` 真实可用性验证
 - [ ] `README.md` 含 ≥2 个 import/CLI 复用示例
 - [ ] `verify.py` + 真实调用样本跑通（逆向类 ≥3 组）
 - [ ] 行为与原项目一致（无顺手改逻辑）
@@ -141,5 +156,5 @@ extracted-modules/{module}/
 - **下游**：`mcpowers-init`（选项 B 落地骨架）/ `mcpowers-feat`（选项 C 二次开发）/ `mcpowers-code-review`（封装自审）/ `mcpowers-git-commit`（提交）
 - **同级（易混淆）**：
   - `mcpowers-refactor` —— 原地改结构、产物留原项目、行为不变；本技能产出**跨项目独立复用资产**
-  - `mcpowers-crawler-reverse` —— 起点是**陌生目标 + 逆向**；本技能起点是**自己已有项目**（可衔接：逆向产出的 `04-modules/` 后续用本技能提炼为团队公共库）
+  - `mcpowers-crawler-reverse` —— 起点是**陌生目标 + 逆向**；本技能起点是**自己已有项目**（可衔接：逆向产出的 `04-模块封装/` 后续用本技能提炼为团队公共库）
   - `mcpowers-init` —— 从零搭骨架；本技能从已有代码提炼

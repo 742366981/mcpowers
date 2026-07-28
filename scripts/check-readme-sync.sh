@@ -3,7 +3,7 @@
 # 用途：CI 跑完所有断言无失败即视为文档与代码同步
 # 退出码 0 = 同步，1 = 不同步
 #
-# 检查 12 类一致性：
+# 检查 13 类一致性：
 #   1. README 路由表 ↔ 实际 skills/ 目录
 #   2. README 规范清单 ↔ 实际 docs/ 下的规范文件
 #   3. 每个规范文件有 frontmatter type: 字段
@@ -13,10 +13,12 @@
 #   7. README / CLAUDE.md 中声明的技能/规范/Hook 数与实际一致
 #   8. 路由器 + 规范库入口 的技能/规范数声明一致性（v2.9.0 L1 强化）
 #   9. 跨文件技能引用一致性（无悬空引用）（v2.9.0 L1 强化）
-#  10. crawler-reverse 真实可用性验收门禁完整性（v2.12.0）
+#  10. crawler-reverse 真实可用性验收门禁完整性（v2.12.0 + v2.16.0 + v2.17.0）
 #  11. reverse 分层拓扑与公共合同完整性（v2.13.0）
 #  12. 浏览器/CDP 外部资源所有权门禁（v2.13.0）
+#  13. 模块产物封装形式约束（v2.17.0 新增：类式 + quick_test + 顶层文档中文）
 #
+# v2.17.0：新增 section 13
 # v2.9.0：新增 section 8/9
 # v2.5.2：新增 section 5/6/7
 # v2.0： 适配扁平化 skills/ 结构（删除 scene/method 分层）
@@ -44,7 +46,7 @@ else
 fi
 
 # ============== 1. 技能清单同步 ==============
-echo "[1/12] 校验 README ↔ skills/ 同步"
+echo "[1/13] 校验 README ↔ skills/ 同步"
 README_SKILLS=$(grep -oE 'mcpowers-[a-zA-Z-]+' "$README" 2>/dev/null | sort -u || true)
 # v2.0：扁平结构，直接列 skills/ 下所有目录（mcpowers-* 前缀）
 ACTUAL_SKILLS=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
@@ -73,7 +75,7 @@ if [ "$FAIL" -eq 0 ]; then
 fi
 
 # ============== 2. 规范清单同步 ==============
-echo "[2/12] 校验 README ↔ docs/ 规范同步"
+echo "[2/13] 校验 README ↔ docs/ 规范同步"
 README_SPECS=$(grep -oE '[A-Za-z一-龥]+规范\.md' "$README" 2>/dev/null | sort -u || true)
 # v2.0：mcpowers-shared 移到 skills/mcpowers-shared/
 ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
@@ -94,7 +96,7 @@ fi
 
 # ============== 3. 规范 frontmatter 完整性 ==============
 # 只检查 技术规范/ 子目录（24 个核心规范范围，AI操作规范和产品设计规范不在范围）
-echo "[3/12] 校验 24 个核心规范 frontmatter 完整性"
+echo "[3/13] 校验 24 个核心规范 frontmatter 完整性"
 # v2.0：路径更新
 SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null)
 MISSING_FM=0
@@ -115,7 +117,7 @@ fi
 # ============== 4. 场景技能都有 ## 编排 段 ==============
 # v2.0：场景技能 = skills/ 下非方法类的 mcpowers-* 技能
 #   硬编码场景技能列表（原 skills/scene/*）
-echo "[4/12] 校验场景技能都有 ## 编排 段"
+echo "[4/13] 校验场景技能都有 ## 编排 段"
 SCENE_SKILLS="mcpowers-feat mcpowers-bugfix mcpowers-refactor mcpowers-optimize mcpowers-deploy mcpowers-requirement-change mcpowers-init mcpowers-git-commit mcpowers-git-worktree mcpowers-git-rollback mcpowers-git-cleanBranches mcpowers-autoTest mcpowers-api-contract mcpowers-install-basics-skills mcpowers-crawler-reverse mcpowers-reverse-web mcpowers-reverse-app mcpowers-reverse-android mcpowers-reverse-ios mcpowers-reverse-flutter mcpowers-reverse-hybrid mcpowers-reverse-miniprogram mcpowers-extract"
 MISSING_ORCH=0
 for s in $SCENE_SKILLS; do
@@ -139,7 +141,7 @@ fi
 
 # ============== 5. 插件版本号三处一致 ==============
 # v2.5.2：保证 plugin.json.version / marketplace.json.version / marketplace.json.plugins[0].version 三处同步
-echo "[5/12] 校验插件版本号三处一致"
+echo "[5/13] 校验插件版本号三处一致"
 if [ -n "$PY_BIN" ]; then
     PLUGIN_V=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/plugin.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
     MARKET_V=$($PY_BIN -c "import json; print(json.load(open(r'$REPO_DIR_WIN/.claude-plugin/marketplace.json', encoding='utf-8'))['version'])" 2>/dev/null || echo "")
@@ -160,7 +162,7 @@ fi
 
 # ============== 6. 技能 description 字符数 ==============
 # v2.5.2：硬约束 ≤ 800 字符（1024 字符硬上限的 80% 安全预算）
-echo "[6/12] 校验技能 description 字符数（≤800，防 1024c 截断）"
+echo "[6/13] 校验技能 description 字符数（≤800，防 1024c 截断）"
 MAX_DESC_LEN=800
 BAD_DESC=0
 SKILL_DIRS=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers')
@@ -201,7 +203,7 @@ fi
 # ============== 7. 文档数字一致性 ==============
 # v2.5.2：README / CLAUDE.md 中"X 个技能/规范/Hook 脚本"声明必须与实际一致
 #   技能数排除 mcpowers-shared（规范库）
-echo "[7/12] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
+echo "[7/13] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
 ACTUAL_SKILL_N=$(echo "$ACTUAL_SKILLS" | grep -v '^mcpowers-shared$' | grep -c '^mcpowers' || true)
 ACTUAL_SPEC_N=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
 ACTUAL_HOOK_N=$(find "$REPO_DIR/hooks" -maxdepth 1 -name "*.sh" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -288,7 +290,7 @@ fi
 # v2.9.0：把 #7 的技能/规范/Hook 数校验从"只查 README + CLAUDE.md"扩展到
 #   skills/mcpowers/SKILL.md (路由器本体) + skills/mcpowers-shared/SKILL.md (规范库入口)。
 #   解决历史漏改：路由器说 "23 个可路由技能" 但 README/CLAUDE.md 已改成 24。
-echo "[8/12] 校验 路由器/规范库入口 的技能/规范/Hook 脚本数声明"
+echo "[8/13] 校验 路由器/规范库入口 的技能/规范/Hook 脚本数声明"
 ROUTER_SKILL="$REPO_DIR/skills/mcpowers/SKILL.md"
 SHARED_SKILL="$REPO_DIR/skills/mcpowers-shared/SKILL.md"
 DOC_NUM_FAIL2=0
@@ -350,7 +352,7 @@ fi
 # ============== 9. 跨文件技能引用一致性（v2.9.0 L1 强化） ==============
 # v2.9.0：捕获"路由器调用 mcpowers-foo 但 mcpowers-foo 目录不存在"的悬空引用。
 #   范围：所有 SKILL.md 里出现的 mcpowers-* 字面量都要在 skills/ 实际目录里存在。
-echo "[9/12] 校验 跨文件技能引用一致性（无悬空引用）"
+echo "[9/13] 校验 跨文件技能引用一致性（无悬空引用）"
 DANGLING_FAIL=0
 DECLARED=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
 # ripgrep: 所有 SKILL.md 里出现的 mcpowers-* 字面量。
@@ -390,7 +392,7 @@ fi
 
 # ============== 10. crawler-reverse 可用性验收门禁（v2.12.0） ==============
 # 防止后续修改只保留模块骨架，却删除真实业务、生命周期和并发验收。
-echo "[10/12] 校验 crawler-reverse 真实可用性验收门禁"
+echo "[10/13] 校验 crawler-reverse 真实可用性验收门禁"
 CRAWLER_SKILL="$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md"
 CRAWLER_GATE_FAIL=0
 
@@ -404,7 +406,7 @@ check_crawler_gate() {
 }
 
 check_crawler_gate "### 5.5 真实可用性验收" "阶段 5.5 可用性验收"
-check_crawler_gate "verification-report.md" "统一验收报告产物"
+check_crawler_gate "验收报告.md" "统一验收报告产物"
 check_crawler_gate '`single-use-token`' "一次性报文生命周期分类"
 check_crawler_gate "按并发 **2 → 5** 递增" "有界并发 2 → 5"
 check_crawler_gate '最终状态为 `PASS` 时' "阶段 7 PASS 前置门禁"
@@ -417,6 +419,10 @@ check_crawler_gate "运行态存储边界" "半自动化/RPC 运行态存储边�
 check_crawler_gate "Chrome 150+" "Chrome 150+ Origin 校验警告"
 check_crawler_gate "§3.9" "漏抓 7 层诊断决策树引用"
 check_crawler_gate "§3.0.7" "cURL 12 项快速帮助清单引用"
+# v2.17.0 新增：模块产物封装形式约束（§9.4.6 + 顶层文件中文）
+check_crawler_gate "§9.4.6" "模块产物封装形式约束引用"
+check_crawler_gate "request_and_parse" "类式便捷方法命名"
+check_crawler_gate "quick_test.py" "quick_test.py 手动验证入口"
 
 if [ "$CRAWLER_GATE_FAIL" -eq 0 ]; then
     echo "  ✓ crawler-reverse 可用性验收门禁完整"
@@ -425,7 +431,7 @@ else
 fi
 
 # ============== 11. reverse 分层拓扑与公共合同（v2.13.0） ==============
-echo "[11/12] 校验 reverse 分层拓扑与公共合同"
+echo "[11/13] 校验 reverse 分层拓扑与公共合同"
 REVERSE_SKILLS="mcpowers-reverse-web mcpowers-reverse-app mcpowers-reverse-android mcpowers-reverse-ios mcpowers-reverse-flutter mcpowers-reverse-hybrid mcpowers-reverse-miniprogram"
 REVERSE_TOPOLOGY_FAIL=0
 ROUTER_SKILL="$REPO_DIR/skills/mcpowers/SKILL.md"
@@ -470,7 +476,7 @@ else
 fi
 
 # ============== 12. 浏览器/CDP 外部资源所有权（v2.13.0） ==============
-echo "[12/12] 校验浏览器/CDP 外部资源所有权门禁"
+echo "[12/13] 校验浏览器/CDP 外部资源所有权门禁"
 BROWSER_OWNERSHIP_FAIL=0
 CRAWLER_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫分析规范.md"
 # v2.14.0：爬虫分析规范拆分为 7 册，铁律字符串同时存在于 4 个规范文件 + 3 个 reverse SKILL.md
@@ -511,6 +517,112 @@ if [ "$BROWSER_OWNERSHIP_FAIL" -eq 0 ]; then
     echo "  ✓ 浏览器/CDP 外部资源所有权门禁完整"
 else
     FAIL=$((FAIL + BROWSER_OWNERSHIP_FAIL))
+fi
+
+# ============== 13. 模块产物封装形式约束（v2.17.0 新增） ==============
+# 防止后续修改删掉类式封装 / quick_test / 顶层文档中文这 3 类用户可见约束。
+echo "[13/13] 校验模块产物封装形式约束（v2.17.0）"
+MODULE_FORM_FAIL=0
+CRAWLER_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫分析规范.md"
+EXTRACT_SKILL="$REPO_DIR/skills/mcpowers-extract/SKILL.md"
+README_DOC="$REPO_DIR/README.md"
+
+check_module_form() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file"
+        MODULE_FORM_FAIL=$((MODULE_FORM_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        MODULE_FORM_FAIL=$((MODULE_FORM_FAIL + 1))
+    fi
+}
+
+# §9.4.6 模块产物封装形式约束（主册）
+check_module_form "$CRAWLER_SPEC"  "9.4.6"  "主《爬虫分析规范》§9.4.6"
+check_module_form "$CRAWLER_SPEC"  "类式封装"  "主《爬虫分析规范》类式封装约定"
+check_module_form "$CRAWLER_SPEC"  "零前置参数"  "主《爬虫分析规范》零前置参数约束"
+check_module_form "$CRAWLER_SPEC"  "请求与解析分离"  "主《爬虫分析规范》请求与解析分离"
+check_module_form "$CRAWLER_SPEC"  "quick_test.py"  "主《爬虫分析规范》quick_test.py"
+check_module_form "$CRAWLER_SPEC"  "sys.argv"  "主《爬虫分析规范》反 sys.argv"
+check_module_form "$CRAWLER_SPEC"  "分析计划.md"  "主《爬虫分析规范》中文顶层文件名"
+check_module_form "$CRAWLER_SPEC"  "案例沉淀.md"  "主《爬虫分析规范》中文顶层文件名"
+
+# crawler-reverse SKILL.md §5
+CRAWLER_SKILL_DOC="$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md"
+check_module_form "$CRAWLER_SKILL_DOC" "client.py"  "crawler-reverse client.py 类式"
+check_module_form "$CRAWLER_SKILL_DOC" "quick_test.py"  "crawler-reverse quick_test.py 必备"
+
+# extract SKILL.md §4
+check_module_form "$EXTRACT_SKILL" "client.py"  "extract client.py 类式"
+check_module_form "$EXTRACT_SKILL" "quick_test.py"  "extract quick_test.py 必备"
+
+# README.md 用户可见说明
+check_module_form "$README_DOC" "类式封装"  "README 类式封装说明"
+check_module_form "$README_DOC" "零前置参数"  "README 零前置参数说明"
+check_module_form "$README_DOC" "quick_test.py"  "README quick_test.py 说明"
+check_module_form "$README_DOC" "分析计划.md"  "README 顶层文档中文"
+check_module_form "$README_DOC" "案例沉淀.md"  "README 顶层文档中文"
+
+# v2.17.0 二次确认：分析文件名全中文硬校验（防止后续漏改）
+# 校验项：技能 + 规范的 SKILL.md / 规范文档，禁止在新行（说明/描述）里写英文路径。
+# 例外：对照表 / 历史教训里的"v2.17.0 之前 → v2.17.0 起"映射必须保留英文原名。
+# 简化策略：grep 每条英文路径在每个文件里出现的次数，超过 2 次（说明 + 反模式 + 对照表）就警告。
+ENGLISH_PATH_FAIL=0
+warn_english_path() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    local max="$4"
+    if [ ! -f "$file" ]; then
+        return
+    fi
+    local count
+    count=$(grep -cF "$pattern" "$file" 2>/dev/null | head -1)
+    [ -z "$count" ] && count=0
+    if [ "$count" -gt "$max" ]; then
+        echo "  ✗ $file 英文路径 '$pattern' 出现 $count 次（≤ $max 为对照表/反模式/历史引用，>$max 可能是漏改）"
+        ENGLISH_PATH_FAIL=$((ENGLISH_PATH_FAIL + 1))
+    fi
+}
+
+# 主《爬虫分析规范》允许对照表 + 反模式 + 历史教训，每个英文路径 ≤ 4 次
+for p in "01-target-profile/" "02-interfaces/" "03-reverse/" "04-modules/" "ANALYSIS_PLAN" "05-case-study.md" "api-inventory.md" "verification-report.md" "algo-restore.md" "anti-crawl-eval.md" "runtime-fingerprint.md"; do
+    warn_english_path "$CRAWLER_SPEC" "$p" "爬虫分析规范" "4"
+done
+# 其他规范文件：每个英文路径 ≤ 2 次（基本只允许对照表）
+for f in "$CRAWLER_TOOLS_SPEC" "$CRAWLER_WEB_SPEC" \
+         "$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫小程序逆向规范.md" \
+         "$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫Android逆向规范.md" \
+         "$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫IOS逆向规范.md" \
+         "$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫Hybrid逆向规范.md"; do
+    for p in "01-target-profile/" "02-interfaces/" "03-reverse/" "04-modules/" "ANALYSIS_PLAN" "05-case-study.md" "api-inventory.md" "verification-report.md" "algo-restore.md" "anti-crawl-eval.md" "runtime-fingerprint.md"; do
+        warn_english_path "$f" "$p" "$(basename "$f")" "2"
+    done
+done
+
+# 技能 SKILL.md：每个英文路径 ≤ 2 次
+for s in mcpowers-crawler-reverse mcpowers-extract mcpowers-reverse-web mcpowers-reverse-app; do
+    f="$REPO_DIR/skills/$s/SKILL.md"
+    for p in "01-target-profile/" "02-interfaces/" "03-reverse/" "04-modules/" "ANALYSIS_PLAN" "05-case-study.md" "api-inventory.md" "verification-report.md" "algo-restore.md" "anti-crawl-eval.md" "runtime-fingerprint.md"; do
+        warn_english_path "$f" "$p" "$s" "2"
+    done
+done
+
+if [ "$ENGLISH_PATH_FAIL" -eq 0 ]; then
+    echo "  ✓ 分析文件名强制中文（v2.17.0 二次确认）无漏改"
+else
+    FAIL=$((FAIL + ENGLISH_PATH_FAIL))
+fi
+
+if [ "$MODULE_FORM_FAIL" -eq 0 ]; then
+    echo "  ✓ 模块产物封装形式约束（v2.17.0）完整"
+else
+    FAIL=$((FAIL + MODULE_FORM_FAIL))
 fi
 
 # ============== 汇总 ==============

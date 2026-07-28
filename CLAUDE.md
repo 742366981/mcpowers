@@ -223,6 +223,25 @@ for f in sorted(os.listdir('skills')):
 - **版本策略**：新增用户可见工具 + 协作模式 B 工具化 = minor bump `2.14.0 → 2.15.0`。
 - **同步面**：本次横跨 8 类文件改动——1 新增工具 + 2 技能 SKILL.md（reverse-web §1.5 / 爬虫分析规范 §3.0.1 模式 B）+ 2 工具/抓包规范（frontmatter + 索引 + §8 全文 + §7.2 + 附录对应）+ 2 版本文件（plugin.json / marketplace.json）+ 2 维护文档（CLAUDE.md / README.md）。
 
+### 历史教训（v2.17.0 模块产物封装形式标准化）
+
+- **v2.17.0**：真实用户复盘（2026-07）发现模块产物**复用体验差**——逆向分析成功后的 `04-模块封装/{module}/client.py`（原 `functions.py`）调用方需要传 `token` / `cookie` / `sign` 等抓包临时参数（这些参数本应是模块内部生命周期管理的）；想测试模块还得跑 `verify.py` 验收脚本（启动成本高）；分析结论文档 + 子目录全英文（`ANALYSIS_PLAN.md` / `05-case-study.md` / `01-target-profile/` 等），后续用户理解成本高。
+- **4 类核心修复**：
+  - **类式封装**：`functions.py` → `client.py`，默认主入口类（除非纯算法/字典常量）。`ModuleClient` 提供 `build_request` / `do_request` / `parse_response` + `request_and_parse` 便捷方法。
+  - **请求与解析分离**：`do_request` 只发请求返回原始 Response，`parse_response` 只解析响应。SRP 原则 + 单元测试可分别 mock。
+  - **零前置参数调用**：业务调用方法只接收业务参数（`item_id` 等），token / cookie / sign / nonce / timestamp 模块内部按生命周期分类（`reusable` / `per-request` / `single-use-token` / `session-bound` / `time-bound` / `challenge-bound`）自洽生成。
+  - **`quick_test.py` 手动验证入口**：每个模块必备 `if __name__ == "__main__":` 模式，禁止 `sys.argv` 传参；演示 3 类典型用法（业务要数据 / 业务要报文 / 业务要原始响应）。与 `verify.py`（阶段 5.5 真实可用性验收）、`test_*.py`（pytest 单元测试）三者职责分明。
+- **顶层分析文件改中文**：`ANALYSIS_PLAN.md` → `分析计划.md`、`05-case-study.md` → `05-案例沉淀.md`（便于用户理解关键决策）。
+- **v2.17.0 用户二次确认扩展**：**所有分析文件名 + 子目录强制中文**（不只是顶层），包括 `01-target-profile/` → `01-目标画像/`、`api-inventory.md` → `接口清单.md`、`verification-report.md` → `验收报告.md` 等。Python 模块名（`client.py` / `quick_test.py`）保留英文（PEP 8 + 工具链）。
+- **关键决策**：
+  - ✅ 类式 + 请求解析分离 + 零前置参数 + quick_test 都是**用户可见约束**，必须写进规范
+  - ✅ extract 技能产物也必须遵循新约定（抽离后的模块复用体验同样关键）
+  - ⚠️ 不强制改造 `popup-handler.py` / `user-action-recorder.py` 等工具脚本（它们是被别人调用的工具，不是项目级产物）
+  - ✅ **v2.17.0 二次确认**：子目录 + 内部文件**全部强制中文**（不只是顶层推荐）
+  - ⚠️ Python 模块名（`client.py` 等）保留英文（PEP 8 + 工具链兼容）
+- **同步面**：本次横跨 8 个文件改动——1 主规范（《爬虫分析规范》§9.4.6 全段新增 6 小节）+ 1 crawler-reverse SKILL.md（§5 阶段 5 + §1 产物目录）+ 1 extract SKILL.md（§4 封装骨架 + 自检清单 + 反模式）+ 2 顶层维护文档（CLAUDE.md 历史教训 / README.md）+ 1 校验脚本（check-readme-sync.sh 新增 §13）+ 2 版本文件（plugin.json / marketplace.json）。**未**改动 5 个 reverse 专项 SKILL.md + popup-handler.py / user-action-recorder.py 注释（不在本次范围）。
+- **版本策略**：新增 4 类用户可见约束（类式 + SRP + 零前置参数 + quick_test）+ 顶层文件改中文 = minor bump `2.16.0 → 2.17.0`。
+
 ### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
 
 - **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——

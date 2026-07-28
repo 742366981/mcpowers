@@ -67,7 +67,7 @@ description: Web JS 反混淆、补环境、算法复现与正确性校验的方
 
 ```javascript
 // 注入到目标页面，Hook 常见加密函数
-// 保存到 03-reverse/hooks/web-hook.js
+// 保存到 03-逆向攻坚/钩子/web-hook.js
 const oldAES = window.CryptoJS.AES.encrypt;
 window.CryptoJS.AES.encrypt = function(...args) {
     console.log('[HOOK AES]', JSON.stringify(args));
@@ -175,7 +175,7 @@ npm install @babel/parser @babel/traverse @babel/generator @babel/types
 
 ### §3.2 工程化产出
 
-- **代码位置**：`{slug}-crawler-reverse/04-modules/{module}/functions.py`
+- **代码位置**：`{slug}-crawler-reverse/04-模块封装/{module}/client.py`
 - **接口形式**：纯函数（输入参数 → 返回 sign 值），无副作用
 - **依赖管理**：`requirements.txt` 列出加密库（`pycryptodome`、`gmssl` 等）
 
@@ -194,7 +194,7 @@ npm install @babel/parser @babel/traverse @babel/generator @babel/types
 1. 串行重复与冷启动（≥ 2 组输入 / 合计 ≥ 5 次 / ≥ 2 个 session）
 2. 报文生命周期矩阵（原报文重放 / 动态参数重生成 / 跨 session 重放 / TTL）
 3. 有界并发稳定性（2 → 5 递增，发现共享状态污染立即停止）
-4. `verification-report.md` 最终状态 = **`PASS`** 才算 Web 模块可用
+4. `验收报告.md` 最终状态 = **`PASS`** 才算 Web 模块可用
 
 > 详见主《爬虫分析规范》§9.4，本册不重复列举；只声明 Web 逆向产物必须满足此门禁。
 

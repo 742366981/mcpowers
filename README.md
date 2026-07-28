@@ -11,7 +11,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
-| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助 + v2.17.0 模块产物封装形式标准化） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
+| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助 + v2.17.0 模块产物封装形式标准化 + v2.18.0 浏览器自动化默认切 DrissionPage） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
@@ -20,7 +20,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 31 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物类式封装 + 顶层文档中文）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 31 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物类式封装 + 顶层文档中文 + v2.18.0 浏览器自动化 DrissionPage 全场景默认）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -180,6 +180,58 @@ mcpowers-crawler-reverse（公共收尾合同：模块化 + 生命周期 + 真�
 
 > **浏览器安全铁律**：接管用户 Chrome/CDP/WebView 后绝不关闭用户本身的浏览器。外部 browser/context/page/tab 和 daemon 均不可 close/kill/stop；纯协议验收通过停止依赖并独立调用完成，用户 Chrome 必须保持运行。
 
+### v2.18.0 浏览器自动化 DrissionPage 全场景默认
+
+**核心变更**（[真实用户复盘 2026-07-28](https://github.com/742366981/mcpowers)）：DrissionPage 接管模式比 Playwright 代码量少 30~50%、内置反检测、对国内站点专项优化，从 v2.18.0 起作为浏览器自动化**全场景默认**（分析阶段 + 封装阶段 + 国内/海外统一）；Playwright 降为 fallback 路径（Cloudflare / 海外 SPA / 复杂 Shadow DOM）。
+
+| 工具 | 优势 | 适用场景（v2.18.0 起） |
+|:-----|:-----|:---------------------|
+| **DrissionPage** | 国产、**内置接管浏览器 + 内置反检测**、代码量少、中文文档极佳 | **全场景默认**：分析阶段 + 封装阶段 + 国内/海外 |
+| **Playwright-Python** | 跨浏览器、内置指纹伪装（需 `playwright-stealth`） | **fallback 路径**：DrissionPage 弱场景（Cloudflare / 海外 SPA / 复杂 Shadow DOM） |
+| **seleniumbase** | UC Mode 成熟 | **fallback 备选**：Selenium 兼容 + UC 反检测 |
+
+**DrissionPage 接管语法**（v2.18.0 默认）：
+
+```python
+from DrissionPage import ChromiumPage, ChromiumOptions
+
+# 接管用户 Chrome（先按规范 §3.7 启动 chrome --remote-debugging-port=9222 --remote-allow-origins=*）
+co = ChromiumOptions().set_local_port(9222)
+page = ChromiumPage(addr_or_opts=co)
+
+# 拿用户已有 tab（接管粒度 L1/L2/L3 见规范 §3.5）
+target_tab = page.get_tab(page.tab_ids[0])
+
+# 链式 selector 写法（比 Playwright 短 30~50%）
+target_tab.get(url)
+target_tab.ele('css:input[name=username]').input('xxx')
+target_tab.ele('css:button[type=submit]').click()
+```
+
+**v2.18.0 接管语法对照**（Playwright → DrissionPage）：
+
+| 任务 | Playwright（旧默认） | DrissionPage（v2.18.0 默认） |
+|:-----|:---------------------|:------------------------------|
+| 接管用户 Chrome | `p.chromium.connect_over_cdp("http://localhost:9222")` | `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))` |
+| 拿用户已有 page | `browser.contexts[0].pages[0]` | `page.get_tab(page.tab_ids[0])` |
+| 找元素 | `page.locator("css:input").first` | `page.ele("css:input")`（链式） |
+| 监听 | `page.on("request", lambda req: ...)` | `page.listen.start('pattern')` |
+| 截图 | `page.screenshot(path=...)` | `page.get_screenshot(path=...)` |
+
+**v2.18.0 重要约束**（防止一夜翻车）：
+
+1. **Chrome 150+ 必传 `--remote-allow-origins=*`**——DrissionPage 接管**不自动**加，用户启动 Chrome 时必须手动加（否则 403 Forbidden）
+2. **Chrome 136+ 必传 `set_user_data_path(...)`**——DrissionPage 接管**不自动**处理独立用户目录，必须显式指定避免与用户 Chrome 默认目录冲突崩溃
+3. **禁止 `ChromiumPage()` 无参调用**——会新开窗口丢失登录态并触发反检测，等价旧 Playwright `launch()` 反模式
+4. **禁止 `page.new_tab()` 不带 url 参数**——v2.18.0 新增反模式，等价 Playwright `Target.createTarget` 反模式（attach 时挑中自己创建的 tab 而非用户真实业务 tab）
+
+**v2.18.0 配套改动**：
+
+- 8 reverse SKILL.md 工具栈（crawler-reverse / reverse-web / reverse-app；6 个 App/小程序专项无 Web 自动化 API 引用）
+- `popup-handler.py` 8 类弹窗字典 DrissionPage 化（`page.eles('css:...')` / `el.states.is_displayed` / `el.text` / `page.get_screenshot`）
+- `user-action-recorder.py` 监听 API DrissionPage 化（`page.listen.start()` + 后台轮询 `page.listen.wait(timeout=0.5)`，替代 Playwright `page.on("request"/"response")` 回调模式）
+- `check-readme-sync.sh` §14 新增 23 个 DrissionPage 默认化校验（防止后续修改回退到 Playwright 默认）
+
 ### v2.17.0 模块产物封装形式
 
 逆向产物 `04-模块封装/{module}/` 强制 4 类约束：
@@ -277,7 +329,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 31 个场景/方法技能（23 场景 + 8 方法）
-- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.16.0 抓包失败 7 层诊断 + cURL 12 项快速帮助；v2.17.0 模块产物类式封装 + 顶层文档中文）
+- ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.16.0 抓包失败 7 层诊断 + cURL 12 项快速帮助；v2.17.0 模块产物类式封装 + 顶层文档中文；v2.18.0 浏览器自动化 DrissionPage 全场景默认 + 漏抓 7 层 DrissionPage 重新映射 + popup-handler / user-action-recorder DrissionPage 适配）
 - ✅ 4 个 Hook 事件组 / 5 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。

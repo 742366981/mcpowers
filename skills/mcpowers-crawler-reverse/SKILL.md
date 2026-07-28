@@ -32,7 +32,7 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 5. **合规优先**：授权、robots.txt、服务条款和法律边界不清时先询问；越界即停。
 6. **外部接管资源不可关闭**：接管的用户 browser/context/page、既有标签页和外部 daemon 一律视为外部所有；收尾、异常和回退只能停止使用/断开客户端，禁止 `browser.close()`、`context.close()`、关闭既有 page、kill 用户 Chrome 或擅自 stop 外部 daemon。
 7. **资源所有权必须显式记录**：任务创建的资源写明 owner、创建方式和清理权限；用户 Chrome 中新开的标签页默认保留，仅在用户明确确认后清理。
-8. **bb-browser 是可选增强**：不可用时完整回退 Playwright/CDP + popup-handler.py，不得中断主链路。
+8. **bb-browser 是可选增强**：不可用时完整回退 DrissionPage（v2.18.0 默认）/ Playwright + popup-handler.py，不得中断主链路。
 9. **真实可用才落地**：`验收报告.md` 为 `PASS` 后才能进入阶段 6/7。
 10. **RPC 是逆向实现方式，不是最终交付形态**。
 11. **抓不到 ≠ 不存在**：阶段 2 抓包失败必须先走《爬虫工具与抓包规范》§3.9
@@ -112,7 +112,7 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 
 专项执行前后都必须遵守：
 
-- 核心接口结论必须有 Playwright、`curl_cffi`、代理抓包、Hook 或运行时观测证据。
+- 核心接口结论必须有 DrissionPage（v2.18.0 默认）/ Playwright（fallback）、`curl_cffi`、代理抓包、Hook 或运行时观测证据。
 - `接口清单.md` 至少包含 URL/动作、Method、来源、置信度、动态参数、业务语义和响应样本。
 - `[🎯]` 仅代表接口语义已实测，不代表模块可重复、跨会话或并发可用。
 - 阶段结束前 `[❓]` 必须转为 `[🎯]` / `[⚠️]` 或删除。
@@ -261,11 +261,11 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - [ ] `验收报告.md` 最终为 `PASS` 后才进入阶段 6/7。
 - [ ] 已询问案例沉淀与落地方式。
 - [ ] 已运行 `bash scripts/check-readme-sync.sh` 与 `bash tests/plugin-verify.sh`。
-- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走）：
+- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化**）：
   - ☐ L1：已用 `curl http://localhost:9222/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？
   - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）
-  - ☐ L3：是否走 `Target.createTarget` 拉了 tab？（必须从 `user.contexts[i].pages` 中挑选）
+  - ☐ L3：是否走 `Target.createTarget` / `page.new_tab()` 不带 url 拉了 tab？（**v2.18.0 DrissionPage 化**——必须从 `page.tab_ids` 中按 URL / title 挑选真实 page target）
   - ☐ L4：DevTools Network 是否抓到 `(failed)` 空白请求？（若是，先解决证书/SSLKEYLOGFILE）
   - ☐ L5：DevTools Filter 是否启用了 Hide data URLs / Fetch-XHR 单选？（若是，先关闭）
-  - ☐ L6：目标 API 是否走 WebSocket / SSE / sendBeacon / HTTP/3 / Cache 命中？（若是，切到对应 DevTools 标签）
+  - ☐ L6：目标 API 是否走 WebSocket / SSE / sendBeacon / HTTP/3 / Cache 命中？（若是，切到对应 DevTools 标签；DrissionPage 用 `page.listen.start('ws://...')` 监听 WS）
   - 详见《爬虫工具与抓包规范》§3.9。

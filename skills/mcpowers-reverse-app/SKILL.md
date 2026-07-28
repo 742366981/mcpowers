@@ -48,6 +48,7 @@ description: "App逆向入口 / 移动端类型判断 / Native与跨端识别 �
 ## 资源边界
 
 涉及浏览器/WebView/CDP 时继承统一入口规则：外部接管资源不可关闭；设备、模拟器、App 进程和调试服务也要记录所有权，未经用户授权不得停止其已有环境。
+**v2.18.0 强化**：若目标含浏览器/WebView 调试场景，浏览器自动化工具栈默认按统一入口 §2.1 切到 DrissionPage（Playwright 作 fallback）。App 调试链路（frida、objection、xposed、LSPosed 等）不在切换范围内。
 
 ## 反模式（禁止）
 

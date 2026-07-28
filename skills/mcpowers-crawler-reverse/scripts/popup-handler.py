@@ -1,5 +1,5 @@
 """
-popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路径同步，v2.16.0 Chrome 150+ 提示）
+popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路径同步，v2.16.0 Chrome 150+ 提示，v2.18.0 DrissionPage 适配）
 
 本模块是 mcpowers-crawler-reverse 阶段 2「弹窗清理」步骤的核心实现。
 字典库与《爬虫工具与抓包规范》§4 弹窗字典一一对应，新弹窗类型先追加字典再写逻辑。
@@ -13,24 +13,42 @@ popup-handler.py — 弹窗检测与处理工具（v2.9.5 新增，v2.14.0 路�
 详细方法论：见《爬虫工具与抓包规范》§4 + 附录与 popup-handler.py 对应关系
 DEFAULT_BB_BROWSER_PROBE 文档参考《爬虫工具与抓包规范》§6（bb-browser 可选增强）
 
-v2.16.0 Chrome 150+ 提示：本模块被调用时，调用方必须满足两个前置条件——
+v2.18.0 DrissionPage 化提示：本模块从 v2.18.0 起默认对接 DrissionPage 接管模式
+（`ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))`）。
+API 映射：
+- page.query_selector_all(selector) → page.eles('css:selector')
+- el.is_visible() → el.states.is_displayed
+- el.inner_text() → el.text
+- page.screenshot(path=...) → page.get_screenshot(path=...)
+- page.wait_for_timeout(ms) → page.wait(seconds)
+Playwright fallback 路径仍兼容（duck typing）。
+
+v2.16.0 Chrome 150+ 提示：本模块被调用时，调用方必须满足三个前置条件——
 1. Chrome 启动命令已带 `--remote-allow-origins=*`（Chrome 150+ 必传，否则
-   `connect_over_cdp` 会被 403 Forbidden）；
-2. AI 必须 attach 用户真实 page target（从 `user.contexts[i].pages` 中按 URL /
-   title 匹配），**禁止**用 `Target.createTarget` 自己拉新 tab。
+   接管会被 403 Forbidden）；
+2. AI 必须 attach 用户真实 page target（v2.18.0 DrissionPage 化：从
+   `page.tab_ids` 中按 URL / title 匹配），**禁止**用 `page.new_tab()` 不带
+   url 参数（v2.18.0）/ `Target.createTarget`（Playwright fallback）自己拉新 tab；
+3. **v2.18.0 新增**：DrissionPage 接管时显式 `set_user_data_path(...)` 指定
+   独立用户目录（Chrome 136+ 强制，避免与用户 Chrome 默认目录冲突崩溃）。
 详见《爬虫工具与抓包规范》§3.5 / §3.6 / §3.9 与《爬虫分析规范》§3.0.6 实战案例。
 """
 
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 from typing import Any
 
 try:
-    from playwright.sync_api import Page
+    from DrissionPage import ChromiumPage  # v2.18.0 默认类型
 except ImportError:  # pragma: no cover
-    Page = Any  # type: ignore
+    try:
+        from playwright.sync_api import Page as _PlaywrightPage  # Playwright fallback
+        ChromiumPage = _PlaywrightPage  # type: ignore
+    except ImportError:
+        ChromiumPage = Any  # type: ignore
 
 
 # ----------------------------------------------------------------------------
@@ -231,12 +249,12 @@ def _classify_popup(text: str, selector: str) -> str:
     return "unknown"
 
 
-def _try_click_button(page: Page, keywords: list[str], scope_element: Any = None) -> bool:
+def _try_click_button(page: ChromiumPage, keywords: list[str], scope_element: Any = None) -> bool:
     """
-    在弹窗范围内尝试点击匹配关键词的按钮（v2.9.5 新增）。
+    在弹窗范围内尝试点击匹配关键词的按钮（v2.9.5 新增，v2.18.0 DrissionPage 适配）。
 
     Args:
-        page: Playwright Page 对象
+        page: DrissionPage ChromiumPage 对象（v2.18.0）/ Playwright Page（fallback）
         keywords: 按钮文本正则列表（re.IGNORECASE）
         scope_element: 可选，限定查找范围（弹窗 DOM 元素）
 
@@ -249,32 +267,34 @@ def _try_click_button(page: Page, keywords: list[str], scope_element: Any = None
         # 在 scope_element 或整个页面查找 button / a / div[role=button]
         search_root = scope_element or page
         try:
-            # 先找 button
-            buttons = search_root.query_selector_all("button, a, [role='button']")
+            # v2.18.0 DrissionPage 化：eles('css:button, css:a, css:[role=button]')
+            # DrissionPage 复合 selector 用逗号分隔多个 css: 前缀
+            buttons = search_root.eles('css:button,css:a,css:[role=button]')
             for btn in buttons:
-                text = (btn.inner_text() or "").strip()
+                # v2.18.0 DrissionPage 化：el.text 替代 el.inner_text()
+                text = (btn.text or "").strip()
                 if pattern.search(text):
-                    btn.click()
+                    btn.click()  # DrissionPage 与 Playwright 同名 click()
                     return True
         except Exception:
             continue
     return False
 
 
-def _press_escape(page: Page) -> None:
-    """按 Esc 键（关闭弹窗的兜底手段，v2.9.5 新增）。"""
+def _press_escape(page: ChromiumPage) -> None:
+    """按 Esc 键（关闭弹窗的兜底手段，v2.9.5 新增）。DrissionPage 与 Playwright 都支持 page.keyboard.press("Escape")。"""
     try:
         page.keyboard.press("Escape")
     except Exception:
         pass
 
 
-def _screenshot_for_user(page: Page, screenshot_dir: str, popup_type: str, popup_text: str) -> str | None:
+def _screenshot_for_user(page: ChromiumPage, screenshot_dir: str, popup_type: str, popup_text: str) -> str | None:
     """
-    截图给用户看（询问类弹窗必走，v2.9.5 新增）。
+    截图给用户看（询问类弹窗必走，v2.9.5 新增，v2.18.0 DrissionPage 适配）。
 
     Args:
-        page: Playwright Page 对象
+        page: DrissionPage ChromiumPage 对象（v2.18.0）/ Playwright Page（fallback）
         screenshot_dir: 截图目录
         popup_type: 弹窗类型
         popup_text: 弹窗文本（前 200 字）
@@ -286,7 +306,8 @@ def _screenshot_for_user(page: Page, screenshot_dir: str, popup_type: str, popup
         Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
         safe_type = re.sub(r"[^\w]", "_", popup_type)
         path = Path(screenshot_dir) / f"popup_{safe_type}.png"
-        page.screenshot(path=str(path))
+        # v2.18.0 DrissionPage 化：get_screenshot() 替代 screenshot()
+        page.get_screenshot(path=str(path))
         return str(path)
     except Exception:
         return None
@@ -296,25 +317,29 @@ def _screenshot_for_user(page: Page, screenshot_dir: str, popup_type: str, popup
 # 公开函数（3 个）
 # ----------------------------------------------------------------------------
 
-def detect_popups(page: Page) -> list[dict[str, Any]]:
+def detect_popups(page: ChromiumPage) -> list[dict[str, Any]]:
     """
-    检测页面所有弹窗（DOM 层，v2.9.5 新增）。
+    检测页面所有弹窗（DOM 层，v2.9.5 新增，v2.18.0 DrissionPage 适配）。
 
     返回:
         [{"type": "cookie", "selector": ".cc-banner", "text": "Accept cookies?",
-          "element_handle": <ElementHandle>, "auto_close": True}, ...]
+          "element_handle": <DrissionPage Element>, "auto_close": True}, ...]
 
     说明：
         - DOM 层检测（不处理 Notification/Geolocation 等原生层）
         - 命中一个 selector 后不再重复检测（避免嵌套弹窗被多次计数）
         - 弹窗类型由 _classify_popup 自动判定
+        - **v2.18.0 DrissionPage 化**：`page.eles('css:selector')` 替代
+          `page.query_selector_all(selector)`；`el.states.is_displayed` 替代
+          `el.is_visible()`；`el.text` 替代 `el.inner_text()`
     """
     detected: list[dict[str, Any]] = []
     seen_elements: set[int] = set()
 
     for selector in POPUP_SELECTORS:
         try:
-            elements = page.query_selector_all(selector)
+            # v2.18.0 DrissionPage 化：eles('css:selector') 替代 query_selector_all
+            elements = page.eles(f'css:{selector}')
             for el in elements:
                 # 用 element id 去重（嵌套/重写 selector 时可能撞上同一个 DOM 节点）
                 el_id = id(el)
@@ -323,10 +348,12 @@ def detect_popups(page: Page) -> list[dict[str, Any]]:
                 seen_elements.add(el_id)
 
                 # 检查可见性（display:none / visibility:hidden 不算弹窗）
-                if not el.is_visible():
+                # v2.18.0 DrissionPage 化：states.is_displayed 替代 is_visible()
+                if not el.states.is_displayed:
                     continue
 
-                text = (el.inner_text() or "")[:200].strip()
+                # v2.18.0 DrissionPage 化：el.text 替代 el.inner_text()
+                text = (el.text or "")[:200].strip()
                 if not text:
                     continue
 
@@ -346,12 +373,12 @@ def detect_popups(page: Page) -> list[dict[str, Any]]:
     return detected
 
 
-def close_popup(page: Page, popup: dict[str, Any], mode: str = "smart") -> bool:
+def close_popup(page: ChromiumPage, popup: dict[str, Any], mode: str = "smart") -> bool:
     """
-    关闭单个弹窗（v2.9.5 新增）。
+    关闭单个弹窗（v2.9.5 新增，v2.18.0 DrissionPage 适配）。
 
     Args:
-        page: Playwright Page 对象
+        page: DrissionPage ChromiumPage 对象（v2.18.0）/ Playwright Page（fallback）
         popup: detect_popups() 返回的单个弹字典
         mode: 关闭策略
             - "smart": 先 reject 再 fallback 再 Esc（默认）
@@ -386,13 +413,13 @@ def close_popup(page: Page, popup: dict[str, Any], mode: str = "smart") -> bool:
 
 
 def cleanup_all(
-    page: Page,
+    page: ChromiumPage,
     pause_for_user_patterns: list[str] | None = None,
     screenshot_dir: str = "01-目标画像/弹窗截图/",
     ask_user_callback: Any = None,
 ) -> list[str]:
     """
-    一键清理所有弹窗（v2.9.5 新增）。
+    一键清理所有弹窗（v2.9.5 新增，v2.18.0 DrissionPage 适配）。
 
     Args:
         page: Playwright Page 对象
@@ -449,8 +476,8 @@ def cleanup_all(
         # 关闭
         if close_popup(page, popup, mode="smart"):
             closed.append(popup["selector"])
-            # 等弹窗消失动画
-            page.wait_for_timeout(200)
+            # 等弹窗消失动画（v2.18.0 DrissionPage 化：time.sleep 替代 page.wait_for_timeout）
+            time.sleep(0.2)
 
     return closed
 
@@ -460,13 +487,18 @@ def cleanup_all(
 # ----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("popup-handler.py 是 mcpowers-crawler-reverse 的工具脚本")
+    print("popup-handler.py 是 mcpowers-crawler-reverse 的工具脚本（v2.18.0 DrissionPage 默认）")
     print("详细用法见《爬虫工具与抓包规范》§4 + 附录与 popup-handler.py 对应关系")
     print()
     print("公开 API：")
-    print("  - detect_popups(page) -> list[dict]")
+    print("  - detect_popups(page) -> list[dict]    # DrissionPage ChromiumPage")
     print("  - close_popup(page, popup, mode='smart') -> bool")
     print("  - cleanup_all(page, pause_for_user_patterns=None, screenshot_dir=...) -> list[str]")
+    print()
+    print("v2.18.0 DrissionPage 接管示例：")
+    print("  from DrissionPage import ChromiumPage, ChromiumOptions")
+    print("  page = ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))")
+    print("  cleanup_all(page)")
     print()
     print("v2.10.0 新增常量：")
     print("  - DEFAULT_BB_BROWSER_PROBE  # bb-browser 可选依赖提示（探测由 SKILL.md §2.0 SOP 执行）")

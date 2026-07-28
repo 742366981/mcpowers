@@ -1,12 +1,12 @@
 """
-user-action-recorder.py — 用户操作录制与重放工具（v2.15.0 新增）
+user-action-recorder.py — 用户操作录制与重放工具（v2.15.0 新增，v2.18.0 DrissionPage 适配）
 
 本模块是 mcpowers-crawler-reverse 协作模式 B（"用户操作 + AI 抓包"）的工具支撑。
 补充 popup-handler.py 不覆盖的"操作流录制 + 重放"维度，不重复弹窗检测与接管预检。
 历史兼容：v2.15.0 之前为口头协议，无工具支撑（见《爬虫分析规范》§3.0.1 模式 B）。
 
 核心函数（3 个公开）：
-- start_recording(page, output_dir): 启动录制（注册 page.on / DOM 事件 + 后台 flush 线程）
+- start_recording(page, output_dir): 启动录制（v2.18.0 起 DrissionPage 用 listen.start() + 后台轮询线程）
 - stop_recording(handle) -> str: 停止录制并落 user-actions.json + user-session.har.jsonl
 - replay_actions(page, actions_json_path, screenshot_each_step=False) -> dict: 重放已录制操作
 
@@ -15,11 +15,12 @@ DEFAULT_USER_ACTION_RECORDER 文档参考《爬虫工具与抓包规范》§8.0�
 
 设计原则：
 - 遵守外部资源所有权铁律（主《爬虫分析规范》§1.3）：禁止 browser.close() / context.close() / page.close()；
-  监听器通过 page.remove_listener() 注销，不靠进程结束清理。
+  监听器注销不靠进程结束清理（v2.18.0 DrissionPage 用 `page.listen.stop()`；Playwright fallback 用 `page.remove_listener()`）。
 - 不替代 popup-handler.py（弹窗清理）和 bb-browser（站点级结构化操作）；按 SOP 串联：
   popup-handler.cleanup_all() → start_recording() → 用户操作 → stop_recording() → replay_actions()。
-- Playwright `record_har_path` 参数在 connect_over_cdp 模式不可用（只对 launch() / launch_persistent_context()
-  创建的 context 生效），本模块手写 page.on("request"/"response") 落 JSONL 格式 HAR。
+- **v2.18.0 DrissionPage 化**：DrissionPage 接管模式下没有 Playwright `record_har_path` 参数，
+  本模块手写 `page.listen.start()` + 后台轮询 `page.listen.wait(timeout=0.5)` 落 JSONL 格式 HAR。
+  Playwright fallback 保留 `page.on("request"/"response")` 模式（duck typing 自动分支）。
 
 v2.16.0 Chrome 150+ 实战案例（真实用户复盘 2026-07）：强校验表单场景，
 AI 必须 attach 用户真实 page target（如 `4252F91C4CC929918E03`），**禁止**用
@@ -40,11 +41,17 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from playwright.sync_api import Page, Request, Response
+    from DrissionPage import ChromiumPage as _DrissionPage_ChromiumPage  # v2.18.0 默认类型
+    Page = _DrissionPage_ChromiumPage  # type: ignore
+    Request = Any  # DrissionPage DataPacket 与 Playwright Request 字段不同，运行时 duck-type
+    Response = Any
 except ImportError:  # pragma: no cover
-    Page = Any  # type: ignore
-    Request = Any  # type: ignore
-    Response = Any  # type: ignore
+    try:
+        from playwright.sync_api import Page, Request, Response  # Playwright fallback
+    except ImportError:
+        Page = Any  # type: ignore
+        Request = Any  # type: ignore
+        Response = Any  # type: ignore
 
 
 # ----------------------------------------------------------------------------
@@ -300,7 +307,14 @@ def _flush_loop(handle: RecorderHandle) -> None:
 
 
 def _har_append(handle: RecorderHandle, kind: str, payload: Any) -> None:
-    """把 request/response 追加到 har buffer（线程安全）。"""
+    """把 request/response 追加到 har buffer（线程安全）。
+
+    **v2.18.0 DrissionPage 适配**：DrissionPage 的 DataPacket 属性名为
+    `url` / `method` / `headers` / `post_data` / `status` / `body`，与 Playwright
+    `Request` / `Response` 大体一致（duck type 即可）。响应体 `body` 在 DrissionPage
+    是 `response.body`（bytes），Playwright 是 `response.body()`（方法）—— 已用
+    `callable(payload.body)` 兼容。
+    """
     entry: dict[str, Any] = {
         "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="milliseconds"),
         "kind": kind,
@@ -321,10 +335,14 @@ def _har_append(handle: RecorderHandle, kind: str, payload: Any) -> None:
         except Exception:
             entry["headers"] = {}
         # 响应体过大时不落（避免 HAR 爆盘；只标记 status）
+        # v2.18.0 兼容 DrissionPage response.body（属性）与 Playwright response.body()（方法）
         try:
-            body = payload.body() if callable(payload.body) else None
+            body = payload.body() if callable(payload.body) else payload.body
             if body is not None and len(body) < 1024 * 64:  # 64KB 阈值
-                entry["body_preview"] = body[:1024].decode("utf-8", errors="replace")
+                if isinstance(body, bytes):
+                    entry["body_preview"] = body[:1024].decode("utf-8", errors="replace")
+                else:
+                    entry["body_preview"] = str(body)[:1024]
         except Exception:
             pass
 
@@ -338,8 +356,46 @@ def _har_append(handle: RecorderHandle, kind: str, payload: Any) -> None:
             handle._har_buffer.clear()
 
 
+def _drission_listen_loop(handle: RecorderHandle) -> None:
+    """v2.18.0 DrissionPage HAR 录制后台线程：用 page.listen.wait(timeout=0.5) 轮询。
+
+    替代 Playwright `page.on("request"/"response")` 回调模式。
+    DrissionPage 的 listen API 是阻塞的（wait() 会等下一个匹配包），故用轮询 + 短 timeout
+    实现非阻塞采集，循环到 handle._running = False 退出。
+    """
+    page = handle.page
+    while handle._running:
+        try:
+            # DrissionPage: page.listen.wait(timeout=0.5) 返回 DataPacket 或 None
+            pkt = page.listen.wait(timeout=0.5)
+        except Exception:
+            pkt = None
+        if pkt is None:
+            continue
+        # 区分 request / response：DrissionPage DataPacket 有 .is_request 属性
+        try:
+            if getattr(pkt, "is_request", True):
+                _har_append(handle, "request", pkt)
+            else:
+                _har_append(handle, "response", pkt)
+        except Exception:
+            continue
+    # handle._running 置 False 后最后一次落 HAR buffer
+    with handle._har_lock:
+        if handle._har_buffer:
+            with open(handle.har_path, "a", encoding="utf-8") as f:
+                f.write("\n".join(handle._har_buffer) + "\n")
+            handle._har_buffer.clear()
+
+
 def _replay_one(page: Page, action: dict[str, Any]) -> None:
-    """重放单步操作（按 selector 优先级匹配）。"""
+    """重放单步操作（按 selector 优先级匹配）。**v2.18.0 DrissionPage 适配**：
+    `page.locator(sel).first` + `loc.count()` + `loc.is_visible()` 改为
+    `page.ele('css:sel', timeout=1)` + `el.states.is_displayed`。
+    `page.mouse.wheel()` 改为 `page.actions.wheel()`。
+    `page.evaluate()` 改为 `page.run_js()`（DrissionPage 也有 page.evaluate，但
+    推荐 page.run_js 以保持与官方文档一致）。
+    """
     action_type = action.get("type")
     if action_type not in SUPPORTED_ACTION_TYPES:
         raise RecorderReplayError(
@@ -352,15 +408,17 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
         url = action.get("url")
         if not url:
             raise RecorderReplayError(step_idx=action["step"], reason="goto 操作缺少 url", action=action)
-        page.goto(url, timeout=10_000)
+        page.get(url)  # v2.18.0 DrissionPage 化：page.get(url) 替代 page.goto(url, timeout=...)
         return
 
     if action_type == "press":
+        # DrissionPage 与 Playwright 都支持 page.keyboard.press(key)
         page.keyboard.press(action.get("key", ""))
         return
 
     if action_type == "scroll":
-        page.mouse.wheel(0, int(action.get("delta_y", 0)))
+        # v2.18.0 DrissionPage 化：page.actions.wheel(0, delta_y) 替代 page.mouse.wheel(...)
+        page.actions.wheel(0, int(action.get("delta_y", 0)))
         return
 
     # click / fill：需要 selector 匹配
@@ -372,17 +430,20 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
             action=action,
         )
 
-    matched_locator = None
+    matched_el = None
     for sel in selectors:
         try:
-            loc = page.locator(sel).first
-            if loc.count() > 0 and loc.is_visible(timeout=1000):
-                matched_locator = loc
+            # v2.18.0 DrissionPage 化：page.ele('css:sel', timeout=1) 替代
+            # page.locator(sel).first + loc.count() + loc.is_visible(timeout=1000)
+            # DrissionPage ele() 不存在或不可见时抛异常，需 try/except
+            el = page.ele(f"css:{sel}", timeout=1)
+            if el and el.states.is_displayed:
+                matched_el = el
                 break
         except Exception:
             continue
 
-    if matched_locator is None:
+    if matched_el is None:
         raise RecorderReplayError(
             step_idx=action["step"],
             reason=f"selector 全失效: {selectors}",
@@ -390,10 +451,11 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
         )
 
     if action_type == "click":
-        matched_locator.click(timeout=3000)
+        matched_el.click()  # DrissionPage 与 Playwright 同名 click()
     elif action_type == "fill":
         value = action.get("value", "")
-        matched_locator.fill(value, timeout=3000)
+        # v2.18.0 DrissionPage 化：el.input(value) 替代 el.fill(value, timeout=3000)
+        matched_el.input(value)
 
 
 # ----------------------------------------------------------------------------
@@ -405,18 +467,21 @@ def start_recording(
     output_dir: str = "01-目标画像/录制/",
 ) -> RecorderHandle:
     """
-    启动录制（v2.15.0 新增）。
+    启动录制（v2.15.0 新增，v2.18.0 DrissionPage 适配）。
 
     Args:
-        page: Playwright Page 对象（必须是 connect_over_cdp 接管的用户 page）
+        page: DrissionPage ChromiumPage 对象（v2.18.0 默认）/ Playwright Page（fallback）
         output_dir: 录制文件输出目录（自动 mkdir）
 
     Returns:
         RecorderHandle（dataclass 句柄）—— 传给 stop_recording() 用于定位状态
 
-    行为：
-        - 注册 page.on("request"/"response") 监听器（落 user-session.har.jsonl）
-        - 通过 page.evaluate 注入 DOM 事件监听器（click / input / keydown / scroll）
+    行为（**v2.18.0 DrissionPage 化**）：
+        - HAR 监听：DrissionPage 走 `page.listen.start()` + 后台轮询线程
+          `_drission_listen_loop`（callable wait 模式）；Playwright fallback 走
+          `page.on("request"/"response")` 回调模式（duck type 探测）
+        - 注入 DOM 监听器：DrissionPage 用 `page.run_js()`，Playwright 用 `page.evaluate()`
+          （duck type 兼容）
         - 启动后台 flush 线程（防进程崩溃丢失）
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -436,35 +501,51 @@ def start_recording(
         _running=True,
     )
 
-    # 1) HAR 监听（保留函数引用以便 stop 时 remove_listener）
-    def _on_request(req: Request) -> None:
-        _har_append(handle, "request", req)
+    # 1) HAR 监听——v2.18.0 DrissionPage 化
+    # DrissionPage 走 page.listen.start() + 后台轮询；Playwright 走 page.on() 回调
+    if hasattr(page, "listen") and callable(getattr(page, "listen", None)):
+        # DrissionPage 接管模式
+        try:
+            page.listen.start()  # 监听所有请求/响应
+        except Exception:
+            pass
+        handle._flush_thread = threading.Thread(
+            target=_drission_listen_loop, args=(handle,), daemon=True, name="user-action-drission-listen"
+        )
+        handle._flush_thread.start()
+    else:
+        # Playwright fallback
+        def _on_request(req: Request) -> None:
+            _har_append(handle, "request", req)
 
-    def _on_response(res: Response) -> None:
-        _har_append(handle, "response", res)
+        def _on_response(res: Response) -> None:
+            _har_append(handle, "response", res)
 
-    handle._req_listener = _on_request
-    handle._res_listener = _on_response
-    page.on("request", _on_request)
-    page.on("response", _on_response)
+        handle._req_listener = _on_request
+        handle._res_listener = _on_response
+        page.on("request", _on_request)
+        page.on("response", _on_response)
+        handle._flush_thread = threading.Thread(
+            target=_flush_loop, args=(handle,), daemon=True, name="user-action-flush"
+        )
+        handle._flush_thread.start()
 
     # 2) 注入 DOM 监听器（首次失败也不阻塞，主链路仍是 HAR）
+    # v2.18.0 DrissionPage 化：DrissionPage 用 page.run_js()；Playwright 用 page.evaluate()
     try:
-        page.evaluate(_INJECT_LISTENERS_JS)
+        if hasattr(page, "run_js"):
+            page.run_js(_INJECT_LISTENERS_JS)
+        else:
+            page.evaluate(_INJECT_LISTENERS_JS)
     except Exception:
         pass
 
-    # 3) 后台 flush 线程
-    handle._flush_thread = threading.Thread(
-        target=_flush_loop, args=(handle,), daemon=True, name="user-action-flush"
-    )
-    handle._flush_thread.start()
     return handle
 
 
 def stop_recording(handle: RecorderHandle) -> str:
     """
-    停止录制并落盘（v2.15.0 新增）。
+    停止录制并落盘（v2.15.0 新增，v2.18.0 DrissionPage 适配）。
 
     Args:
         handle: start_recording() 返回的 RecorderHandle
@@ -472,10 +553,10 @@ def stop_recording(handle: RecorderHandle) -> str:
     Returns:
         actions_json_path: 落盘后的 user-actions.json 绝对路径
 
-    行为：
-        - 注销 page.on() 监听器（避免污染后续操作；不靠进程结束清理）
-        - 停止后台 flush 线程（2s join timeout）
-        - 从 page 拉取 DOM 监听器 buffer（click / input / press / scroll）
+    行为（**v2.18.0 DrissionPage 化**）：
+        - 注销监听器：DrissionPage 用 `page.listen.stop()`；Playwright 用 `page.remove_listener()`
+        - 停止后台线程（2s join timeout）
+        - 拉取 DOM 监听器 buffer（DrissionPage 用 `page.run_js()`，Playwright 用 `page.evaluate()`）
         - 把 RecorderHandle.actions 序列化为 user-actions.json（含 triggers 弱关联）
     """
     handle._running = False
@@ -483,24 +564,39 @@ def stop_recording(handle: RecorderHandle) -> str:
         handle._flush_thread.join(timeout=2.0)
         handle._flush_thread = None
 
-    # 注销监听器（保留的函数引用必须存在）
-    if handle._req_listener is not None:
+    # 注销监听器——v2.18.0 DrissionPage 化
+    if hasattr(handle.page, "listen") and callable(getattr(handle.page, "listen", None)):
+        # DrissionPage: page.listen.stop()
         try:
-            handle.page.remove_listener("request", handle._req_listener)
+            handle.page.listen.stop()
         except Exception:
             pass
-    if handle._res_listener is not None:
-        try:
-            handle.page.remove_listener("response", handle._res_listener)
-        except Exception:
-            pass
+    else:
+        # Playwright fallback: page.remove_listener()
+        if handle._req_listener is not None:
+            try:
+                handle.page.remove_listener("request", handle._req_listener)
+            except Exception:
+                pass
+        if handle._res_listener is not None:
+            try:
+                handle.page.remove_listener("response", handle._res_listener)
+            except Exception:
+                pass
 
-    # 拉取 DOM 监听器 buffer（page.evaluate 注入的 click/fill/press/scroll）
+    # 拉取 DOM 监听器 buffer（注入的 click/fill/press/scroll）
+    # v2.18.0 DrissionPage 化：DrissionPage 用 page.run_js()，Playwright 用 page.evaluate()
     try:
-        dom_actions: list[dict[str, Any]] = handle.page.evaluate(
-            "() => { const buf = window.__userActionBuffer || []; "
-            "window.__userActionBuffer = []; return buf; }"
-        ) or []
+        if hasattr(handle.page, "run_js"):
+            dom_actions: list[dict[str, Any]] = handle.page.run_js(
+                "() => { const buf = window.__userActionBuffer || []; "
+                "window.__userActionBuffer = []; return buf; }"
+            ) or []
+        else:
+            dom_actions = handle.page.evaluate(
+                "() => { const buf = window.__userActionBuffer || []; "
+                "window.__userActionBuffer = []; return buf; }"
+            ) or []
     except Exception:
         dom_actions = []
 
@@ -629,7 +725,8 @@ def replay_actions(
             result["failed_steps"].append(i)
             if screenshot_each_step:
                 try:
-                    page.screenshot(path=f"02-step-{i:03d}-FAILED.png")
+                    # v2.18.0 DrissionPage 化：page.get_screenshot() 替代 page.screenshot()
+                    _screenshot(page, f"02-step-{i:03d}-FAILED.png")
                 except Exception:
                     pass
             raise  # v1 必抛（不做自愈）
@@ -640,7 +737,8 @@ def replay_actions(
 
         if screenshot_each_step:
             try:
-                page.screenshot(path=f"02-step-{i:03d}.png")
+                # v2.18.0 DrissionPage 化：page.get_screenshot() 替代 page.screenshot()
+                _screenshot(page, f"02-step-{i:03d}.png")
             except Exception:
                 pass
 
@@ -648,12 +746,21 @@ def replay_actions(
     return result
 
 
+def _screenshot(page: Page, path: str) -> None:
+    """截图 duck-type 封装：DrissionPage 用 `page.get_screenshot(path=...)`，
+    Playwright 用 `page.screenshot(path=...)`。**v2.18.0 DrissionPage 适配**。"""
+    if hasattr(page, "get_screenshot") and callable(getattr(page, "get_screenshot", None)):
+        page.get_screenshot(path=path)
+    else:
+        page.screenshot(path=path)
+
+
 # ----------------------------------------------------------------------------
 # 顶层调用入口（便于 python -m 直接调用）
 # ----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("user-action-recorder.py 是 mcpowers-crawler-reverse v2.15.0 新增的工具脚本")
+    print("user-action-recorder.py 是 mcpowers-crawler-reverse v2.15.0 新增、v2.18.0 DrissionPage 适配的工具脚本")
     print("详细用法见《爬虫工具与抓包规范》§8（用户操作录制与重放）")
     print()
     print("公开 API：")
@@ -661,8 +768,15 @@ if __name__ == "__main__":
     print("  - stop_recording(handle) -> str  # 返回 user-actions.json 绝对路径")
     print("  - replay_actions(page, actions_json_path, screenshot_each_step=False) -> dict")
     print()
+    print("v2.18.0 DrissionPage 接管示例：")
+    print("  from DrissionPage import ChromiumPage, ChromiumOptions")
+    print("  page = ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))")
+    print("  handle = start_recording(page)")
+    print("  # ... 用户操作 ...")
+    print("  stop_recording(handle)")
+    print()
     print("v2.15.0 新增常量：")
-    print("  - DEFAULT_USER_ACTION_RECORDER  # 边界声明（connect_over_cdp 下 record_har_path 不可用等）")
+    print("  - DEFAULT_USER_ACTION_RECORDER  # 边界声明（v2.18.0 改为 DrissionPage listen.start() 模式）")
     print("  - SUPPORTED_ACTION_TYPES  # 5 类操作：click / fill / press / scroll / goto")
     print("  - SELECTOR_PRIORITY_ATTRS  # selector 优先级：data-testid > id > name > aria-label > placeholder")
     print("  - SENSITIVE_KEYWORDS  # 脱敏黑名单（password / token / cookie 等）")

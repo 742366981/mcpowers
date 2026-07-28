@@ -17,7 +17,9 @@
 #  11. reverse 分层拓扑与公共合同完整性（v2.13.0）
 #  12. 浏览器/CDP 外部资源所有权门禁（v2.13.0）
 #  13. 模块产物封装形式约束（v2.17.0 新增：类式 + quick_test + 顶层文档中文）
+#  14. DrissionPage 全场景默认化（v2.18.0 新增：浏览器自动化工具栈主表 + 漏抓 7 层 DrissionPage 重新映射 + popup-handler / user-action-recorder DrissionPage 适配）
 #
+# v2.18.0：新增 section 14
 # v2.17.0：新增 section 13
 # v2.9.0：新增 section 8/9
 # v2.5.2：新增 section 5/6/7
@@ -623,6 +625,80 @@ if [ "$MODULE_FORM_FAIL" -eq 0 ]; then
     echo "  ✓ 模块产物封装形式约束（v2.17.0）完整"
 else
     FAIL=$((FAIL + MODULE_FORM_FAIL))
+fi
+
+# ============== 14. DrissionPage 全场景默认化（v2.18.0 新增） ==============
+# 防止后续修改把 DrissionPage 默认化回退到 Playwright 默认、或漏改 6 问自检 L3。
+echo "[14/14] 校验 DrissionPage 全场景默认化（v2.18.0）"
+DRISSIONPAGE_FAIL=0
+CRAWLER_TOOLS_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫工具与抓包规范.md"
+CRAWLER_SKILL_DOC="$REPO_DIR/skills/mcpowers-shared/skills/mcpowers-crawler-reverse/SKILL.md"
+REVERSE_WEB_DOC="$REPO_DIR/skills/mcpowers-reverse-web/SKILL.md"
+POPUP_HANDLER="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/popup-handler.py"
+USER_ACTION_RECORDER="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/user-action-recorder.py"
+README_DOC="$REPO_DIR/README.md"
+
+check_drissionpage() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file"
+        DRISSIONPAGE_FAIL=$((DRISSIONPAGE_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        DRISSIONPAGE_FAIL=$((DRISSIONPAGE_FAIL + 1))
+    fi
+}
+
+# §2.1 工具栈主表 + 接管语法（爬虫工具与抓包规范）
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "**DrissionPage**（v2.18.0 默认）" "§2.1 工具栈主表 DrissionPage 默认"
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))" "§2.1 DrissionPage 接管语法示例"
+# §7.2 封装阶段工具栈
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "**DrissionPage**（v2.18.0 默认）" "§7.2 工具栈主表 DrissionPage 默认（可能与 §2.1 共用）"
+# §3.5 接管粒度 DrissionPage 重新映射
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "v2.18.0 DrissionPage 重新映射" "§3.5 接管粒度 DrissionPage 重新映射"
+# §3.6 早检测 DrissionPage 化
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "find_target_tab_drissionpage" "§3.6 早检测 DrissionPage 函数"
+# §3.9 漏抓 7 层决策树 DrissionPage 化
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "v2.18.0 DrissionPage 化**" "§3.9 漏抓 7 层 DrissionPage 重新映射"
+# §3.9.4 反模式 DrissionPage 化
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "page.new_tab()\` 不带 url 拉了 tab" "§3.9.4 反模式 page.new_tab() 不带 url"
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "ChromiumPage()\`（v2.18.0 新增反模式" "§3.9.4 反模式 ChromiumPage() 无参"
+# Chrome 136+ 独立 user data dir 提示
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "set_user_data_path" "Chrome 136+ 独立 user data dir 提示"
+# Chrome 150+ --remote-allow-origins 铁律（v2.16.0 引入，v2.18.0 保留）
+check_drissionpage "$CRAWLER_TOOLS_SPEC" "remote-allow-origins=*" "Chrome 150+ 兼容铁律"
+
+# popup-handler.py DrissionPage 适配
+check_drissionpage "$POPUP_HANDLER" "from DrissionPage import ChromiumPage" "popup-handler.py DrissionPage import"
+check_drissionpage "$POPUP_HANDLER" "page.eles(f'css:" "popup-handler.py DrissionPage eles 链式"
+check_drissionpage "$POPUP_HANDLER" "el.states.is_displayed" "popup-handler.py DrissionPage 可见性 API"
+check_drissionpage "$POPUP_HANDLER" "page.get_screenshot" "popup-handler.py DrissionPage 截图 API"
+
+# user-action-recorder.py DrissionPage 适配
+check_drissionpage "$USER_ACTION_RECORDER" "_drission_listen_loop" "user-action-recorder.py DrissionPage 监听线程"
+check_drissionpage "$USER_ACTION_RECORDER" "page.listen.start" "user-action-recorder.py DrissionPage 监听 start"
+check_drissionpage "$USER_ACTION_RECORDER" "page.run_js" "user-action-recorder.py DrissionPage run_js"
+check_drissionpage "$USER_ACTION_RECORDER" "page.actions.wheel" "user-action-recorder.py DrissionPage 滚轮 API"
+
+# crawler-reverse SKILL.md 铁律 #8 + 6 问自检 L3
+check_drissionpage "$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md" "DrissionPage（v2.18.0 默认）/ Playwright" "crawler-reverse 铁律 #8 DrissionPage 化"
+check_drissionpage "$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md" "page.new_tab()\` 不带 url 拉了 tab" "crawler-reverse 6 问自检 L3 DrissionPage 化"
+
+# reverse-web SKILL.md 编排表 + 6 问自检 L3
+check_drissionpage "$REVERSE_WEB_DOC" "DrissionPage（v2.18.0 默认）+ CDP" "reverse-web 编排表 DrissionPage 默认"
+check_drissionpage "$REVERSE_WEB_DOC" "page.new_tab()\` 不带 url 拉了 tab" "reverse-web 6 问自检 L3 DrissionPage 化"
+
+# README.md 用户可见 DrissionPage 默认化说明
+check_drissionpage "$README_DOC" "DrissionPage" "README DrissionPage 默认化说明"
+
+if [ "$DRISSIONPAGE_FAIL" -eq 0 ]; then
+    echo "  ✓ DrissionPage 全场景默认化（v2.18.0）完整"
+else
+    FAIL=$((FAIL + DRISSIONPAGE_FAIL))
 fi
 
 # ============== 汇总 ==============

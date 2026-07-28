@@ -13,8 +13,8 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 |:-----|:---------|:-----|:---------|:-------|
 | 1 | `mcpowers-crawler-reverse` 公共前置合同 | 公共合同 | 直接命中本技能时必读 | 缺目标/授权/交付形态则中断 |
 | 2 | `爬虫Web逆向规范.md` + `爬虫工具与抓包规范.md` §3 | 规范 | 必读 | 按 spec-index 重新定位 |
-| 3 | Playwright-Python + CDP | 执行链 | 浏览器证据与动态触发 | 切换协作模式，不擅自 launch |
-| 4 | bb-browser + popup-handler.py | 可选增强 | daemon/adapter 可用 | 回退 Playwright 原链路 |
+| 3 | DrissionPage（v2.18.0 默认）+ CDP | 执行链 | 浏览器证据与动态触发 | 切换协作模式，不擅自 `ChromiumPage()` 无参 launch |
+| 4 | bb-browser + popup-handler.py | 可选增强 | daemon/adapter 可用 | 回退 DrissionPage 原链路（Playwright 作 fallback） |
 | 5 | `mcpowers-crawler-reverse` 公共收尾合同 | 公共合同 | 专项证据交接后 | 缺证据则返回本技能补齐 |
 
 **防循环**：只 Read 统一入口中的「公共前置合同」「公共收尾合同」，不得再次调用入口分流。
@@ -28,7 +28,7 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 3. 发现目标 tab 时询问接管既有 tab 或在用户 context 新开 tab；未发现时询问启动调试 Chrome、由任务创建隔离浏览器、协议直连或取消。
 4. 写入资源清单：resource、origin（user/external/task）、owner、允许清理动作。
 
-**外部接管资源不可关闭**：`connect_over_cdp` 得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。
+**外部接管资源不可关闭**：DrissionPage `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))`（v2.18.0 默认）/ Playwright `connect_over_cdp`（fallback）得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。
 
 ### 1.5 用户操作录制（v2.15.0 新增，协作模式 B 工具支撑）
 
@@ -41,20 +41,22 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 
 **v2.16.0 实战提示**：Chrome 150+ 时代协作模式 B 已成为强校验表单场景的
 **默认入口**——AI 必须 attach 用户真实 page target（如 `4252F91C4CC929918E03`），
-**禁止**用 `Target.createTarget` 自己拉新 tab 后 attach；强校验表单场景
+**禁止**用 `Target.createTarget` / `page.new_tab()` 不带 url（**v2.18.0 DrissionPage 化**）
+自己拉新 tab 后 attach；强校验表单场景
 AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200。详见
 《爬虫分析规范》§3.0.6 Chrome 150+ 协作模式 B 实战案例与《爬虫工具与抓包规范》
 §3.9.3 实战案例摘要。
 
 注意：录制/重放全程遵守 §1 外部资源所有权铁律——禁止 `browser.close()` /
 `context.close()` / `page.close()` / kill Chrome；监听器通过
-`page.remove_listener()` 注销，不靠进程结束清理。
+`page.remove_listener()`（Playwright fallback）/ `page.listen.stop()`
+（**v2.18.0 DrissionPage 默认**）注销，不靠进程结束清理。
 
 ### 2. 页面与接口证据
 
 - 先运行 popup-handler.py 清理可自动处理弹窗；登录墙、年龄验证和合规同意截图后询问。
 - 根据协作模式触发目标业务动作，采集 XHR/fetch、调用栈、initiator、请求/响应和 Cookie 变化。
-- bb-browser adapter 只提供站点导航和结构化线索；URL/Method/响应必须由 Playwright 或 `curl_cffi` 实测。
+- bb-browser adapter 只提供站点导航和结构化线索；URL/Method/响应必须由 DrissionPage（v2.18.0 默认）/ Playwright（fallback）或 `curl_cffi` 实测。
 - `接口清单.md` 标注来源和置信度；过滤 CDN、上报、字体、心跳。
 
 ### 3. JavaScript/WASM 逆向
@@ -81,22 +83,22 @@ AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200�
 - ❌ 读混淆代码死磕而不先 Hook 入参/出参。
 - ❌ Python 复现失败就放弃 Node/RPC 候选。
 - ❌ **v2.16.0 新增**：抓不到就静默切协作模式，不走《爬虫工具与抓包规范》§3.9 漏抓 7 层 6 问自检。
-- ❌ **v2.16.0 新增**：`Target.createTarget` 拉新 tab（必须从 `user.contexts[i].pages` 中挑选真实 page target）。
+- ❌ **v2.16.0 新增，v2.18.0 DrissionPage 化**：`Target.createTarget` / `page.new_tab()` 不带 url 拉新 tab（必须从 `page.tab_ids` 中挑选真实 page target）。
 - ❌ **v2.16.0 新增**：Chrome 启动命令漏 `--remote-allow-origins=*`（Chrome 150+ 会 403）。
 
 ## 完成后自检清单
 
 - [ ] 已引用公共前置合同，目标、授权和交付形态明确。
 - [ ] 所有资源已标 origin/owner；用户浏览器和既有 tabs 仍存活。
-- [ ] bb-browser 不可用时原 Playwright/CDP 链路可独立运行。
+- [ ] bb-browser 不可用时原 DrissionPage（v2.18.0 默认）/ Playwright（fallback）CDP 链路可独立运行。
 - [ ] 核心接口有响应样本、来源和置信度。
 - [ ] 核心算法已有 ≥3 组不同输入对照。
 - [ ] 已按专项证据交接合同返回，并进入公共收尾合同。
-- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走）：
+- [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化**）：
   - ☐ L1：已用 `curl http://localhost:9222/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？
   - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）
-  - ☐ L3：是否走 `Target.createTarget` 拉了 tab？（必须从 `user.contexts[i].pages` 中挑选）
+  - ☐ L3：是否走 `Target.createTarget` / `page.new_tab()` 不带 url 拉了 tab？（**v2.18.0 DrissionPage 化**——必须从 `page.tab_ids` 中按 URL / title 挑选真实 page target）
   - ☐ L4：DevTools Network 是否抓到 `(failed)` 空白请求？（若是，先解决证书/SSLKEYLOGFILE）
   - ☐ L5：DevTools Filter 是否启用了 Hide data URLs / Fetch-XHR 单选？（若是，先关闭）
-  - ☐ L6：目标 API 是否走 WebSocket / SSE / sendBeacon / HTTP/3 / Cache 命中？（若是，切到对应 DevTools 标签）
+  - ☐ L6：目标 API 是否走 WebSocket / SSE / sendBeacon / HTTP/3 / Cache 命中？（若是，切到对应 DevTools 标签；DrissionPage 用 `page.listen.start('ws://...')` 监听 WS）
   - 详见《爬虫工具与抓包规范》§3.9。

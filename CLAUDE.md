@@ -242,6 +242,35 @@ for f in sorted(os.listdir('skills')):
 - **同步面**：本次横跨 8 个文件改动——1 主规范（《爬虫分析规范》§9.4.6 全段新增 6 小节）+ 1 crawler-reverse SKILL.md（§5 阶段 5 + §1 产物目录）+ 1 extract SKILL.md（§4 封装骨架 + 自检清单 + 反模式）+ 2 顶层维护文档（CLAUDE.md 历史教训 / README.md）+ 1 校验脚本（check-readme-sync.sh 新增 §13）+ 2 版本文件（plugin.json / marketplace.json）。**未**改动 5 个 reverse 专项 SKILL.md + popup-handler.py / user-action-recorder.py 注释（不在本次范围）。
 - **版本策略**：新增 4 类用户可见约束（类式 + SRP + 零前置参数 + quick_test）+ 顶层文件改中文 = minor bump `2.16.0 → 2.17.0`。
 
+### 历史教训（v2.18.0 DrissionPage 全场景默认化）
+
+- **v2.18.0 真实用户复盘（2026-07-28）**：用户反馈"DrissionPage 自动化逆向分析能力更强、占用更低、代码量更少，希望默认优先用"——本质是分析/封装脚本的**代码量**痛点（链式 selector 比 Playwright 短 30~50%），不是工具能力短板。
+- **关键修复（11 类文件改动）**：
+  1. **规范主表**：《爬虫工具与抓包规范》§2.1 + §7.2 工具栈主表第一行从 Playwright 改为 **DrissionPage**，Playwright 降为 fallback 路径（Cloudflare / 海外 SPA / 复杂 Shadow DOM 场景）。
+  2. **接管语法对照**：§2.1 新增接管语法对照表（`connect_over_cdp` → `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))`；`page.locator` → `page.ele('css:...')`；`page.on("request", ...)` → `page.listen.start()`）。
+  3. **漏抓 7 层 DrissionPage 重新映射**：§3.5 接管粒度 L1/L2/L3 对应 DrissionPage API（`page.tab_ids` + `page.get_tab()` + `page.new_tab(url)`）；§3.6 早检测函数改 `find_target_tab_drissionpage`；§3.9 L3 反模式 `Target.createTarget` → `page.new_tab()` 不带 url；§3.9.4 新增 `ChromiumPage()` 无参反模式 + Chrome 136+ `set_user_data_path(...)` 必传。
+  4. **popup-handler.py DrissionPage 适配**：`from DrissionPage import ChromiumPage`；`page.query_selector_all` → `page.eles('css:...')`；`el.is_visible()` → `el.states.is_displayed`；`el.inner_text()` → `el.text`；`page.screenshot()` → `page.get_screenshot()`；`page.wait_for_timeout(ms)` → `time.sleep(s)`。
+  5. **user-action-recorder.py DrissionPage 适配**：监听 API 从 Playwright `page.on("request"/"response")` 回调模式改为 DrissionPage `page.listen.start()` + 后台 `_drission_listen_loop` 轮询模式（`page.listen.wait(timeout=0.5)`）；`page.evaluate` → `page.run_js`；`page.locator(sel).first` → `page.ele(f"css:{sel}", timeout=1)`；`page.mouse.wheel` → `page.actions.wheel`；新增 `_screenshot(page, path)` duck-type 封装。Playwright fallback 通过 `hasattr(page, "listen")` 探测自动分支。
+  6. **8 reverse SKILL.md 工具栈**：crawler-reverse 铁律 #8 + 6 问自检 L3；reverse-web 编排表 + §1 外部资源所有权 + §2 URL/Method 实测要求 + 6 问自检 L3 全部 DrissionPage 化；reverse-app 加 v2.18.0 提示段（"若目标含浏览器/WebView 调试场景，浏览器自动化工具栈默认按统一入口 §2.1 切到 DrissionPage"）；6 个 App/小程序专项（android/ios/flutter/hybrid/miniprogram）**无 Web 自动化 API 引用**，DrissionPage 化在统一入口 §3.5/§3.6/§3.9 自然继承，无需逐个改。
+  7. **check-readme-sync.sh §14 新增**：23 个 string 校验项（§2.1/§7.2 工具栈主表 + §3.5 接管粒度 + §3.6 早检测 + §3.9 漏抓 7 层 + §3.9.4 反模式 + Chrome 136+ user data dir + Chrome 150+ remote-allow-origins + popup-handler 4 项 + user-action-recorder 4 项 + crawler-reverse 2 项 + reverse-web 2 项 + README 1 项），防止后续修改回退。
+  8. **CLAUDE.md 本段历史教训**。
+  9. **README.md** 加 v2.18.0 DrissionPage 默认化章节。
+  10. **plugin.json + marketplace.json × 2** version bump 2.17.0 → 2.18.0。
+  11. **同步面**：本次横跨 18 文件 / ~1500 行（v2.18.0 比 v2.17.0 18 文件还多，但行数更多因为 popup-handler / user-action-recorder 全文件改写）。
+- **关键决策（YAGNI 守边界）**：
+  - ❌ **不**为 Chrome 150+ 兼容专门写 `chrome_starter.py` 工具脚本（用户手动加 `--remote-allow-origins=*` + `set_user_data_path` 在 SOP 中已明确，工具化 YAGNI）。
+  - ❌ **不**为 popup-handler 8 类弹窗字典 200+ selector 写"自动迁移工具"（手工逐条改即可，工具化 YAGNI）。
+  - ❌ **不**保留双实现（Playwright + DrissionPage 并存）的 wrapper 抽象层——duck typing `hasattr(page, "listen")` 已足够隔离，wrapper 抽象违反 KISS。
+  - ✅ **保留 Playwright fallback 路径**（drissionpage 弱场景：Cloudflare Bot Management / 海外 SPA / 复杂 Shadow DOM / iframe 嵌套），duck-type 自动分支。
+  - ✅ **保留 bb-browser + popup-handler + user-action-recorder 3 工具**（不重新造轮子）；DrissionPage 接管**同一用户 Chrome**（共用端口 9222），与 v2.10.0 bb-browser 共享 Chrome CDP 兼容。
+- **关键风险**：
+  - **Chrome 150+ 兼容未实测**：DrissionPage 接管**不自动**加 `--remote-allow-origins=*`，用户必须手动加；SOP §3.7 已明确但**真实接管链路 v2.18.0 还没实测**——需下个版本跑 1 次小验证。
+  - **Chrome 136+ 独立 user data dir 必传**：DrissionPage 接管**不自动**处理独立用户目录，调用方必须在 `ChromiumOptions.set_user_data_path(...)` 显式指定；SOP §3.9.4 已明确但容易漏。
+  - **DrissionPage 单点维护风险**：g1879 单人维护，API 突然变动可能影响 v2.18.0 全部模块；用 duck-type 隔离后影响面可控。
+- **铁律新增**：`mcpowers-crawler-reverse/SKILL.md` 铁律 #8 改写——"bb-browser 不可用时完整回退 DrissionPage（v2.18.0 默认）/ Playwright + popup-handler.py"；§3.5 接管粒度新增"v2.18.0 反模式"`ChromiumPage()` 无参调用；§3.9.4 新增"v2.18.0 反模式"`ChromiumPage()` 静默新开窗口（等价旧 Playwright `launch()`）+ 漏 `set_user_data_path(...)`。
+- **版本策略**：新增用户可见能力（DrissionPage 全场景默认 + 接管语法对照 + 漏抓 7 层重新映射 + 2 脚本 DrissionPage 适配 + 8 reverse SKILL 工具栈同步）= minor bump `2.17.0 → 2.18.0`。
+- **同步面**：本次横跨 **18 文件 / ~1500 行 / 14/14 校验全绿**——1 主规范（《爬虫工具与抓包规范》§2.1/§2.5/§3.5/§3.6/§3.9.1/§3.9.2/§3.9.4/§7.2/§3.9 实战案例引用）+ 2 工具脚本（popup-handler.py / user-action-recorder.py 全文件改写）+ 1 校验脚本（check-readme-sync.sh §14 新增 23 校验项）+ 8 reverse SKILL.md（crawler-reverse + reverse-web + reverse-app 改动；6 个 App/小程序专项无引用）+ 2 顶层维护文档（CLAUDE.md / README.md）+ 2 版本文件（plugin.json / marketplace.json × 2）。
+
 ### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
 
 - **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——

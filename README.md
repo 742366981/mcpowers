@@ -210,12 +210,13 @@ target_tab.ele('css:button[type=submit]').click()
 
 **v2.18.0 接管语法对照**（Playwright → DrissionPage）：
 
-| 任务 | Playwright（旧默认） | DrissionPage（v2.18.0 默认） |
+| 任务 | Playwright（旧默认） | DrissionPage（v2.18.0 默认 / **v2.18.2 wheel→scroll 修正**） |
 |:-----|:---------------------|:------------------------------|
 | 接管用户 Chrome | `p.chromium.connect_over_cdp("http://localhost:9222")` | `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(9222))` |
 | 拿用户已有 page | `browser.contexts[0].pages[0]` | `page.get_tab(page.tab_ids[0])` |
 | 找元素 | `page.locator("css:input").first` | `page.ele("css:input")`（链式） |
-| 监听 | `page.on("request", lambda req: ...)` | `page.listen.start('pattern')` |
+| 监听 | `page.on("request", lambda req: ...)` | `page.listen.start('pattern')`（**v2.18.2 修正 duck-type**：用 `hasattr(page, "listen")` 而非 `+ callable()`） |
+| 滚轮 | `page.mouse.wheel(0, dy)` | **`page.actions.scroll(delta_y=dy, delta_x=0)`**（v2.18.2 修正：`page.actions.wheel` 不存在） |
 | 截图 | `page.screenshot(path=...)` | `page.get_screenshot(path=...)` |
 
 **v2.18.0 重要约束**（防止一夜翻车）：
@@ -231,6 +232,54 @@ target_tab.ele('css:button[type=submit]').click()
 - `popup-handler.py` 8 类弹窗字典 DrissionPage 化（`page.eles('css:...')` / `el.states.is_displayed` / `el.text` / `page.get_screenshot`）
 - `user-action-recorder.py` 监听 API DrissionPage 化（`page.listen.start()` + 后台轮询 `page.listen.wait(timeout=0.5)`，替代 Playwright `page.on("request"/"response")` 回调模式）
 - `check-readme-sync.sh` §14 新增 23 个 DrissionPage 默认化校验（防止后续修改回退到 Playwright 默认）
+
+### v2.18.2 真实接管链路实测暴露 4 个 bug
+
+**核心动机**（[真实用户复盘](https://github.com/742366981/mcpowers/commit/7508715)）：v2.18.1 §3.7 留"真实接管链路 1 次实测"，验证 Chrome 150+ + DrissionPage 4.1.1.4 实操链路。**发现 4 个 bug**：
+
+| Bug | 文件 | 现象 | 修复 |
+|:----|:-----|:-----|:-----|
+| 1. duck-type 致命 | `user-action-recorder.py:506` (start) + :586 (stop) | `callable(page.listen)` 永远 False（DrissionPage `page.listen` 是 property 返回 Listener 实例）→ 误入 Playwright 分支 → 调 `page.on()` 立即 AttributeError | 仅用 `hasattr(page, "listen")`，DrissionPage 与 Playwright 二选一唯一 |
+| 2. wheel API 误用 | `user-action-recorder.py:421` | `page.actions.wheel(0, dy)` 不存在（DrissionPage `page.actions` 只有 `scroll/click/key_*` 等方法） | `page.actions.scroll(int(action.get("delta_y", 0)))`，同步 §2.1 接管语法对照表 |
+| 3. notification 字典漏配 | `popup-handler.py` POPUP_SELECTORS | D.2 notification classification 默认 `unknown`（仅 selector 漏配 D.2） | 补 `[class*="notification" i]` + `[id*="notification" i]` 2 行；同步 §14 校验 + 2 项 |
+| 4. 配套小 bug | `replay_actions` 防御 + `stop_recording` flush HAR buffer | 空 actions JSON 报 `TypeError`；HAR buffer 未 flush 丢包 | try/except + 双格式兼容 + flush 强制一次 |
+
+**v2.18.2 真实接管链路 SOP 落地**（[v2.18.1 §3.7](https://github.com/742366981/mcpowers/blob/master/skills/mcpowers-shared/docs/技术规范/爬虫工具与抓包规范.md) 完整跑通）：
+
+```bash
+# 1. 用户启动 Chrome
+"C:\Program Files\Google\Chrome\Application\chrome.exe" \
+  --remote-debugging-port=9222 \
+  --remote-allow-origins=* \                       # Chrome 150+ 必传
+  --user-data-dir=<独立用户目录> \                # Chrome 136+ 必传
+  --no-first-run --disable-popup-blocking about:blank
+
+# 2. DrissionPage 接管（v2.18.2 4 个 bug 全部修复后端到端可用）
+from DrissionPage import ChromiumPage, ChromiumOptions
+co = (ChromiumOptions()
+      .set_local_port(9222)
+      .set_user_data_path(<独立用户目录>))
+page = ChromiumPage(addr_or_opts=co)               # ✓ 接管成功
+
+# 3. 录制 / 弹窗清理（修后均端到端可用）
+uar.start_recording(page, "01-目标画像/录制/")      # ✓ 接管模式真实可用（duck-type 修后）
+popup_handler.cleanup_all(page)                    # ✓ 8/8 类全部识别并清理
+```
+
+**关键经验**：
+
+1. **代码读起来对 + 文档自洽 ≠ 真实可用**——v2.18.0 一行 `callable()` 误判整个接管模式失效，code review 无法暴露，必须真实接管测试。
+2. **`hasattr(...)` 优于 `hasattr(...) + callable(...)`**——property 返回的实例永远不 callable；duck-type 不应附加 callable 条件。
+3. **DrissionPage API ≠ Playwright 同名同义**——`wheel/scroll` 这种 API 名差异是接管陷阱，必须**实测验证**，不能凭 Playwright 习惯推。
+4. **新字典/新规范上线必须配套完整覆盖测试**——v2.9.5 8 类弹窗字典从未实测 8 类全命中；v2.18.2 跑本地 HTML 测试页立刻暴露 D.2 notification 漏配。
+5. **铁律新增**：接管链路口令——任何"读到 API 文档即可用"的认知都是反模式；新增工具/接管语法必须 **DrissionPage 真接管 + Chrome 150+ + --remote-allow-origins=*** 实测通过才能上线。
+
+**v2.18.2 同步面**（横跨 **8 文件** / +~50 行）：
+- 2 脚本修：`user-action-recorder.py` (5 处) / `popup-handler.py` (2 行字典补配)
+- 1 校验强化：`check-readme-sync.sh` §14 新增 5 项
+- 2 顶层维护：`CLAUDE.md` 历史教训 + `README.md` 本节
+- 2 版本文件：`.claude-plugin/plugin.json` + `marketplace.json × 2` patch bump `2.18.1 → 2.18.2`
+- 1 测试留痕：`C:\Users\Administrator\AppData\Local\Temp\scraper_test\`（不入库，YAGNI；下次撞坑可直接复用）
 
 ### v2.17.0 模块产物封装形式
 

@@ -392,7 +392,11 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
     """重放单步操作（按 selector 优先级匹配）。**v2.18.0 DrissionPage 适配**：
     `page.locator(sel).first` + `loc.count()` + `loc.is_visible()` 改为
     `page.ele('css:sel', timeout=1)` + `el.states.is_displayed`。
-    `page.mouse.wheel()` 改为 `page.actions.wheel()`。
+    **`page.mouse.wheel()` 改为 `page.actions.scroll(delta_y, delta_x)`**（v2.18.2
+    修正：DrissionPage `page.actions.wheel` 不存在，正确 API 为
+    `page.actions.scroll(delta_y=0, delta_x=0, on_ele=None)`，签名见
+    `DrissionPage._units.actions.Actions.scroll`；`page.mouse` 在 DrissionPage
+    ChromiumPage 上也不存在）。
     `page.evaluate()` 改为 `page.run_js()`（DrissionPage 也有 page.evaluate，但
     推荐 page.run_js 以保持与官方文档一致）。
     """
@@ -417,8 +421,8 @@ def _replay_one(page: Page, action: dict[str, Any]) -> None:
         return
 
     if action_type == "scroll":
-        # v2.18.0 DrissionPage 化：page.actions.wheel(0, delta_y) 替代 page.mouse.wheel(...)
-        page.actions.wheel(0, int(action.get("delta_y", 0)))
+        # v2.18.2 修正：DrissionPage `page.actions.scroll(delta_y, delta_x)`（不是 `wheel`）
+        page.actions.scroll(int(action.get("delta_y", 0)))
         return
 
     # click / fill：需要 selector 匹配
@@ -501,9 +505,12 @@ def start_recording(
         _running=True,
     )
 
-    # 1) HAR 监听——v2.18.0 DrissionPage 化
+    # 1) HAR 监听——v2.18.0 DrissionPage 化（v2.18.2 修 duck-type bug）
     # DrissionPage 走 page.listen.start() + 后台轮询；Playwright 走 page.on() 回调
-    if hasattr(page, "listen") and callable(getattr(page, "listen", None)):
+    # v2.18.2 修复：DrissionPage 的 `page.listen` 是 property（返回 Listener 实例），
+    # `callable(page.listen)` 永远为 False。原 v2.18.0 写法 `callable(...)` 会误入 Playwright
+    # fallback 分支并触发 DrissionPage 没有的 `page.on()` AttributeError。正确判断仅看 `hasattr`：
+    if hasattr(page, "listen"):
         # DrissionPage 接管模式
         try:
             page.listen.start()  # 监听所有请求/响应
@@ -564,8 +571,8 @@ def stop_recording(handle: RecorderHandle) -> str:
         handle._flush_thread.join(timeout=2.0)
         handle._flush_thread = None
 
-    # 注销监听器——v2.18.0 DrissionPage 化
-    if hasattr(handle.page, "listen") and callable(getattr(handle.page, "listen", None)):
+    # 注销监听器——v2.18.0 DrissionPage 化（v2.18.2 修 duck-type bug，匹配 start_recording）
+    if hasattr(handle.page, "listen"):
         # DrissionPage: page.listen.stop()
         try:
             handle.page.listen.stop()
@@ -583,6 +590,14 @@ def stop_recording(handle: RecorderHandle) -> str:
                 handle.page.remove_listener("response", handle._res_listener)
             except Exception:
                 pass
+
+    # v2.18.2 关键修复：flush 剩余 HAR buffer（避免 stop 时丢包或留半行 JSON）
+    with handle._har_lock:
+        if getattr(handle, "_har_buffer", None):
+            with open(handle.har_path, "a", encoding="utf-8") as f:
+                if handle._har_buffer:
+                    f.write("\n".join(handle._har_buffer) + "\n")
+                handle._har_buffer.clear()
 
     # 拉取 DOM 监听器 buffer（注入的 click/fill/press/scroll）
     # v2.18.0 DrissionPage 化：DrissionPage 用 page.run_js()，Playwright 用 page.evaluate()
@@ -707,7 +722,17 @@ def replay_actions(
         - selector 按录制时优先级顺序匹配
         - 任一步失败：抛 RecorderReplayError（v1 不做自愈，符合 YAGNI）
     """
-    actions = json.loads(Path(actions_json_path).read_text(encoding="utf-8"))["actions"]
+    # v2.18.2 防御性读取：文件不存在 / JSON 损坏 / 缺 `actions` 键 → 返回空结果而非崩溃
+    actions: list[dict[str, Any]] = []
+    try:
+        raw = json.loads(Path(actions_json_path).read_text(encoding="utf-8"))
+        if isinstance(raw, dict) and isinstance(raw.get("actions"), list):
+            actions = raw["actions"]
+        elif isinstance(raw, list):
+            actions = raw
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+
     result: dict[str, Any] = {
         "total": len(actions),
         "success": 0,

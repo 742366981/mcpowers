@@ -682,7 +682,12 @@ check_drissionpage "$POPUP_HANDLER" "page.get_screenshot" "popup-handler.py Dris
 check_drissionpage "$USER_ACTION_RECORDER" "_drission_listen_loop" "user-action-recorder.py DrissionPage 监听线程"
 check_drissionpage "$USER_ACTION_RECORDER" "page.listen.start" "user-action-recorder.py DrissionPage 监听 start"
 check_drissionpage "$USER_ACTION_RECORDER" "page.run_js" "user-action-recorder.py DrissionPage run_js"
-check_drissionpage "$USER_ACTION_RECORDER" "page.actions.wheel" "user-action-recorder.py DrissionPage 滚轮 API"
+check_drissionpage "$USER_ACTION_RECORDER" "page.actions.scroll" "user-action-recorder.py DrissionPage 滚轮 API（v2.18.2 修正 wheel→scroll）"
+# v2.18.2 bug-fix 校验：duck-type 修复
+check_drissionpage "$USER_ACTION_RECORDER" 'hasattr(page, "listen")' "user-action-recorder.py duck-type 修复（v2.18.2 去掉 callable 误判）"
+# v2.18.2 bug-fix 校验：popup-handler notification 选择器补配
+check_drissionpage "$POPUP_HANDLER" '[class*="notification" i]' "popup-handler.py notification class 选择器（v2.18.2 补配）"
+check_drissionpage "$POPUP_HANDLER" '[id*="notification" i]' "popup-handler.py notification id 选择器（v2.18.2 补配）"
 
 # crawler-reverse SKILL.md 铁律 #8 + 6 问自检 L3
 check_drissionpage "$REPO_DIR/skills/mcpowers-crawler-reverse/SKILL.md" "DrissionPage（v2.18.0 默认）/ Playwright" "crawler-reverse 铁律 #8 DrissionPage 化"

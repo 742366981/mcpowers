@@ -295,6 +295,43 @@ for f in sorted(os.listdir('skills')):
 - **版本策略**：精准化描述（不撤回主决策）+ 4 个参考链接 + 不新增工具 = patch bump `2.18.0 → 2.18.1`。
 - **同步面**：本次横跨 **4 文件**——1 主规范（《爬虫工具与抓包规范》§2.1 段头 + §2.1/§7.2 主表 + §3.7 Chrome 136+ 独立 user data dir + 4 个参考链接）+ 1 README 章节（v2.18.0 主表 2 行精准化）+ 1 CLAUDE.md 历史教训（本段）+ 2 版本文件（plugin.json + marketplace.json × 2 patch bump）。
 
+### 历史教训（v2.18.2 真实接管链路实测暴露 4 个 bug）
+
+- **v2.18.2**：v2.18.1 §3.7 留下的"真实接管链路 1 次实测"任务，在用户主动验收驱动下落地。**关键发现：4 个真实 bug**——光看代码 + 文档自洽远远不够，必须真实接 Chrome 150+ + DrissionPage 接管才能完整验：
+  1. **`user-action-recorder.py:506 duck-type bug**（最致命）——原 v2.18.0 写法 `if hasattr(page, "listen") and callable(getattr(page, "listen", None)):` 中 `callable()` 判断错误：DrissionPage 的 `page.listen` 是 **property 返回 Listener 实例**（`type(page.listen) == DrissionPage._units.listener.Listener`），实例不可 call → `callable(page.listen) == False` → 永远走 Playwright fallback 分支 → 调用 `page.on("request", ...)` → DrissionPage 没有 `page.on` 立刻 `AttributeError`。修复：去掉 `callable()` 判断，仅用 `hasattr(page, "listen")`（DrissionPage 有 `listen`，Playwright 没有，二选一唯一）。**影响**：DrissionPage 接管模式下 `start_recording()` 整个函数完全无法使用。
+  2. **`stop_recording` 同样 duck-type bug**——和 Bug 1 同段逻辑，注销监听器分支也走错路径。同步修复。
+  3. **`page.actions.wheel` API 误用**——v2.18.0 §2.1 接管语法对照表写 "page.mouse.wheel → page.actions.wheel"，实测 DrissionPage `type(page.actions) == Actions`，方法列表只有 `scroll/click/down/move/key_press/type/wait` 等，无 `wheel`；`page.mouse` 也不存在。正确映射：`page.mouse.wheel(0, dy)` (Playwright) → `page.actions.scroll(delta_y=dy, delta_x=0, on_ele=None)` (DrissionPage)。修复：`user-action-recorder.py:421` 改为 `page.actions.scroll(int(action.get("delta_y", 0)))`；同步同步 `check-readme-sync.sh` §14 校验项从 `page.actions.wheel` 改为 `page.actions.scroll`。
+  4. **`popup-handler.py` POPUP_SELECTORS 漏配 notification**——实测 D.2 notification 在 8 类弹窗测试中分类默认 `unknown`，原因是字典漏配 `[id*="notification" i]` 和 `[class*="notification" i]` 两条 selector（其它 7 类都有，仅 notification 漏）。修复：补 2 行；同时 `check-readme-sync.sh` §14 新增 2 项校验。
+- **顺带修复 2 个小 bug**：
+  - **`stop_recording` 缺 HAR buffer flush** —— `page.on` 改 `listen` 后台线程结束时残留 buffer 直接丢。修复：在 stop 时强制 flush 一次 `handle._har_buffer`。
+  - **`replay_actions` 缺防御性读取** —— 旧版硬假设 JSON 是 `{"actions": [...]}` 包装格式；空文件 `/ []` / 损坏 JSON 抛 `TypeError: list indices must be integers or slices, not str`。修复：try/except + 类型判断 + 双格式兼容（dict.actions 或 list）。
+- **seen_elements 去重副作用不修（Bug 5）**：实测发现 `seen_elements` 按 element id 去重，但 selector 字段保留的是**先匹配**的 macro selector（不是后匹配的更精确的）。这导致含 `.popup` 通用类的弹窗总是由 `.popup` 行先匹配并占 seen。看似缺陷，**但真实站点不用通用 `.popup` 类名**（都用 `cookie-consent` / `gdpr-banner` / `notification-prompt` 等具体名），所以字典设计本身合理，**不改**（YAGNI 守边界）。
+- **完整链路实测环境**（v2.18.2 后 v2.18.1 §3.7 SOP 完整跑通）：
+  ```
+  Chrome 150.0.7871.187 + --remote-allow-origins=* + --user-data-dir=<独立> + 9222
+  + ChromiumOptions().set_local_port(9222).set_user_data_path(<独立>)
+  + ChromiumPage(addr_or_opts=co)
+  + page.listen.start()  # 接管模式真实可用（v2.18.0 Duck-type bug 修复后）
+  + popup-handler 检测 8/8 + 分类 8/8（v2.18.2 notification 补配后）
+  + user-action-recorder start/stop 接管模式真实可用
+  + page.actions.scroll() 正确 API（v2.18.2 wheel→scroll 修复后）
+  ```
+- **关键经验**：
+  - **代码读起来对 + 文档自洽 ≠ 真实可用**——v2.18.0 一行 `callable()` 误判接管模式整个失效，光看代码 review 无法暴露。
+  - **`hasattr(page, "listen")` 优于 `hasattr + callable`**——property 返回的实例永远不 callable；duck-type 检测应只看属性存在与否，不应附加 callable 条件。
+  - **DrissionPage API 名 ≠ Playwright** ——即使功能相同（wheel/scroll），API 名常常不一致；接管语法对照表必须**实测验证**，不能凭 Playwright 习惯推。
+  - **字典覆盖率必须配套测试**——v2.9.5 上线 8 类弹窗字典后从未实测过 8 类全命中；v2.18.2 跑本地 HTML 测试页立刻暴露 D.2 notification 漏配。**新规范/新字典上线必须配套完整覆盖测试**。
+- **铁律新增**：
+  - **`scripts/check-readme-sync.sh` §14 新增 5 项校验**——`hasattr(page, "listen")` 检测 / `[class*="notification" i]` 补配 / `[id*="notification" i]` 补配 / `page.actions.scroll` 取代 `page.actions.wheel` / `_replay_one` docstring 改描述；防止后续修改回退 v2.18.2 修复。
+  - **新工具/新接管语法 → **必跑** 1 次接管链路口令**：`DrissionPage 真接管 + Chrome 150+ + --remote-allow-origins=*` ——任何「读到 API 文档即可用」的认知都是反模式。
+- **版本策略**：4 个用户可见 bug 修复 + 1 字典补配 + 2 小优化（防御 + flush）= minor bump **但**内含的具体功能没新增加，仍属于"接 v2.18.1 §3.7 SOP 实测任务落地"——按 CLAUDE.md 版本规则，bug fix + 字典补配 = patch bump `2.18.1 → 2.18.2`。
+- **同步面**：本次横跨 **8 文件**：
+  - 2 脚本修：`skills/mcpowers-crawler-reverse/scripts/user-action-recorder.py`（5 处修改：Bug 1+2+3+bug7）/ `popup-handler.py`（2 行字典补配）
+  - 1 校验强化：`scripts/check-readme-sync.sh` §14 新增 5 个 string 校验（替换 wheel→scroll / 新增 hasattr + 2 个 notification 补配）
+  - 2 顶层维护：`CLAUDE.md`（本段历史教训）+ `README.md`（v2.18.2 节）
+  - 2 版本文件：`.claude-plugin/plugin.json` + `marketplace.json × 2` patch bump `2.18.1 → 2.18.2`
+  - 1 真实接管链路留痕：`C:\Users\Administrator\AppData\Local\Temp\scraper_test\` 测试脚本与产物（**不**入库，YAGNI 守边界；下次用户撞坑时可直接复用）
+
 ### 历史教训（v2.16.0 抓包失败 7 层诊断 + cURL 快速帮助）
 
 - **v2.16.0**：真实用户复盘（2026-07）发现两个体系缺口——

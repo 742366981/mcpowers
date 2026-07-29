@@ -10,8 +10,10 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - 'skills/mcpowers-shared/docs/**'
+      - 'docs/**'
       - 'CLAUDE.md'
       - 'README.md'
+      - 'CHANGELOG.md'
   push:
     branches: [master]
 
@@ -43,23 +45,29 @@ jobs:
             # 受保护路径：技能体系核心目录
             PROTECTED_PATHS_REGEX='^(skills/|hooks/|\.claude-plugin/|skills/mcpowers-shared/docs/)'
 
-            DOCS_CHANGED=$(echo "$CHANGED" | grep -E '^(CLAUDE\.md|README\.md)$' || true)
+            # 顶层用户/维护文档：CLAUDE.md / README.md / CHANGELOG.md / docs/历史教训.md
+            DOCS_REGEX='^(CLAUDE\.md|README\.md|CHANGELOG\.md|docs/历史教训\.md)$'
+
+            DOCS_CHANGED=$(echo "$CHANGED" | grep -E "$DOCS_REGEX" || true)
             PROTECTED_CHANGED=$(echo "$CHANGED" | grep -E "$PROTECTED_PATHS_REGEX" || true)
 
             if [ -n "$PROTECTED_CHANGED" ] && [ -z "$DOCS_CHANGED" ]; then
-              echo "❌ 检测到技能体系变更但 CLAUDE.md/README.md 未同步"
+              echo "❌ 检测到技能体系变更但 CLAUDE.md / README.md / CHANGELOG.md / docs/历史教训.md 均未同步"
               echo ""
               echo "变更的受保护路径："
               echo "$PROTECTED_CHANGED"
               echo ""
-              echo "按 CLAUDE.md「文档同步约束（强制）」规则，必须在同一变更中同步更新："
-              echo "  - CLAUDE.md（维护规则、技能分类、触发映射）"
-              echo "  - README.md（用户功能说明、技能树、触发条件）"
+              echo "按 CLAUDE.md「文档同步约束（强制）」+ v2.21.1 文档职责分工，"
+              echo "能力变化必须同步以下 4 类顶层文档之一："
+              echo "  - CLAUDE.md（AI 必备的执行规则 / 铁律 / 路由器索引）"
+              echo "  - README.md（用户可见能力 / 安装 / 维护入口）"
+              echo "  - CHANGELOG.md（用户视角版本变更）"
+              echo "  - docs/历史教训.md（维护者复盘 / 关键决策 / 关键风险）"
               exit 1
             fi
 
             if [ -n "$PROTECTED_CHANGED" ]; then
-              echo "✓ 检测到 CLAUDE.md 或 README.md 同步变更"
+              echo "✓ 检测到顶层用户/维护文档同步变更"
               echo "$DOCS_CHANGED"
             fi
           else

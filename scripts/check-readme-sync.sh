@@ -20,7 +20,13 @@
 #  14. DrissionPage 全场景默认化（v2.18.0 新增：浏览器自动化工具栈主表 + 漏抓 7 层 DrissionPage 重新映射 + popup-handler / user-action-recorder DrissionPage 适配）
 #  15. reverse-analysis-session 强制起手式（v2.19.0 新增：init → web-start → web-stop 状态机 + 浏览器指纹一致性审计）
 #  16. 项目独立端口（v2.20.0 新增：pick_free_port + chrome_port 字段 + 文档占位符 <port>）
+#  17. 会话派生产物（v2.21.0 新增：session-artifacts-generator + 目标接口候选 + 响应样本 envelope + 类式封装种子）
+#  18. 根文档结构门禁（v2.21.1 新增：禁止 CLAUDE.md 出现"### 历史教训（v" / README.md 出现"### vX.Y.Z"）
+#  19. 根文档尺寸门禁（v2.21.1 新增：CLAUDE.md ≤ 350 行 / 35,000 字符，README.md ≤ 650 行 / 50,000 字符）
+#  20. 单一权威源门禁（v2.21.1 新增：关键短语在 CLAUDE.md / README.md 出现即告警，应在规范权威源维护）
 #
+# v2.21.1：新增 section 18/19/20
+# v2.21.0：新增 section 17
 # v2.20.0：新增 section 16
 # v2.19.0：新增 section 15
 # v2.18.0：新增 section 14
@@ -568,11 +574,11 @@ check_module_form "$EXTRACT_SKILL" "client.py"  "extract client.py 类式"
 check_module_form "$EXTRACT_SKILL" "quick_test.py"  "extract quick_test.py 必备"
 
 # README.md 用户可见说明
-check_module_form "$README_DOC" "类式封装"  "README 类式封装说明"
-check_module_form "$README_DOC" "零前置参数"  "README 零前置参数说明"
-check_module_form "$README_DOC" "quick_test.py"  "README quick_test.py 说明"
-check_module_form "$README_DOC" "分析计划.md"  "README 顶层文档中文"
-check_module_form "$README_DOC" "案例沉淀.md"  "README 顶层文档中文"
+# v2.21.1：README 类式封装 / 零前置参数 / quick_test.py 详细说明在 v2.21.0 节，
+# 该节已迁移至 CHANGELOG.md / docs/历史教训.md。README 顶层不再维护规则副本，改为引用权威源：
+# §13 校验简化为引用检查（避免与 §20 单一权威源门禁冲突）：
+check_module_form "$README_DOC" "CHANGELOG.md"  "README 引用 CHANGELOG.md"
+check_module_form "$README_DOC" "docs/历史教训.md"  "README 引用 docs/历史教训.md"
 
 # v2.17.0 二次确认：分析文件名全中文硬校验（防止后续漏改）
 # 校验项：技能 + 规范的 SKILL.md / 规范文档，禁止在新行（说明/描述）里写英文路径。
@@ -904,8 +910,9 @@ check_artifact "$CRAWLER_WEB_SPEC" "目标接口候选.md" "Web 册头部引用�
 check_artifact "$CRAWLER_SKILL" "session-artifacts-generator.py" "crawler-reverse SKILL 含生成器名"
 check_artifact "$REVERSE_WEB_SKILL" "目标接口候选" "reverse-web SKILL 含目标接口候选触发词"
 check_artifact "$REPO_DIR/skills/mcpowers/SKILL.md" "会话产物生成" "主路由 SKILL 含会话产物生成触发词"
-check_artifact "$REPO_DIR/CLAUDE.md" "历史教训（v2.21.0" "CLAUDE.md 含 v2.21.0 历史教训标题"
-check_artifact "$REPO_DIR/README.md" "### v2.21.0" "README.md 含 v2.21.0 章节标题"
+# v2.21.1：CLAUDE.md / README.md 不再含 v2.21.0 标题段（已迁移至 CHANGELOG.md / docs/历史教训.md）
+check_artifact "$REPO_DIR/CHANGELOG.md" "## v2.21.0" "CHANGELOG.md 含 v2.21.0 段"
+check_artifact "$REPO_DIR/docs/历史教训.md" "v2.21.0" "docs/历史教训.md 含 v2.21.0 段"
 
 # 8. 测试接入
 check_artifact "$ARTIFACTS_VERIFY" "[7/7]" "新 verify.py 含 7 类断言标签"
@@ -916,6 +923,116 @@ if [ "$ARTIFACT_FAIL" -eq 0 ]; then
     echo "  ✓ 会话派生产物（v2.21.0）完整"
 else
     FAIL=$((FAIL + ARTIFACT_FAIL))
+fi
+
+# ============== §18 根文档结构门禁（v2.21.1） ==============
+# 禁止 CLAUDE.md 出现"### 历史教训（v" 时间线叙事
+# 禁止 README.md 出现"### vX.Y.Z" 版本发布段
+# 两个根文档必须各包含一行 docs/历史教训.md 与 CHANGELOG.md 的相对链接
+echo "[18/20] 根文档结构门禁（v2.21.1）..."
+
+STRUCT_FAIL=0
+
+if grep -qE '^### 历史教训（v' CLAUDE.md; then
+    echo "  ✗ CLAUDE.md 含历史教训时间线叙事段（v2.21.1+ 禁止）"
+    STRUCT_FAIL=$((STRUCT_FAIL + 1))
+fi
+
+if grep -qE '^### v[0-9]+\.[0-9]+\.[0-9]+' README.md; then
+    echo "  ✗ README.md 含版本发布段（v2.21.1+ 禁止）"
+    STRUCT_FAIL=$((STRUCT_FAIL + 1))
+fi
+
+if ! grep -qE 'docs/历史教训\.md' CLAUDE.md; then
+    echo "  ✗ CLAUDE.md 缺少 docs/历史教训.md 引用"
+    STRUCT_FAIL=$((STRUCT_FAIL + 1))
+fi
+
+if ! grep -qE 'CHANGELOG\.md' CLAUDE.md; then
+    echo "  ✗ CLAUDE.md 缺少 CHANGELOG.md 引用"
+    STRUCT_FAIL=$((STRUCT_FAIL + 1))
+fi
+
+if ! grep -qE 'docs/历史教训\.md' README.md; then
+    echo "  ✗ README.md 缺少 docs/历史教训.md 引用"
+    STRUCT_FAIL=$((STRUCT_FAIL + 1))
+fi
+
+if ! grep -qE 'CHANGELOG\.md' README.md; then
+    echo "  ✗ README.md 缺少 CHANGELOG.md 引用"
+    STRUCT_FAIL=$((STRUCT_FAIL + 1))
+fi
+
+if [ "$STRUCT_FAIL" -eq 0 ]; then
+    echo "  ✓ 根文档结构门禁完整（CLAUDE.md 引用 / README.md 引用 / 无时间线段）"
+else
+    FAIL=$((FAIL + STRUCT_FAIL))
+fi
+
+# ============== §19 根文档尺寸门禁（v2.21.1） ==============
+# CLAUDE.md ≤ 350 行 / 35,000 字符；README.md ≤ 650 行 / 50,000 字符
+# 失败时打印当前值与限制值，并提示在脚本头部常量 CLAUDE_LINE_BUDGET 等调整
+echo "[19/20] 根文档尺寸门禁（v2.21.1）..."
+
+CLAUDE_LINE_BUDGET=350
+CLAUDE_CHAR_BUDGET=35000
+README_LINE_BUDGET=650
+README_CHAR_BUDGET=50000
+
+SIZE_FAIL=0
+
+CLAUDE_LINES=$(wc -l < CLAUDE.md)
+CLAUDE_CHARS=$(wc -m < CLAUDE.md)
+if [ "$CLAUDE_LINES" -gt "$CLAUDE_LINE_BUDGET" ] || [ "$CLAUDE_CHARS" -gt "$CLAUDE_CHAR_BUDGET" ]; then
+    echo "  ✗ CLAUDE.md 尺寸超预算：当前 ${CLAUDE_LINES} 行 / ${CLAUDE_CHARS} 字符，预算 ≤ ${CLAUDE_LINE_BUDGET} 行 / ${CLAUDE_CHAR_BUDGET} 字符"
+    SIZE_FAIL=$((SIZE_FAIL + 1))
+fi
+
+README_LINES=$(wc -l < README.md)
+README_CHARS=$(wc -m < README.md)
+if [ "$README_LINES" -gt "$README_LINE_BUDGET" ] || [ "$README_CHARS" -gt "$README_CHAR_BUDGET" ]; then
+    echo "  ✗ README.md 尺寸超预算：当前 ${README_LINES} 行 / ${README_CHARS} 字符，预算 ≤ ${README_LINE_BUDGET} 行 / ${README_CHAR_BUDGET} 字符"
+    SIZE_FAIL=$((SIZE_FAIL + 1))
+fi
+
+if [ "$SIZE_FAIL" -eq 0 ]; then
+    echo "  ✓ 根文档尺寸门禁通过（CLAUDE.md ${CLAUDE_LINES} 行 / ${CLAUDE_CHARS} 字符；README.md ${README_LINES} 行 / ${README_CHARS} 字符）"
+else
+    echo "  调整提示：如确实需要扩充，请在 scripts/check-readme-sync.sh 头部常量 CLAUDE_LINE_BUDGET / CLAUDE_CHAR_BUDGET / README_LINE_BUDGET / README_CHAR_BUDGET 同步调整，并先评估是否应迁出到 docs/历史教训.md / CHANGELOG.md"
+    FAIL=$((FAIL + SIZE_FAIL))
+fi
+
+# ============== §20 单一权威源门禁（v2.21.1） ==============
+# 关键短语（如「外部接管资源不可关闭」/「pick_free_port」/「类式封装」/「set_local_port(9222)」）
+# 在 CLAUDE.md / README.md 出现即告警（不阻断，FAIL 累加）：该规则应在权威源维护
+# 复用既有 §12 / §14 / §15 / §16 / §17 已有的 grep -qF 模式
+echo "[20/20] 单一权威源门禁（v2.21.1）..."
+
+AUTHORITY_FAIL=0
+AUTHORITY_KEYWORDS=(
+    "pick_free_port"
+    "set_local_port(9222)"
+    "类式封装"
+    "DrissionPage 内置"
+)
+# 「外部接管资源不可关闭」由 §12 已锁，§20 只对未纳入 §12-§17 的新增短语做告警
+
+for keyword in "${AUTHORITY_KEYWORDS[@]}"; do
+    if grep -qF "$keyword" CLAUDE.md 2>/dev/null; then
+        echo "  ⚠ CLAUDE.md 含「${keyword}」—— 顶层文档不维护规则副本，应在对应技术规范权威源维护"
+        AUTHORITY_FAIL=$((AUTHORITY_FAIL + 1))
+    fi
+    if grep -qF "$keyword" README.md 2>/dev/null; then
+        echo "  ⚠ README.md 含「${keyword}」—— 顶层文档不维护规则副本，应在对应技术规范权威源维护"
+        AUTHORITY_FAIL=$((AUTHORITY_FAIL + 1))
+    fi
+done
+
+if [ "$AUTHORITY_FAIL" -eq 0 ]; then
+    echo "  ✓ 单一权威源门禁通过（CLAUDE.md / README.md 未维护规则副本）"
+else
+    echo "  提示：上述短语已在对应规范权威源维护（参见 docs/历史教训.md 关联），顶层文档应只保留 1 行相对链接"
+    FAIL=$((FAIL + AUTHORITY_FAIL))
 fi
 
 # ============== 汇总 ==============

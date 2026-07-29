@@ -3,8 +3,8 @@ title: 爬虫Web逆向规范
 type: tech-spec
 applies_to: [crawler-reverse, web]
 priority: recommended
-version: 2.19.0
-last_updated: 2026-07-28-v2.19.0
+version: 2.21.0
+last_updated: 2026-07-29-v2.21.0
 description: Web JS 反混淆、补环境、算法复现与正确性校验的方法论；与 `mcpowers-reverse-web` 1:1 对应。与《爬虫工具与抓包规范》§3 浏览器复用配合使用抓包；以《爬虫分析规范》§9.4 模块真实可用性验收收尾。Web 逆向必读；非 Web 任务不读。
 ---
 
@@ -19,9 +19,16 @@ description: Web JS 反混淆、补环境、算法复现与正确性校验的方
 > - 工具与脚本角色边界（adapter / Playwright / popup-handler）见工具册 §6.1。
 > - **v2.19.0 新增**：Web 任务固定起手式见工具册 §8.6 / §8.7 与
 >   `reverse-analysis-session.py`（init → web-start → web-stop）。
+> **v2.21.0 新增**：`web-stop` 在证据 flush + 步骤证据索引完成后，**自动**调用
+>   `session-artifacts-generator.py` 生成目标接口候选、响应样本和模块封装种子。
+>   落地产物包含 `02-接口分析/目标接口候选.md`、`02-接口分析/响应样本/*.json`、
+>   `04-模块封装/{module}/client.py` + `quick_test.py`。这些产物是**分析起点**，
+>   不是已验证接口（`[🎯]`）或可交付模块（`PASS`）；
+>   详细规则、产物契约与失败隔离见《爬虫工具与抓包规范》§8.8。
 >
 > **外部接管资源所有权铁律**：本规范的 §2 涉及接管用户 Chrome 时必须遵守主《爬虫
-> 分析规范》§1.3 铁律——**外部接管资源不可关闭**。
+> 分析规范》§1.3 铁律——**外部接管资源不可关闭**。`session-artifacts-generator.py`
+> 的失败隔离严格遵守此铁律：生成异常不会关闭浏览器、不破坏 STOPPED 状态写入。
 
 ---
 

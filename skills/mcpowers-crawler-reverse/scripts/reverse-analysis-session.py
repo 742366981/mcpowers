@@ -1454,6 +1454,44 @@ def run_web_session(args: argparse.Namespace) -> Path:
         actions_path = recorder.stop_recording(recorder_handle)
         recorder_handle = None
         index_path = build_step_evidence_index(session_dir)
+
+        # v2.21.0：派生产物生成（必须在 build_step_evidence_index 之后、STOPPED 写入之前）
+        # 失败隔离：捕获所有异常，不破坏 STOPPED 与浏览器存活（v2.19.0 铁律 #6）。
+        artifacts_status: dict[str, Any] = {"status": "skipped", "error": "未运行"}
+        artifacts_generator: Any = None
+        try:
+            artifacts_generator = _load_tool_module(
+                "session-artifacts-generator.py",
+                "mcpowers_session_artifacts_generator",
+            )
+        except Exception as load_exc:  # noqa: BLE001
+            print(f"[逆向会话] 派生产物生成器加载失败：{type(load_exc).__name__}: {load_exc}")
+        if artifacts_generator is not None:
+            try:
+                artifacts_result = artifacts_generator.run_artifacts_generation(workspace, session_dir)
+                artifacts_status = {
+                    "status": artifacts_result.get("status", "unknown"),
+                    "module_name": artifacts_result.get("module_name"),
+                    "client_path": artifacts_result.get("client_path"),
+                    "quick_test_path": artifacts_result.get("quick_test_path"),
+                    "candidate_report_path": artifacts_result.get("candidate_report_path"),
+                    "response_sample_paths": artifacts_result.get("response_sample_paths", []),
+                    "created_paths": artifacts_result.get("created_paths", []),
+                    "preserved_paths": artifacts_result.get("preserved_paths", []),
+                    "warnings": artifacts_result.get("warnings", []),
+                }
+                print(f"[逆向会话] 派生产物生成：{artifacts_status['status']}")
+                if artifacts_status.get("warnings"):
+                    for warning in artifacts_status["warnings"]:
+                        print(f"[逆向会话] 派生产物警告：{warning}")
+            except Exception as gen_exc:  # noqa: BLE001
+                artifacts_status = {
+                    "status": "failed",
+                    "error_type": type(gen_exc).__name__,
+                    "error": str(gen_exc),
+                }
+                print(f"[逆向会话] 派生产物生成失败：{type(gen_exc).__name__}: {gen_exc}")
+
         _write_state(
             workspace,
             STATE_STOPPED,
@@ -1464,6 +1502,7 @@ def run_web_session(args: argparse.Namespace) -> Path:
             har_path=str((session_dir / "user-session.har.jsonl").resolve()),
             js_runtime_path=js_path,
             evidence_index_path=str(index_path.resolve()),
+            artifacts_generation=artifacts_status,
             browser_still_running=True,
         )
         return workspace

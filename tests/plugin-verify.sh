@@ -258,6 +258,18 @@ if [ -f "$SESSION_VERIFY" ] && [ -n "$PY_BIN" ]; then
     assert_eq "逆向会话自检通过（exit 0）" "$RC_SESSION" "0"
 fi
 
+# ============== 7.6 会话派生产物生成器自检（v2.21.0 新增） ==============
+echo "[7.6] 会话派生产物生成器自检"
+ARTIFACTS_VERIFY="$REPO_DIR/tests/session-artifacts-generator-verify.py"
+assert "会话派生产物自检脚本存在" "[ -f '$ARTIFACTS_VERIFY' ]"
+if [ -f "$ARTIFACTS_VERIFY" ] && [ -n "$PY_BIN" ]; then
+    set +e
+    $PY_BIN "$ARTIFACTS_VERIFY" >/dev/null 2>&1
+    RC_ARTIFACTS=$?
+    set -e
+    assert_eq "会话派生产物自检通过（exit 0）" "$RC_ARTIFACTS" "0"
+fi
+
 # ============== 旧安装脚本不应残留 ==============
 echo ""
 echo "[旧资产清理] 断言：旧安装脚本已删除"

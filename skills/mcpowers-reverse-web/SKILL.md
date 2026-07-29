@@ -34,11 +34,14 @@ description: "网站逆向 / Web JS反混淆 / 浏览器抓包 / CDP接管 → �
 
 **外部接管资源不可关闭**：DrissionPage `ChromiumPage(addr_or_opts=ChromiumOptions().set_local_port(<port>))`（v2.18.0 默认 + v2.20.0 占位符）/ Playwright `connect_over_cdp`（fallback）得到的 browser、用户 context、既有 page/tab 和外部 daemon 全部视为 external；禁止 `browser.close()`、`context.close()`、关闭既有 page、kill Chrome。任务在用户 context 新开的 tab 默认保留，只有用户明确确认才能关闭。`web-start` 自身停止时也不关闭任何外部资源，浏览器默认保留供用户继续检查。
 
-### 1.5 用户操作录制（v2.15.0 新增，v2.19.0 强制默认入口）
+### 1.5 用户操作录制（v2.15.0 新增，v2.19.0 强制默认入口，v2.21.0 自动派生产物）
 
 `reverse-analysis-session.py web-start` 内部已经串联：
 `cleanup_all()` → `start_recording()` → JS 运行时监控 → 等用户操作 →
-`web-stop` 触发 `stop_recording()` + flush JS 监控 + 生成 `步骤证据索引.json`。
+`web-stop` 触发 `stop_recording()` + flush JS 监控 + 生成 `步骤证据索引.json` +
+**自动调用 `session-artifacts-generator.py`** 生成 `目标接口候选.md` / `响应样本/*.json`
+/ `04-模块封装/{module}/client.py` + `quick_test.py`（v2.21.0 新增；详见《爬虫工具
+与抓包规范》§8.8）。
 AI 在用户操作期间**只持续采证**，不得抢操作、不得擅自驱动强校验表单、不得
 先死磕 bundle。
 
@@ -97,6 +100,9 @@ AI 不驱动表单，让用户手动点一次触发 POST，1s 内可抓到 200�
 - ❌ **v2.16.0 新增**：Chrome 启动命令漏 `--remote-allow-origins=*`（Chrome 150+ 会 403）。
 - ❌ **v2.19.0 新增**：绕过 `reverse-analysis-session.py` 自由拼接 A 模式自动分析；先分析再补工作区。
 - ❌ **v2.19.0 新增**：把 DrissionPage 描述为"内置反指纹 / 内置指纹伪装"。DrissionPage 优势是**接管便利性 + 国内站点适配（5秒盾/Turnstile 自动化通过率）**；重度反指纹场景需 Playwright + rebrowser / puppeteer-real-browser 配合，**反指纹是另一条线**。
+- ❌ **v2.21.0 新增**：阶段 2 直接打开 HAR 自由浏览找接口，跳过 `目标接口候选.md`——必须基于生成器 top10 报告 + 响应样本 envelope 展开分析，不得跳过生成器产物。
+- ❌ **v2.21.0 新增**：把 `02-接口分析/响应样本/*.json` 当作完整响应 body——envelope `body_preview` 仅 HAR 前 1024 字符脱敏预览，不可作为完整响应证据。
+- ❌ **v2.21.0 新增**：自动生成的 `client.py` / `quick_test.py` 未经 5.5 验收直接标 `[🎯]` / `PASS` 或对外交付——生成器产物是分析起点，不是验收通过；阶段 5.5 仍由 AI 主导 `verify.py` 实跑 + `验收报告.md`。
 
 ## 完成后自检清单
 

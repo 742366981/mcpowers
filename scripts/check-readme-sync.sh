@@ -633,7 +633,7 @@ fi
 
 # ============== 14. DrissionPage 全场景默认化（v2.18.0 新增） ==============
 # 防止后续修改把 DrissionPage 默认化回退到 Playwright 默认、或漏改 6 问自检 L3。
-echo "[14/16] 校验 DrissionPage 全场景默认化（v2.18.0）"
+echo "[14/17] 校验 DrissionPage 全场景默认化（v2.18.0）"
 DRISSIONPAGE_FAIL=0
 CRAWLER_TOOLS_SPEC="$REPO_DIR/skills/mcpowers-shared/docs/技术规范/爬虫工具与抓包规范.md"
 CRAWLER_SKILL_DOC="$REPO_DIR/skills/mcpowers-shared/skills/mcpowers-crawler-reverse/SKILL.md"
@@ -712,7 +712,7 @@ else
 fi
 
 # ============== 15. reverse-analysis-session 强制起手式（v2.19.0 新增） ==============
-echo "[15/16] 校验 reverse-analysis-session 强制起手式（v2.19.0）"
+echo "[15/17] 校验 reverse-analysis-session 强制起手式（v2.19.0）"
 SESSION_FAIL=0
 SESSION_SCRIPT="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py"
 SESSION_VERIFY="$REPO_DIR/tests/reverse-analysis-session-verify.py"
@@ -779,7 +779,7 @@ fi
 # ============== 16. 项目独立端口（v2.20.0 新增） ==============
 # 物理门禁：pick_free_port 必须存在；init 必须写 chrome_port；文档必须用 <port> 占位符，
 # 禁止回退到硬编码 9222（除非历史注释/反例说明文本）。
-echo "[16/16] 校验项目独立端口（v2.20.0）"
+echo "[16/17] 校验项目独立端口（v2.20.0）"
 PORT_FAIL=0
 SESSION_SCRIPT="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/reverse-analysis-session.py"
 
@@ -829,6 +829,93 @@ if [ "$PORT_FAIL" -eq 0 ]; then
     echo "  ✓ 项目独立端口（v2.20.0）完整"
 else
     FAIL=$((FAIL + PORT_FAIL))
+fi
+
+# ============== 17. 会话派生产物（v2.21.0 新增） ==============
+# 物理门禁：session-artifacts-generator.py 存在 + 公开契约 + v2.17.0 类式模板关键方法 +
+# v2.21 评分维度字符串 + lifecycle 标签 + reverse-analysis-session.py 集成点 +
+# 三份规范 + 3 个 SKILL + CLAUDE.md / README.md 同步。
+echo "[17/17] 校验会话派生产物（v2.21.0）"
+ARTIFACT_FAIL=0
+GENERATOR_SCRIPT="$REPO_DIR/skills/mcpowers-crawler-reverse/scripts/session-artifacts-generator.py"
+ARTIFACTS_VERIFY="$REPO_DIR/tests/session-artifacts-generator-verify.py"
+
+check_artifact() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file"
+        ARTIFACT_FAIL=$((ARTIFACT_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        ARTIFACT_FAIL=$((ARTIFACT_FAIL + 1))
+    fi
+}
+
+# 1. 生成器脚本存在 + 公开契约
+check_artifact "$GENERATOR_SCRIPT" "def run_artifacts_generation(" "生成器脚本 run_artifacts_generation 函数"
+check_artifact "$GENERATOR_SCRIPT" "02-接口分析/目标接口候选.md" "生成器候选报告路径字符串"
+check_artifact "$GENERATOR_SCRIPT" "02-接口分析/响应样本" "生成器响应样本目录字符串"
+check_artifact "$GENERATOR_SCRIPT" "04-模块封装" "生成器模块封装目录字符串"
+check_artifact "$GENERATOR_SCRIPT" "client.py" "生成器 client.py 产物字符串"
+check_artifact "$GENERATOR_SCRIPT" "quick_test.py" "生成器 quick_test.py 产物字符串"
+
+# 2. v2.17.0 类式模板关键方法
+check_artifact "$GENERATOR_SCRIPT" "def build_request(" "client.py 模板含 build_request 方法"
+check_artifact "$GENERATOR_SCRIPT" "def do_request(" "client.py 模板含 do_request 方法"
+check_artifact "$GENERATOR_SCRIPT" "def parse_response(" "client.py 模板含 parse_response 方法"
+check_artifact "$GENERATOR_SCRIPT" "def request_and_parse(" "client.py 模板含 request_and_parse 方法"
+check_artifact "$GENERATOR_SCRIPT" 'if __name__ == "__main__":' "quick_test.py 模板含 __main__"
+
+# 3. v2.21 六维评分维度字符串
+check_artifact "$GENERATOR_SCRIPT" "响应码 200" "六维评分：响应码 200 维度"
+check_artifact "$GENERATOR_SCRIPT" "操作触发" "六维评分：操作触发维度"
+check_artifact "$GENERATOR_SCRIPT" "业务 JSON 字段" "六维评分：业务 JSON 字段维度"
+check_artifact "$GENERATOR_SCRIPT" "反爬特征" "六维评分：反爬特征维度"
+check_artifact "$GENERATOR_SCRIPT" "静态 vs 动态参数" "六维评分：静态 vs 动态参数维度"
+check_artifact "$GENERATOR_SCRIPT" "重复次数" "六维评分：重复次数维度"
+check_artifact "$GENERATOR_SCRIPT" "body_preview" "响应样本 envelope body_preview 字段"
+check_artifact "$GENERATOR_SCRIPT" "不代表完整响应体" "响应样本 envelope 声明不代表完整响应体"
+
+# 4. lifecycle 标签（4 类核心）
+check_artifact "$GENERATOR_SCRIPT" "reusable" "lifecycle 标签 reusable"
+check_artifact "$GENERATOR_SCRIPT" "per-request" "lifecycle 标签 per-request"
+check_artifact "$GENERATOR_SCRIPT" "session-bound" "lifecycle 标签 session-bound"
+check_artifact "$GENERATOR_SCRIPT" "challenge-bound" "lifecycle 标签 challenge-bound"
+
+# 5. 集成点：reverse-analysis-session.py 必须加载并调用
+check_artifact "$SESSION_SCRIPT" "session-artifacts-generator.py" "session 脚本加载 session-artifacts-generator"
+check_artifact "$SESSION_SCRIPT" "run_artifacts_generation" "session 脚本调用 run_artifacts_generation"
+check_artifact "$SESSION_SCRIPT" "artifacts_generation" "session 脚本写 artifacts_generation 状态字段"
+
+# 6. 规范与工具表
+check_artifact "$CRAWLER_TOOLS_SPEC" "§8.8 Web 会话派生产物自动生成" "工具册 §8.8 章节标题"
+check_artifact "$CRAWLER_TOOLS_SPEC" "session-artifacts-generator.py" "工具册 §7.2 工具对照表新增行"
+check_artifact "$CRAWLER_ANALYSIS_SPEC" "§3.11 App 录制选型调研" "分析册 §3.11 章节标题"
+check_artifact "$CRAWLER_ANALYSIS_SPEC" "Appium" "分析册 §3.11 Appium 方案字符串"
+check_artifact "$CRAWLER_ANALYSIS_SPEC" "frida" "分析册 §3.11 Frida 方案字符串"
+check_artifact "$CRAWLER_ANALYSIS_SPEC" "Accessibility Service" "分析册 §3.11 Accessibility Service 方案字符串"
+check_artifact "$CRAWLER_WEB_SPEC" "目标接口候选.md" "Web 册头部引用目标接口候选"
+
+# 7. SKILL 与顶层文档
+check_artifact "$CRAWLER_SKILL" "session-artifacts-generator.py" "crawler-reverse SKILL 含生成器名"
+check_artifact "$REVERSE_WEB_SKILL" "目标接口候选" "reverse-web SKILL 含目标接口候选触发词"
+check_artifact "$REPO_DIR/skills/mcpowers/SKILL.md" "会话产物生成" "主路由 SKILL 含会话产物生成触发词"
+check_artifact "$REPO_DIR/CLAUDE.md" "历史教训（v2.21.0" "CLAUDE.md 含 v2.21.0 历史教训标题"
+check_artifact "$REPO_DIR/README.md" "### v2.21.0" "README.md 含 v2.21.0 章节标题"
+
+# 8. 测试接入
+check_artifact "$ARTIFACTS_VERIFY" "[7/7]" "新 verify.py 含 7 类断言标签"
+check_artifact "$REPO_DIR/tests/plugin-verify.sh" "session-artifacts-generator-verify.py" "plugin-verify.sh 引用新 verify.py"
+check_artifact "$REPO_DIR/tests/plugin-verify.sh" "RC_ARTIFACTS" "plugin-verify.sh 含 RC_ARTIFACTS 退出码变量"
+
+if [ "$ARTIFACT_FAIL" -eq 0 ]; then
+    echo "  ✓ 会话派生产物（v2.21.0）完整"
+else
+    FAIL=$((FAIL + ARTIFACT_FAIL))
 fi
 
 # ============== 汇总 ==============

@@ -1,6 +1,6 @@
 ---
 name: mcpowers-crawler-reverse
-description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 交付验收 → 触发本技能。口语：帮我看看这个目标怎么逆向、不确定是网站还是App、做成纯协议或自动化、模块必须真的可用。中英：reverse engineering/target triage/protocol/RPC/lifecycle/usability verification。边界：明确网站→mcpowers-reverse-web；未知App→mcpowers-reverse-app；明确Android/iOS/Flutter/Hybrid/小程序→对应专项；已有爬虫修复→mcpowers-bugfix。流程：公共前置合同→专项证据→公共收尾合同。"
+description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 交付验收 / 会话产物生成 → 触发本技能。口语：帮我看看这个目标怎么逆向、不确定是网站还是App、做成纯协议或自动化、模块必须真的可用、会话停止后自动生成接口候选和模块种子。中英：reverse engineering/target triage/protocol/RPC/lifecycle/usability verification/session artifacts/candidate ranking/module seed。边界：明确网站→mcpowers-reverse-web；未知App→mcpowers-reverse-app；明确Android/iOS/Flutter/Hybrid/小程序→对应专项；已有爬虫修复→mcpowers-bugfix。流程：公共前置合同→专项证据→公共收尾合同。"
 ---
 
 # mcpowers-crawler-reverse（逆向统一入口）
@@ -20,6 +20,7 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 | 4 | `爬虫规范.md` | 规范 | 阶段 5 轻量封装 | 提示按需加载 |
 | 5 | `mcpowers-code-review` | 方法 | 模块封装和验收报告完成 | Critical 必须修复 |
 | 6 | `mcpowers-init` / `mcpowers-feat` / `mcpowers-extract` | 场景 | 阶段 7 经用户选择 | 未选择则不跳转 |
+| 6.5 | `session-artifacts-generator.py`（v2.21.0 嵌入） | 工具 | Web 任务 `web-stop` 正常收尾自动调用（详见铁律 #15 + 《爬虫工具与抓包规范》§8.8） | 失败隔离：`artifacts_generation.status=failed` + 中文告警，STOPPED 仍写入，浏览器存活 |
 
 **防循环规则**：专项技能直接命中时，只 Read 并执行本技能的「公共前置合同」和「公共收尾合同」，不得再次调用本技能做平台分流。
 
@@ -57,6 +58,8 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
     公网 IP/代理、TLS/JA3/JA4、服务端行为画像**无法由本地 JS 证明**，必须保留
     `unknown`，**禁止**在工具描述或对用户话术中宣称 DrissionPage "内置反指纹"，
     也不得把"接管便利性 + 国内站点自动化通过率优势"包装成反指纹能力。
+14. **v2.20.0**：端口必须由 `reverse-analysis-session.py init` 自动分配，禁止全局共享 9222；端口与工作区一一对应，《会话状态.json》`chrome_port` 字段是唯一可信源。
+15. **v2.21.0**：Web `web-stop` 完成证据 flush 和步骤证据索引后，**必须**调用 `session-artifacts-generator.py` 生成接口候选、响应样本和模块封装种子；生成的种子**不得**标记为 `[🎯]` 或 `PASS`，且**不得**覆盖已有人工 `client.py` / `quick_test.py`；派生产物失败不破坏 STOPPED 与外部浏览器存活（v2.19.0 铁律 #6）。
 
 ---
 
@@ -289,6 +292,10 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - ❌ **v2.19.0 新增**：绕过 `reverse-analysis-session.py` 直接"AI 自由分析"。任何逆向任务必须先调 `init` 落工作区与《分析计划.md》，Web 任务再依次 `web-start` → 等用户操作 → `web-stop`，不得先分析再补目录。
 - ❌ **v2.19.0 新增**：在浏览器指纹存在阻断项（`navigator.webdriver=true`、UA 含 HeadlessChrome、UA 与 CDP 主版本矛盾、宿主 OS 与 navigator.platform 明显矛盾、关键 API 缺失）时仍继续目标业务操作。
 - ❌ **v2.19.0 新增**：把 DrissionPage 的"自动化通过率优势"或"接管便利性"包装成"内置反指纹检测"。自动化通过率与反指纹是两件事，不得混说。
+- ❌ **v2.21.0 新增**：`web-stop` 后跳过 `session-artifacts-generator.py` 自动调用，直接"AI 自由整理 HAR"——必须经生成器生成目标接口候选 + 响应样本 + 模块种子，AI 阶段 2 在此基础上展开。
+- ❌ **v2.21.0 新增**：把 `session-artifacts-generator.py` 自动生成的 `client.py` / `quick_test.py` 直接标 `[🎯]` 或 `PASS`——生成器产物是分析种子，**不是**阶段 5.5 真实可用性验收通过。
+- ❌ **v2.21.0 新增**：把 `02-接口分析/响应样本/*.json` 的 `body_preview` 字段当作完整响应 body——HAR 当前仅前 1024 字符预览，envelope 已声明 `body_truncated` 与 "不代表完整响应体"，必须按提示理解。
+- ❌ **v2.21.0 新增**：把 `session-artifacts-generator.py` 业务方法中的 token / cookie / sign / nonce / timestamp / challenge / csrf / xsrf / session_id / captcha 作为必填参数——必须归入 6 类 lifecycle 分类，业务方法保持零前置参数。
 
 ## 完成后自检清单
 
@@ -302,6 +309,12 @@ RPC 适用于函数强依赖浏览器/App 运行时、直接抠代码或补环�
 - [ ] `验收报告.md` 最终为 `PASS` 后才进入阶段 6/7。
 - [ ] 已询问案例沉淀与落地方式。
 - [ ] 已运行 `bash scripts/check-readme-sync.sh` 与 `bash tests/plugin-verify.sh`。
+- [ ] **v2.21.0 派生产物门禁**（Web 任务必走）：
+  - ☐ `web-stop` 后《会话状态.json》含 `artifacts_generation` 字段且 `status` ∈ {`generated`, `partial`, `skipped`}；如为 `failed` 必须有脱敏错误信息并人工重跑生成器
+  - ☐ `02-接口分析/目标接口候选.md` 已生成或已记录失败原因；top10 含 high-trigger 业务候选
+  - ☐ `02-接口分析/响应样本/*.json` 每接口 1 个 envelope，envelope 含 `parse_status` + `body_truncated` + "不代表完整响应体" 声明
+  - ☐ `04-模块封装/{module}/client.py` 与 `quick_test.py` 存在；自动生成的种子**未**被当作 `[🎯]` / `PASS`
+  - ☐ 自动生成的 `client.py` 业务方法零前置参数（无 token / cookie / sign 等敏感参数），含 6 类 lifecycle 标签至少 4 类
 - [ ] **v2.16.0 漏抓 7 层 6 问自检**（强门禁，阶段 2 抓包失败切模式前必走，**v2.18.0 DrissionPage 化，v2.20.0 端口独立**）：
   - ☐ L1：已用 `curl http://localhost:<port>/json | jq` 列出所有 target，确认 worker/iframe/SW target 单独 attach？（`v2.20.0` 起 `<port>` 取自《会话状态.json》`chrome_port` 字段，由 `reverse-analysis-session.py init` 自动分配）
   - ☐ L2：Chrome 启动命令已带 `--remote-allow-origins=*`？（Chrome 150+ 必传）

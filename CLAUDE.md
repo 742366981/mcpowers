@@ -426,6 +426,53 @@ for f in sorted(os.listdir('skills')):
   - 2 顶层维护：`CLAUDE.md`（本段历史教训）/ `README.md`（v2.19.0 节）；
   - 3 版本文件：`plugin.json` + `marketplace.json`（顶层 + `plugins[0]`，三处一致）。
 
+### 历史教训（v2.21.0 Web 会话派生产物自动生成 + App 录制选型调研）
+
+- **v2.21.0**：用户原始诉求——"强制第一时间录制 → AI 创建浏览器/App → 用户操作 → 生成可复用 AI 自动化代码 → 录制期抓包 → 风控弹窗处理 → AI 后续全自动逆向"。v2.19.0 + v2.20.0 已建立"逆向工作区 + Web 协作会话"链路（init → web-start → web-stop + DrissionPage 默认接管 + 项目独立端口），但 `web-stop` 后仍缺 4 类衔接，导致用户原始诉求的"AI 后续全自动逆向"未闭合：
+  - **缺口 A（录制 → 类式 client 种子）**：`web-stop` 只生成步骤证据索引，没有从证据到 v2.17.0 类式模块封装种子的桥梁，AI 阶段 5 仍需手写 `client.py`
+  - **缺口 B（录制 → 目标接口自动定位）**：HAR 100+ 条目 + 10+ 操作步骤，AI 阶段 2 还得人工读 HAR 找目标接口
+  - **缺口 C（录制 → 响应样本自动归档）**：每个目标接口的最大响应样本没有按 endpoint 自动归档，AI 阶段 2 抓包后还得自己拼响应样本
+  - **缺口 D（App 录制方案未经对照）**：6 个 App 平台专项（`mcpowers-reverse-app/android/ios/flutter/hybrid/miniprogram`）无统一录制工具，盲目照搬 Web 链路（DrissionPage / bb-browser）违反 6 平台现实
+
+- **关键修复**（11 类文件改动）：
+  1. 新增 `skills/mcpowers-crawler-reverse/scripts/session-artifacts-generator.py`（~650 行），公开 `run_artifacts_generation(workspace, session_dir) -> dict`，中文 module docstring + 4 个 dataclass（`EndpointKey` / `HarExchange` / `LifecycleField` / `EndpointCandidate`）+ 严格 HAR request/response FIFO 配对（不得伪造 method）+ URL 归一化（query 值 `time/UUID/long-token` 替换为 `{dynamic}`）+ 静态资源 / 埋点 / 心跳 / 健康检查预过滤
+  2. 六维评分（100 分制）：响应码 200（20）+ 操作触发（25）+ 业务 JSON 字段（20）+ 反爬特征（10）+ 静态 vs 动态参数（15）+ 重复次数（10）；5 层稳定排序保证重复运行输出一致
+  3. 响应样本 envelope：每个 top10 接口 1 个最大且可解析 JSON 的脱敏 preview；envelope 必含 `parse_status` / `body_truncated` / "不代表完整响应体" 声明；文件名 `{rank:02d}-{method}-{sanitized-path}-{hash8}.json`（SHA-256 前 8 位避免冲突）
+  4. v2.17.0 类式 `client.py` / `quick_test.py` 种子：4 方法 + 业务方法零前置参数 + 6 类 lifecycle 分类占位 + challenge-only 接口不生成普通业务方法 + 仅文件不存在时生成（防覆盖已有人工代码）
+  5. `reverse-analysis-session.py` 集成：在 `stop_js_monitor → stop_recording → build_step_evidence_index` 之后、`_write_state(STATE_STOPPED)` 之前调 `run_artifacts_generation`；失败隔离——捕获 `ArtifactsGenerationError` / 加载异常后中文打印告警 + `artifacts_generation.status="failed"` + `STATE_STOPPED` 仍写入 + 浏览器存活（v2.19.0 铁律 #6）
+  6. 新增 `tests/session-artifacts-generator-verify.py`（~400 行），7 类断言（模块加载与公开契约 / 步骤证据与 HAR 聚合 / 六维评分与稳定排序 / 最大响应样本与合法 JSON / 类式模板与 lifecycle 边界 / quick_test 与幂等防覆盖 / 中文与集成点）；沿用 v2.20.0 verify.py 纯 Python 自定义断言风格
+  7. `check-readme-sync.sh` 新增 §17 "会话派生产物（v2.21.0）"：~40 条 `grep -qF` string 校验 + `check_artifact()` 函数 + `ARTIFACT_FAIL` 累加；3 处 `[N/16]` echo 计数更新为 `[N/17]`
+  8. `plugin-verify.sh` 新增 §7.6 "会话派生产物生成器自检"：`$PY_BIN $ARTIFACTS_VERIFY` + `RC_ARTIFACTS=0` 校验
+  9. 3 份主规范同步：《爬虫分析规范》§3.11 App 录制选型调研（三方案对照矩阵 + v2.22+ 选型门槛 + 明确排除）/ 《爬虫工具与抓包规范》§8.8 Web 会话派生产物自动生成（含调用时序 + 6 维评分 + 失败隔离 + 反模式）/ 《爬虫Web逆向规范》头部声明 v2.21.0 自动产物 + spec-index 查表行新增
+  10. 3 个 SKILL.md 同步：`mcpowers-crawler-reverse/SKILL.md`（新增铁律 #15 + description 加触发词 + 编排表加 `session artifacts` 步骤 + 反模式 +4 条 + 自检清单 +5 条）/ `mcpowers-reverse-web/SKILL.md`（§1.5 扩展 `web-stop → 派生 top10/响应样本/模块种子` + 反模式 +3 条）/ `skills/mcpowers/SKILL.md`（description 触发词加 `会话产物生成 / 接口候选排序 / 模块封装种子 / 目标接口候选`）
+  11. `CLAUDE.md`（本段历史教训）+ `README.md` v2.21.0 节 + `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json` 三处 `2.20.0 → 2.21.0`
+
+- **关键决策（YAGNI 守边界）**：
+  - ❌ **不接 Playwright codegen 主链路**：deep-research 109 agents 验证 codegen v1.62.0（2026-07-24）22 项 CLI flag 无 `--connect-over-cdp`，与 v2.19.0 资源所有权铁律 #6 直接冲突；codegen 只允许作离线参考工具（用户手改 DrissionPage 语法）
+  - ❌ **不接 Appium / Frida + 自研 / Accessibility Service**：v2.21.0 仅做 App 录制选型调研（§3.11），不安装 / 不写代码；正式 PoC 推迟到 v2.22+ 真实样本验证
+  - ❌ **不接 Stagehand / browser-use / Steel-browser**：与 mcpowers 控制模型互斥（Stagehand v3 standalone / browser-use 是 LLM agent / Steel-browser "Automatic cleanup" 违反铁律 #6）
+  - ❌ **不扩张 HAR body 存储范围**：HAR 现状仅前 1024 字符 preview + 64 KiB 大小限制保持不变；envelope 显式声明 `body_truncated` 与 "不代表完整响应体"，禁止宣称完整响应
+  - ✅ **保留 v2.18.0 DrissionPage 默认接管**：6 平台覆盖外推结论 Appium Inspector 仅支持原生 + Flutter 需切 context + Hybrid 切 WEBVIEW + 小程序无解——DrissionPage Web 主链路不变
+  - ✅ **保留 v2.19.0 资源所有权铁律**：所有外部资源（用户 Chrome / context / page / tab）全程不 close；生成器失败不破坏 web-stop 收尾
+  - ✅ **保留 v2.20.0 项目独立端口**：生成器不读取 / 重分配 / 覆盖 `chrome_port`；端口逻辑只在 `reverse-analysis-session.py init` 一处
+  - ✅ **保留 v2.17.0 类式封装约定**：生成器产物严格遵循 `ModuleClient` / `build_request` / `do_request` / `parse_response` / 零前置参数 / `quick_test.py` 三类用法，但**不**作为阶段 5.5 PASS 替代
+
+- **关键风险与未实测项**：
+  - **真实并行场景 + 真实接管链路 v2.21.0 仍未跑**：本次只完成自测（7 类断言 + `tests/plugin-verify.sh` §7.6 + `check-readme-sync.sh` §17），真实 `web-start` → 用户操作 → `web-stop` → 生成 top10 排名的端到端验证需下次真实场景中由用户手动驱动
+  - **HAR body_preview 1024 字符上限**：v2.21 不扩大 storage 上限，避免突破既有隐私和磁盘边界；envelope 必须显式声明"不代表完整响应体"
+  - **request/response 配对保守**：HAR 无 request-id；response 缺 method 时只能从步骤证据的 `network[].method` 补齐；FIFO 队列处理同 URL 并发，无法配对时 method 标 `UNKNOWN`，**不**伪造为 GET
+  - **自动 lifecycle 分类是线索**：v2.17.0 六类分类（`reusable` / `per-request` / `single-use-token` / `session-bound` / `time-bound` / `challenge-bound`）仅基于字段名 + 位置 + 多样本变化启发式判定，不能替代真实跨会话验证
+  - **真实 top10 排名仍需人工确认**：六维评分可能漏掉业务关键接口（如加密 body 接口）；AI 阶段 2 必须人工检查"未被排进 top10"的接口
+  - **App 三方案没有 PoC**：v2.21 §3.11 仅做选型调研，结论只是 v2.22+ 决策输入；Appium 跨端 UI 重放 vs Frida 运行时插桩 vs Accessibility Service 路径实测未做
+
+- **铁律新增**：
+  - `mcpowers-crawler-reverse/SKILL.md` 铁律 15（v2.21.0）：`web-stop` 完成证据 flush + 步骤证据索引后，必须调 `session-artifacts-generator.py` 生成接口候选 / 响应样本 / 模块封装种子；生成的种子不得标 `[🎯]` / `PASS`，且不得覆盖已有人工 `client.py` / `quick_test.py`；派生产物失败不破坏 STOPPED 与外部浏览器存活
+  - `mcpowers-reverse-web/SKILL.md` 反模式新增 3 条：阶段 2 跳过 top10 报告直接打开 HAR 自由浏览 / 把响应样本当作完整响应 body / 自动种子未经 5.5 验收直接标 `[🎯]` / `PASS` 对外交付
+  - `mcpowers-crawler-reverse/SKILL.md` 反模式新增 4 条：跳过生成器自动调用 / 把生成种子直接标 `[🎯]` / `PASS` / 把 body_preview 当完整响应 body / 业务方法把 lifecycle 敏感参数作必填参数
+
+- **版本策略**：minor bump `2.20.0 → 2.21.0`——新增用户可见工具（`session-artifacts-generator.py`）+ 新功能（web-stop 自动派生产物）+ 新规范章节（《爬虫分析规范》§3.11 App 录制选型调研）+ 新增物理门禁（`check-readme-sync.sh` §17）+ 新增自检编排（`plugin-verify.sh` §7.6），属于 minor bump 语义（CLAUDE.md "版本管理（强制）"）
+- **同步面**：本次横跨 **12 类文件**：1 新工具 + 1 新 verify + 1 集成 + 2 物理门禁（check-readme-sync §17 + plugin-verify §7.6）+ 3 主规范 + 1 spec-index + 3 SKILL.md + 2 顶层维护（CLAUDE.md + README.md）+ 3 版本文件（plugin.json + marketplace.json 顶层 + marketplace.json `plugins[0]`）
+
 ### 历史教训（v2.20.0 项目独立端口）
 
 - **v2.20.0**：v2.19.0 把逆向起手式收敛为 `init → web-start → web-stop` 单状态机后，真实多任务并行场景暴露新的体系缺口：

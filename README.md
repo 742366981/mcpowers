@@ -343,6 +343,63 @@ bash scripts/check-readme-sync.sh                # 第 15 段 5 类校验（必�
 + 3 SKILL.md + 4 规范 + 2 顶层维护 + 3 版本文件（`plugin.json` / `marketplace.json` 顶层 /
 `marketplace.json.plugins[0]`，三处 `2.18.2 → 2.19.0`）。
 
+### v2.21.0 Web 会话派生产物自动生成 + App 录制选型调研
+
+v2.19.0 + v2.20.0 已建立"逆向工作区 + Web 协作会话"链路（`init → web-start →
+web-stop` + DrissionPage 默认接管 + 项目独立端口），但 `web-stop` 后仍缺
+"证据 → 候选 → 样本 → 模块种子"的自动衔接，AI 阶段 2 还得手工浏览 HAR
+找接口、手工拼响应样本、手工写 `client.py` —— 与"AI 后续全自动逆向"承诺相悖。
+
+**新增能力**（v2.21.0）：
+
+- **`session-artifacts-generator.py`**：Web 任务 `web-stop` 在证据 flush 与步骤证据
+  索引完成后**自动调用**，生成 3 类派生产物：
+  1. `02-接口分析/目标接口候选.md`：按六维评分（响应码 200 / 操作触发 /
+     业务 JSON 字段 / 反爬特征 / 静态 vs 动态参数 / 重复次数，满分 100）排序
+     前 10 名候选，含总分明细与 lifecycle 分类
+  2. `02-接口分析/响应样本/{rank:02d}-{method}-{path}-{hash8}.json`：每个 top10
+     接口 1 个最大脱敏 preview；envelope 显式声明 `body_truncated` +
+     "不代表完整响应体"（HAR 现状仅前 1024 字符预览）
+  3. `04-模块封装/{module}/client.py` + `quick_test.py`：v2.17.0 类式封装种子，
+     仅在文件不存在时生成；4 方法 + 业务方法零前置参数 + 6 类 lifecycle 分类
+     占位 + challenge-only 接口不生成普通业务方法
+
+- **失败隔离**：生成器抛任何异常 → 捕获后中文告警 → `STATE_STOPPED` 仍正常
+  写入 + `artifacts_generation.status="failed"` + 浏览器存活（v2.19.0 铁律 #6）
+
+- **App 录制选型调研**（仅调研不落代码）：《爬虫分析规范》新增 §3.11，三方案
+  对照矩阵（Appium / Frida + 自研 / Accessibility Service）+ v2.22+ 选型
+  门槛 + 明确排除。正式 PoC 推迟到 v2.22+ 真实样本验证
+
+**配套自检**：
+
+```bash
+# 7 类断言（模块加载 / HAR 聚合 / 六维评分 / 响应样本 / 类式模板 / quick_test / 集成点）
+python tests/session-artifacts-generator-verify.py
+
+# v2.20.0 既有 10 类断言不回归
+python tests/reverse-analysis-session-verify.py
+
+# shell 物理门禁（§17 新增 + §1-§16 不变）
+bash scripts/check-readme-sync.sh
+
+# 编排（§7.6 新增 + §7.5 不变）
+bash tests/plugin-verify.sh
+```
+
+**关键边界**（与 v2.18.0 / v2.19.0 / v2.20.0 严格对齐）：
+
+- ❌ 不接 Playwright codegen / Appium / Stagehand / browser-use / Steel-browser
+  作为主链路（deep-research 验证与 v2.19.0 资源所有权铁律冲突）
+- ❌ 自动生成的 `client.py` / `quick_test.py` **不是**阶段 5.5 `PASS` 替代
+- ❌ 响应样本 envelope **不是**完整响应 body（HAR 1024 字符预览限制）
+- ✅ DrissionPage 默认接管不变（v2.18.0）/ 资源所有权铁律不变（v2.19.0）/
+  项目独立端口不变（v2.20.0）/ 类式封装约定不变（v2.17.0）
+
+**同步面**：本次横跨 **12 类文件**——1 新工具 + 1 新 verify + 1 集成 +
+2 物理门禁（`check-readme-sync.sh` §17 + `plugin-verify.sh` §7.6）+ 3 主规范 +
+1 spec-index + 3 SKILL.md + 2 顶层维护（CLAUDE.md + README.md）+ 3 版本文件。
+
 ### v2.20.0 项目独立端口（v2.19.0 起手式的多任务并行补全）
 
 v2.19.0 把逆向起手式收敛为 `init → web-start → web-stop` 单状态机后，

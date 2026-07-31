@@ -2011,7 +2011,7 @@ services:
 
 > **统一原则**：所有环境的"启动/重启/重部署"都走 `up -d --force-recreate`。
 > `--force-recreate` 强制重建容器，确保新代码（已构建好的镜像）一定生效。
-> **只有在依赖变了（Dockerfile / requirements.txt / package.json）才需要加 `--build`**，且必须保留 `--force-recreate`，否则新镜像不会被新容器使用。
+> **只有在依赖变了（Dockerfile / requirements.txt / package.json）才需要加 `--build`**——`--build` 会重新构建镜像，docker compose 会自动检测到镜像变化并重建容器，无需额外加 `--force-recreate`。
 
 ```bash
 # ========== 启动/重启/重部署（默认命令，覆盖 99% 场景） ==========
@@ -2024,17 +2024,20 @@ docker-compose -f docker-compose.prod.yml up -d --force-recreate
 
 # ========== 依赖变了（Dockerfile / requirements.txt 等）才用这个 ==========
 # dev
-docker-compose -f docker-compose.dev.yml up -d --build --force-recreate
+docker-compose -f docker-compose.dev.yml up -d --build
 # test
-docker-compose -f docker-compose.test.yml up -d --build --force-recreate
+docker-compose -f docker-compose.test.yml up -d --build
 # prod
-docker-compose -f docker-compose.prod.yml up -d --build --force-recreate
+docker-compose -f docker-compose.prod.yml up -d --build
 
 # ========== 通用命令 ==========
 # 查看日志
 docker-compose -f docker-compose.{环境}.yml logs -f
 
-# 停止
+# 停止（容器仍在，可 start 重启）
+docker-compose -f docker-compose.{环境}.yml stop
+
+# 删除（停止并清理容器、网络、默认网络——配置变更后常用）
 docker-compose -f docker-compose.{环境}.yml down
 ```
 

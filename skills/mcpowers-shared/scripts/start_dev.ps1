@@ -6,20 +6,24 @@
 #   .\start_dev.ps1 test           # 启动 test 环境
 #   .\start_dev.ps1 prod           # 启动 prod 环境（慎用！）
 #   .\start_dev.ps1 -Build         # 强制重新构建镜像
-#   .\start_dev.ps1 -Down          # 停止并清理容器
+#   .\start_dev.ps1 -Stop          # 停止（容器仍在）
+#   .\start_dev.ps1 -Down          # 停止并清理容器/网络
 #   .\start_dev.ps1 -Logs          # 仅查看日志
 #
 # 前置条件：已安装 Docker Desktop
 #
 # 统一启动命令：
 #   - 默认（代码变更/容器重启）：up -d --force-recreate
-#   - -Build（依赖变了）：         up -d --build --force-recreate
+#   - -Build（依赖变了）：         up -d --build（compose 自动检测镜像变化重建容器）
+#   - -Stop（停止，容器仍在）：    stop
+#   - -Down（停止+删除容器/网络）： down
 # 详见 开发环境规范.md §4.4 / Flask后端规范.md §21.5。
 
 param(
     [ValidateSet('dev', 'test', 'prod')]
     [string]$EnvType = 'dev',
     [switch]$Build,
+    [switch]$Stop,
     [switch]$Down,
     [switch]$Logs,
     [switch]$Help
@@ -32,11 +36,12 @@ function Write-Err($msg)  { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
 # 帮助
 if ($Help) {
-    Write-Host "用法: .\start_dev.ps1 [dev|test|prod] [-Build] [-Down] [-Logs]"
+    Write-Host "用法: .\start_dev.ps1 [dev|test|prod] [-Build] [-Stop|-Down] [-Logs]"
     Write-Host ""
     Write-Host "示例:"
     Write-Host "  .\start_dev.ps1              # 启动 dev 环境"
     Write-Host "  .\start_dev.ps1 -Build      # 强制重新构建镜像"
+    Write-Host "  .\start_dev.ps1 -Stop       # 停止（容器保留）"
     Write-Host "  .\start_dev.ps1 -Down       # 停止并清理"
     Write-Host "  .\start_dev.ps1 -Logs       # 查看日志"
     exit 0
@@ -92,35 +97,43 @@ if (-not (Test-Path $ConfigFile)) {
 }
 
 # 执行动作
-if ($Down) {
-    Write-Info "停止 $EnvType 环境..."
-    docker compose -f $ComposeFile down
+if ($Stop) {
+    Write-Info "停止 $EnvType 环境（容器保留）..."
+    docker compose -f $ComposeFile stop
     Write-Info "已停止"
+} elseif ($Down) {
+    Write-Info "停止并清理 $EnvType 环境..."
+    docker compose -f $ComposeFile down
+    Write-Info "已清理"
 } elseif ($Logs) {
     docker compose -f $ComposeFile logs -f
 } else {
     Write-Info "启动 $EnvType 环境..."
 
-    # 统一命令：--force-recreate 强制重建容器，确保新代码生效；
-    # 仅在 -Build 时额外构建镜像（依赖变了才需要）。
-    # 若未检测到镜像且未传 -Build，提示用户首次构建。
-    $images = docker compose -f $ComposeFile images --quiet 2>&1
-    $hasImages = $LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($images)
+    if ($Build) {
+        # 依赖变了：重新构建镜像，compose 会自动检测到镜像变化并重建容器
+        docker compose -f $ComposeFile up -d --build
+    } else {
+        # 默认：强制重建容器，确保代码通过 volume 挂载的更新生效
+        # 首次启动（无镜像）必须加 -Build
+        $images = docker compose -f $ComposeFile images --quiet 2>&1
+        $hasImages = $LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($images)
 
-    if (-not $Build -and -not $hasImages) {
-        Write-Err "未检测到已构建的镜像，请使用 -Build 参数首次构建（依赖层会缓存，后续很快）："
-        Write-Err "  .\start_dev.ps1 $EnvType -Build"
-        exit 1
+        if (-not $hasImages) {
+            Write-Err "未检测到已构建的镜像，请使用 -Build 参数首次构建："
+            Write-Err "  .\start_dev.ps1 $EnvType -Build"
+            exit 1
+        }
+
+        docker compose -f $ComposeFile up -d --force-recreate
     }
-
-    $buildArg = if ($Build) { "--build" } else { "" }
-    docker compose -f $ComposeFile up -d --force-recreate $buildArg
 
     Write-Host ""
     Write-Info "启动完成！"
     Write-Host ""
     Write-Host "  查看日志: .\start_dev.ps1 -Logs"
-    Write-Host "  停止服务: .\start_dev.ps1 -Down"
+    Write-Host "  停止服务（容器保留）: .\start_dev.ps1 -Stop"
+    Write-Host "  停止并清理: .\start_dev.ps1 -Down"
     Write-Host "  访问应用: http://localhost:8000"
     Write-Host "  接口文档: http://localhost:8000/apidocs/  (Swagger UI)"
     Write-Host "  健康检查: http://localhost:8000/health"

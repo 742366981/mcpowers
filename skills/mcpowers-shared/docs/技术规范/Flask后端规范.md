@@ -3,8 +3,8 @@ title: Flask后端规范
 type: tech-spec
 applies_to: [Flask后端]
 priority: required
-version: 1.0
-last_updated: 2026-07-08
+version: 1.1
+last_updated: 2026-07-31
 ---
 
 # Flask后端项目规范
@@ -341,7 +341,7 @@ file_path = 'D:\\project\\uploads\\file.xlsx'
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-LOGGING_BASE_DIR = BASE_DIR
+LOGGING_BASE_DIR = os.path.join(BASE_DIR, 'logs')   # 日志根目录（§6.1 落盘于此）
 
 # ✅ 正确做法
 from common.constants import BASE_DIR
@@ -575,9 +575,14 @@ secret_key = your-secret-key
 # debug = false  # test/prod环境
 port = 8000
 
-[request_log]
-# 记录完整响应体的接口路径（逗号分隔）
-full_response_paths = /auth/login,/auth/logout
+[log]
+# 级别：dev=DEBUG，test/prod=INFO（禁止 if DEBUG 硬编码在业务代码里）
+level = INFO
+# 控制台格式：false=彩色文本（开发），true=JSON（线上容器 stdout 采集）
+console_json = false
+# 大内容豁免开关（日志规范 §4.3）：true 才把完整响应体落 large-{date}.log
+# 线上默认 false —— 让"大内容要存"必须显式声明
+large_enabled = false
 
 [cors]
 # 允许跨域的域名（逗号分隔，* 表示允许所有）
@@ -623,34 +628,12 @@ def init_request_id(app):
 ```python
 # utils/request_log.py
 
-import json
 import time
 from flask import request, g
 
-SENSITIVE_FIELDS = ['password', 'pwd', 'token', 'secret', 'apiKey', 'api_key']
+from utils.loggings import request_log   # 脱敏/截断由封装层 JsonFormatter 统一兜底
 
-
-def mask_sensitive(data):
-    """脱敏敏感字段（递归处理 dict 和 list 嵌套）
-
-    Args:
-        data: 任意数据（dict / list / 标量）
-
-    Returns:
-        脱敏后的数据（结构保持一致）
-    """
-    if isinstance(data, dict):
-        masked = {}
-        for k, v in data.items():
-            if k.lower() in SENSITIVE_FIELDS:
-                masked[k] = '******'
-            else:
-                masked[k] = mask_sensitive(v)
-        return masked
-    elif isinstance(data, list):
-        return [mask_sensitive(item) for item in data]
-    else:
-        return data
+SKIP_PREFIXES = ('/static',)
 
 
 def init_request_log(app):
@@ -658,57 +641,57 @@ def init_request_log(app):
     def before_request():
         g.start_time = time.time()
 
-        if request.path.startswith('/static') or request.endpoint is None:
+        if request.path.startswith(SKIP_PREFIXES) or request.endpoint is None:
             return
 
-        request_id = getattr(g, 'request_id', '-')
-
-        req_data = {
-            'request_id': request_id,
+        extra = {
+            'log_type': 'request',
+            'phase': 'before',
             'method': request.method,
             'path': request.path,
             'ip': request.remote_addr,
         }
 
         if request.args:
-            req_data['query'] = dict(request.args)
+            extra['query'] = dict(request.args)
 
         if request.is_json:
             body = request.get_json(silent=True)
             if body:
-                req_data['body'] = mask_sensitive(body)
+                extra['body'] = body      # mask_sensitive + 截断在 Formatter 层完成
 
-        admin_request_log.save_info(json.dumps(req_data, ensure_ascii=False))
+        # request_id / trace_id / user_id 由 ContextFilter 自动注入，无需手传
+        request_log.info('请求开始', extra=extra)
 
     @app.after_request
     def after_request(response):
-        if request.path.startswith('/static') or request.endpoint is None:
+        if request.path.startswith(SKIP_PREFIXES) or request.endpoint is None:
             return response
 
-        start_time = getattr(g, 'start_time', time.time())
-        cost_time = round((time.time() - start_time) * 1000, 2)
+        cost_ms = round((time.time() - getattr(g, 'start_time', time.time())) * 1000, 2)
+        status = response.status_code
 
-        request_id = getattr(g, 'request_id', '-')
-        user_id = getattr(g, 'user_id', '-')
-
-        resp_data = {
-            'request_id': request_id,
-            'user_id': user_id,
+        extra = {
+            'log_type': 'request',
+            'phase': 'after',
             'method': request.method,
             'path': request.path,
-            'cost_time': f'{cost_time}ms',
-            'status_code': response.status_code,
+            'status_code': status,
+            'cost_ms': cost_ms,
         }
 
-        if hasattr(response, 'get_json'):
-            resp_json = response.get_json(silent=True)
-            if resp_json:
-                resp_data['code'] = resp_json.get('code', 0)
-                resp_data['msg'] = resp_json.get('msg', '')
+        resp_json = response.get_json(silent=True) if response.is_json else None
+        if resp_json:
+            extra['code'] = resp_json.get('code', 0)
+            extra['biz_msg'] = resp_json.get('msg', '')   # 不能叫 msg，见 §6.2 保留字段
 
-        admin_response_log.save_info(json.dumps(resp_data, ensure_ascii=False))
+        # 日志规范 §2.2：状态码自动映射级别（2xx/3xx=INFO，4xx=WARNING，5xx=ERROR）
+        level = 'error' if status >= 500 else ('warning' if status >= 400 else 'info')
+        getattr(request_log, level)('请求结束', extra=extra)
         return response
 ```
+
+> **`mask_sensitive` 已上移到 `utils/loggings.py`**（日志规范 §5.2 要求封装层自动脱敏一次）。中间件不再自己实现一份，业务层如需提前剔除敏感字段可 `from utils.loggings import mask_sensitive`。
 
 ---
 
@@ -717,10 +700,27 @@ def init_request_log(app):
 > **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则 → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关）。
 >
 > **本节只保留 2 件事**：
-> 1. `utils/loggings.py` 封装类（Logger）的实现
+> 1. `utils/loggings.py` 封装类的实现
 > 2. 全局请求日志中间件 `utils/request_log.py` 的实现（§5.2）
 >
 > **所有 `logger.*` 调用必须符合 `日志规范.md §3` 字段约定**，禁止发明字段名。
+
+### 6.0 分文件维度：按 type 切，不按级别切（强制）
+
+> 这是本节最容易踩错的一点，先讲清楚再看代码。
+
+| 切分维度 | 结论 | 理由 |
+|:---------|:-----|:-----|
+| 按业务 **type** 切（`biz.log` / `audit.log` / `request.log` / …） | ✅ **采用** | 不同 type 的**保留期和采样率天然不同**（`audit` ≥180 天、`perf` 采样 1%），这才是落盘分离的真实驱动力 |
+| 按 **级别**切成多份（`xxx_info.log` / `xxx_error.log` / …） | ❌ **禁止** | 级别只是过滤条件，JSON 里一个 `level` 字段 + 一次查询就够；切文件反而把同一条 `request_id` 的 INFO→ERROR 链路**拆散到多个文件**，直接破坏 `日志规范.md` 目标 2「可排查」 |
+| **ERROR+ 单独抽一条聚合流**（`error.log`） | ✅ **采用** | 唯一例外，且它是**聚合**不是**切分**——同一条 ERROR 同时写进 `{type}.log` 和 `error.log`，原始流不断裂 |
+
+**切分 vs 聚合的区别**（决定了为什么禁止按级别切）：
+
+- **切分**（❌）：一条 ERROR 只存在于 `general_error.log`，`general_info.log` 里看不到它 → 排查时在 info 流读到"订单校验通过"、下一条"订单创建成功"，中间那条 ERROR 你根本不知道存在
+- **聚合**（✅）：ERROR 在原 type 文件里保持原位，另外复制一份进 `error.log` 供告警脚本 `tail` → 两边都完整
+
+> **反模式**：❌ 用 `f'{name}_{level}.log'` 命名日志文件。文件数 = 实例数 × 级别数，handler 与文件句柄开销翻 5 倍，收益为零。
 
 ### 6.1 日志封装类（强制）
 
@@ -728,103 +728,272 @@ def init_request_log(app):
 # utils/loggings.py
 # -*- coding: utf-8 -*-
 """
-日志封装
+JSON 结构化日志封装
+
+对齐 `日志规范.md`：§2（7 类 type）/ §3（字段 schema）/ §4（大内容截断）
+/ §5（脱敏）/ §7（输出与轮转）。
+
+设计要点：
+1. 按业务 type 分文件，级别是 JSON 字段而非文件名后缀（见 §6.0）
+2. ERROR+ 额外聚合到 error.log（多路复制，不切断原 type 流）
+3. 上下文（request_id/trace_id/user_id）由 Filter 自动注入，业务层无需手传
+4. 脱敏与大内容截断在 Formatter 层统一兜底（封装层保险，业务层仍需自查）
 """
 
-import os
+import hashlib
+import json
 import logging
-from concurrent_log_handler import ConcurrentTimedRotatingFileHandler, ConcurrentRotatingFileHandler
+import os
+import threading
+from datetime import datetime
+
 import colorlog
+from concurrent_log_handler import ConcurrentTimedRotatingFileHandler
 
 from common.constants import LOGGING_BASE_DIR
+from common.settings import config
 
-FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-LOG_COLORS_CONFIG = {'DEBUG': 'cyan', 'INFO': 'green', 'WARNING': 'yellow', 'ERROR': 'red', 'CRITICAL': 'bold_red'}
+# 日志开关统一来自 config.ini 的 [log] 段（§4.2），禁止 if DEBUG 硬编码在业务代码里
+# 注：本文件属框架层，按 §4.1 约定可使用 fallback；业务代码禁止传 fallback
+LOG_LEVEL = config.get('log', 'level', fallback='INFO').upper()
+LOG_CONSOLE_JSON = config.getboolean('log', 'console_json', fallback=False)
+LOG_LARGE_ENABLED = config.getboolean('log', 'large_enabled', fallback=False)
 
+# ---- 日志规范 §2：7 类固定 type，禁止发明新类型（铁律 5） ----
+LOG_TYPES = ('biz', 'operation', 'audit', 'request', 'perf', 'schedule', 'exception')
 
-class Logger:
-    """日志封装类"""
+# ---- 日志规范 §5.1：敏感字段黑名单（不区分大小写） ----
+SENSITIVE_FIELDS = {
+    'password', 'pwd', 'passwd',
+    'token', 'access_token', 'refresh_token',
+    'secret', 'api_secret', 'client_secret',
+    'api_key', 'apikey', 'app_key',
+    'authorization', 'cookie', 'set-cookie',
+    'id_card', '身份证', '身份证号',
+    'phone', 'mobile', '手机号',
+    'bank_card', '银行卡', '银行卡号',
+    '统一社会信用代码',
+}
 
-    CRITICAL = 50
-    ERROR = 40
-    WARNING = 30
-    INFO = 20
-    DEBUG = 10
+MAX_FIELD_SIZE = 2048           # 日志规范 §4.1：单字段 > 2KB 截断
+MAX_FILE_BYTES = 200 * 1024 * 1024   # 日志规范 §7.2：单文件 ≤ 200MB
+CONSOLE_FORMAT = '%(asctime)s [%(levelname)s] [%(log_type)s] %(name)s - %(message)s'
+LOG_COLORS_CONFIG = {'DEBUG': 'cyan', 'INFO': 'green', 'WARNING': 'yellow',
+                     'ERROR': 'red', 'CRITICAL': 'bold_red'}
 
-    def __init__(self, name, folder, type_=1, backup_count=9, vol=1, is_switch=True, is_save_file=False, is_print_console=True):
-        self.name = name
-        self.log_folder = os.path.join(LOGGING_BASE_DIR, folder)
-        self.formatter = logging.Formatter(FORMAT)
-        self.type_ = type_
-        self.backup_count = backup_count
-        self.vol = vol
-        self.is_switch = is_switch
-        self.is_save_file = is_save_file
-        if self.is_save_file and not os.path.exists(self.log_folder):
-            os.makedirs(self.log_folder)
-        self.is_print_console = is_print_console
+# 日志规范 §7.2：差异化保留天数
+BACKUP_DAYS = {'audit': 180, 'exception': 90, 'error': 90}
+DEFAULT_BACKUP_DAYS = 30
 
-    def set_logger(self, level):
-        if not hasattr(self, f'logger_{level}'):
-            logger = logging.getLogger(self.name + '_' + level)
-            logger.setLevel(eval(f'self.{level.upper()}'))
-            if self.is_save_file:
-                if self.type_ == 1:
-                    file_handler = ConcurrentTimedRotatingFileHandler(
-                        os.path.join(self.log_folder, f'{self.name}_{level}.log'),
-                        encoding='utf-8', when='D', interval=self.vol,
-                        backupCount=self.backup_count)
-                elif self.type_ == 2:
-                    file_handler = ConcurrentRotatingFileHandler(
-                        os.path.join(self.log_folder, f'{self.name}_{level}.log'),
-                        maxBytes=self.vol, backupCount=self.backup_count, encoding='utf-8')
-                else:
-                    file_handler = None
-                if file_handler:
-                    file_handler.setLevel(eval(f'self.{level.upper()}'))
-                    file_handler.setFormatter(self.formatter)
-                    logger.addHandler(file_handler)
-            if self.is_print_console:
-                console_formatter = colorlog.ColoredFormatter(
-                    f'%(log_color)s{FORMAT}', log_colors=LOG_COLORS_CONFIG)
-                console_handler = logging.StreamHandler()
-                console_handler.setLevel(eval(f'self.{level.upper()}'))
-                console_handler.setFormatter(console_formatter)
-                logger.addHandler(console_handler)
-            setattr(self, f'logger_{level}', logger)
+# LogRecord 内建属性 + 自动注入字段，不重复进 extra
+_RESERVED = frozenset(logging.LogRecord('', 0, '', 0, '', (), None).__dict__) | {
+    'message', 'asctime', 'log_type', 'request_id', 'trace_id', 'span_id', 'user_id',
+}
 
-    def save_log(self, msg, level, exc_info=None):
-        if self.is_switch:
-            self.set_logger(level)
-            # 使用 dispatch dict 替代 eval：更安全、易调试
-            logger = getattr(self, f'logger_{level}')
-            log_method = getattr(logger, level, None)
-            if log_method is None:
-                raise ValueError(f'不支持的日志级别: {level}')
-            log_method(msg, exc_info=exc_info)
-
-    def save_critical(self, msg):
-        self.save_log(msg, 'critical', exc_info=True)
-
-    def save_error(self, msg):
-        self.save_log(msg, 'error', exc_info=True)
-
-    def save_warning(self, msg):
-        self.save_log(msg, 'warning')
-
-    def save_info(self, msg):
-        self.save_log(msg, 'info')
-
-    def save_debug(self, msg):
-        self.save_log(msg, 'debug')
+_LOGGER_CACHE = {}
+_CACHE_LOCK = threading.Lock()
 
 
-# 预定义日志实例
-admin_request_log = Logger('admin_request', 'logs', is_switch=True, is_save_file=True, is_print_console=True)
-admin_response_log = Logger('admin_response', 'logs', is_switch=True, is_save_file=True, is_print_console=True)
-http_requests_log = Logger('http_requests', 'logs', is_switch=True, is_save_file=True, is_print_console=True)
-general_log = Logger('general', 'logs', is_switch=True, is_save_file=True, is_print_console=True)
+def _truncate(text, limit=MAX_FIELD_SIZE):
+    """大内容截断 + 指纹（日志规范 §4.1：必须记录 original_size + sha256）"""
+    raw = text.encode('utf-8')
+    if len(raw) <= limit:
+        return text
+    head = raw[:int(limit * 0.75)].decode('utf-8', 'ignore')
+    tail = raw[-int(limit * 0.25):].decode('utf-8', 'ignore')
+    return (f'{head}...[TRUNCATED, original_size={len(raw)}, '
+            f'sha256={hashlib.sha256(raw).hexdigest()}]...{tail}')
+
+
+def mask_sensitive(data, limit=MAX_FIELD_SIZE):
+    """递归脱敏 + 截断（日志规范 §4 + §5，dict/list 嵌套均覆盖）"""
+    if isinstance(data, dict):
+        return {k: ('******' if k.lower() in SENSITIVE_FIELDS else mask_sensitive(v, limit))
+                for k, v in data.items()}
+    if isinstance(data, (list, tuple)):
+        return [mask_sensitive(item, limit) for item in data]
+    if isinstance(data, str):
+        return _truncate(data, limit)
+    return data
+
+
+class ContextFilter(logging.Filter):
+    """自动注入链路上下文（日志规范 铁律 2：禁止无上下文日志）"""
+
+    FIELDS = ('request_id', 'trace_id', 'span_id', 'user_id')
+
+    def filter(self, record):
+        in_request = False
+        try:
+            from flask import g, has_request_context
+            in_request = has_request_context()
+        except ImportError:
+            g = None
+        for field in self.FIELDS:
+            if not hasattr(record, field):
+                setattr(record, field, getattr(g, field, '-') if in_request else '-')
+        if not hasattr(record, 'log_type'):
+            record.log_type = 'biz'
+        return True
+
+
+class JsonFormatter(logging.Formatter):
+    """一行一 JSON 对象（日志规范 铁律 1 + §3.1）"""
+
+    def format(self, record):
+        # 用 getattr 兜底：即使 record 未经 ContextFilter（如第三方库 logger 复用本 Formatter）也不崩
+        payload = {
+            # ISO8601 带时区（强制）
+            'time': datetime.fromtimestamp(record.created).astimezone().isoformat(timespec='milliseconds'),
+            'level': record.levelname,
+            'type': getattr(record, 'log_type', 'biz'),
+            'trace_id': getattr(record, 'trace_id', '-'),
+            'msg': _truncate(record.getMessage()),
+            'request_id': getattr(record, 'request_id', '-'),
+            'span_id': getattr(record, 'span_id', '-'),
+            'user_id': getattr(record, 'user_id', '-'),
+            'module': record.name,
+        }
+        if record.exc_info:
+            exc_cls, exc_obj = record.exc_info[0], record.exc_info[1]
+            payload['exc_type'] = getattr(exc_cls, '__name__', '-')
+            payload['exc_msg'] = str(exc_obj)
+            # 日志规范 §3.4：traceback 完整保留，禁止截断
+            payload['traceback'] = self.formatException(record.exc_info)
+        extra = {k: v for k, v in record.__dict__.items() if k not in _RESERVED}
+        if extra:
+            payload['extra'] = mask_sensitive(extra)
+        return json.dumps(payload, ensure_ascii=False, default=str)
+
+
+def _file_handler(filename, level, formatter):
+    """按天 + 200MB 双触发轮转，多进程安全（日志规范 §7.2）
+
+    注：7 个 type logger 各挂一个指向 error.log 的 handler，靠 concurrent-log-handler
+    的文件锁保证轮转不打架；需 concurrent-log-handler >= 0.9.20（支持 maxBytes 组合）。
+    """
+    handler = ConcurrentTimedRotatingFileHandler(
+        os.path.join(LOGGING_BASE_DIR, filename),
+        when='D', interval=1, encoding='utf-8',
+        maxBytes=MAX_FILE_BYTES,     # 日志规范 §7.2：单文件 ≤ 200MB 强制轮转
+        use_gzip=True,               # 日志规范 §7.2：轮转后立即 gzip
+        backupCount=BACKUP_DAYS.get(filename.split('.')[0], DEFAULT_BACKUP_DAYS),
+    )
+    handler.setLevel(level)
+    handler.setFormatter(formatter)
+    return handler
+
+
+def get_logger(log_type):
+    """按业务 type 取 logger（日志规范 §2 的 7 类之一）
+
+    Args:
+        log_type: biz / operation / audit / request / perf / schedule / exception
+
+    Returns:
+        logging.Logger —— 直接用 logger.info(msg, extra={...})，级别是字段不是文件
+    """
+    if log_type not in LOG_TYPES:
+        raise ValueError(f'非法日志类型 {log_type!r}，必须为 {LOG_TYPES} 之一（日志规范 铁律 5）')
+
+    cached = _LOGGER_CACHE.get(log_type)
+    if cached is not None:
+        return cached
+
+    with _CACHE_LOCK:
+        if log_type in _LOGGER_CACHE:          # 双检，避免并发重复初始化
+            return _LOGGER_CACHE[log_type]
+
+        logger = logging.getLogger(f'app.{log_type}')
+        logger.setLevel(LOG_LEVEL)
+        logger.propagate = False               # 不上抛到 root，避免重复输出
+
+        if not logger.handlers:                # 防 Flask reloader 二次 addHandler
+            os.makedirs(LOGGING_BASE_DIR, exist_ok=True)
+            logger.addFilter(ContextFilter())
+            json_formatter = JsonFormatter()
+
+            # 1) 按 type 分文件
+            logger.addHandler(_file_handler(f'{log_type}.log', LOG_LEVEL, json_formatter))
+            # 2) ERROR+ 聚合流（多路复制，原 type 流不断裂）
+            logger.addHandler(_file_handler('error.log', logging.ERROR, json_formatter))
+            # 3) 控制台：开发彩色文本 / 线上 JSON，由环境变量切换
+            console = logging.StreamHandler()
+            console.setLevel(LOG_LEVEL)
+            console.setFormatter(json_formatter if LOG_CONSOLE_JSON else colorlog.ColoredFormatter(
+                f'%(log_color)s{CONSOLE_FORMAT}', log_colors=LOG_COLORS_CONFIG))
+            logger.addHandler(console)
+
+        _LOGGER_CACHE[log_type] = logger
+        return logger
+
+
+def save_large(content, tag, extra=None):
+    """大内容显式豁免落盘（日志规范 §4.3），线上默认关闭
+
+    独立走 large-{date}.log，不污染 type 流；关闭时只记元信息 + 指纹。
+    """
+    raw = content if isinstance(content, bytes) else str(content).encode('utf-8')
+    meta = {'tag': tag, 'original_size': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+    meta.update(extra or {})
+    if not LOG_LARGE_ENABLED:
+        get_logger('biz').info('大内容未落盘（LOG_LARGE_ENABLED=False）', extra=meta)
+        return
+    os.makedirs(LOGGING_BASE_DIR, exist_ok=True)
+    date = datetime.now().astimezone().strftime('%Y-%m-%d')
+    with open(os.path.join(LOGGING_BASE_DIR, f'large-{date}.log'), 'a', encoding='utf-8') as f:
+        f.write(json.dumps({**meta, 'content': raw.decode('utf-8', 'ignore')}, ensure_ascii=False) + '\n')
+
+
+# 预定义 logger（按 type，不按级别）
+biz_log = get_logger('biz')
+operation_log = get_logger('operation')
+audit_log = get_logger('audit')
+request_log = get_logger('request')
+perf_log = get_logger('perf')
+schedule_log = get_logger('schedule')
+exception_log = get_logger('exception')
 ```
+
+### 6.2 调用方式（强制）
+
+> **级别通过方法名表达（`logger.info` / `logger.error`），业务字段通过 `extra` 传**。禁止把 JSON 字符串拼进 `msg`。
+
+```python
+from utils.loggings import biz_log, exception_log
+
+# ✅ 正确：type 由 logger 决定，级别由方法决定，字段走 extra
+biz_log.info('订单创建成功', extra={
+    'log_type': 'biz',            # Formatter 写入 JSON 的 "type"
+    'biz_event': 'order.created',
+    'biz_id': order.id,
+})
+
+# ✅ 正确：异常必带 traceback（日志规范 §3.4）
+try:
+    create_order(data)
+except Exception:
+    exception_log.exception('订单创建失败', extra={
+        'log_type': 'exception',
+        'biz_event': 'order.created',
+        'biz_id': data.get('order_id'),
+    })
+    raise
+
+# ❌ 错误：把 JSON 字符串塞进 msg（外层仍是文本包裹，采集侧无法解析整行 JSON）
+biz_log.info(json.dumps({'biz_event': 'order.created'}))
+
+# ❌ 错误：按级别取 logger（级别不是分文件维度，见 §6.0）
+error_log = get_logger('error')      # ValueError：非 7 类之一
+```
+
+| 输出文件 | 内容 |
+|:---------|:-----|
+| `logs/biz.log` | 上例第一条（`level=INFO`） |
+| `logs/exception.log` | 上例第二条（`level=ERROR` + 完整 traceback） |
+| `logs/error.log` | 上例第二条的**副本**（ERROR+ 聚合，供告警脚本 tail） |
+
+> ⚠️ **`extra` 禁用 LogRecord 保留字段名**：`msg` / `message` / `args` / `name` / `module` / `levelname` / `exc_info` / `asctime` 等。传了会直接 `KeyError: "Attempt to overwrite 'xxx' in LogRecord"`。业务字段用 `biz_msg` / `biz_module` 这类带前缀的名字（日志规范 §3.5）。`module` 由 Formatter 自动取 `record.name` 填充。
 
 ---
 
@@ -849,10 +1018,8 @@ def register_error_handlers(app):
     from sqlalchemy.exc import IntegrityError
     from marshmallow import ValidationError
     from utils.responses import api_error
-    from utils.loggings import admin_response_log
+    from utils.loggings import exception_log
     from flask import request, g
-    import traceback
-    import json
 
     @app.errorhandler(404)
     def not_found(e):
@@ -882,20 +1049,19 @@ def register_error_handlers(app):
     @app.errorhandler(Exception)
     def handle_exception(e):
         request_id = getattr(g, 'request_id', '-')
-        error_traceback = traceback.format_exc()
-        error_info = {
-            'request_id': request_id,
+        # logger.exception 自动带完整 traceback（日志规范 §3.4），禁止手拼 traceback.format_exc()
+        exception_log.exception('未捕获异常', extra={
+            'log_type': 'exception',
             'path': request.path,
             'method': request.method,
-            'error': str(e),
-            'traceback': error_traceback
-        }
-        admin_response_log.save_critical(json.dumps(error_info, ensure_ascii=False))
+        })
         # 响应中携带 request_id 便于用户反馈排查
         from flask import jsonify
         response = jsonify({'code': 500, 'msg': '服务器内部错误', 'request_id': request_id})
         return response, 500
 ```
+
+> 该条同时落 `logs/exception.log`（原 type 流）与 `logs/error.log`（ERROR+ 聚合流），见 §6.0。
 
 ### 7.2 自定义异常（强制）
 
@@ -1843,24 +2009,26 @@ services:
 
 ### 21.5 启动命令
 
+> **统一原则**：所有环境的"启动/重启/重部署"都走 `up -d --force-recreate`。
+> `--force-recreate` 强制重建容器，确保新代码（已构建好的镜像）一定生效。
+> **只有在依赖变了（Dockerfile / requirements.txt / package.json）才需要加 `--build`**，且必须保留 `--force-recreate`，否则新镜像不会被新容器使用。
+
 ```bash
-# ========== 开发环境 ==========
-# 首次启动 / 代码变更后
-docker-compose -f docker-compose.dev.yml up -d --build
-# 代码没变时快速启动
-docker-compose -f docker-compose.dev.yml up -d
+# ========== 启动/重启/重部署（默认命令，覆盖 99% 场景） ==========
+# dev
+docker-compose -f docker-compose.dev.yml up -d --force-recreate
+# test
+docker-compose -f docker-compose.test.yml up -d --force-recreate
+# prod
+docker-compose -f docker-compose.prod.yml up -d --force-recreate
 
-# ========== 测试环境 ==========
-# 首次启动 / 代码变更后
-docker-compose -f docker-compose.test.yml up -d --build
-# 代码没变时快速启动
-docker-compose -f docker-compose.test.yml up -d
-
-# ========== 正式环境 ==========
-# 首次启动 / 代码变更后
-docker-compose -f docker-compose.prod.yml up -d --build
-# 代码没变时快速启动
-docker-compose -f docker-compose.prod.yml up -d
+# ========== 依赖变了（Dockerfile / requirements.txt 等）才用这个 ==========
+# dev
+docker-compose -f docker-compose.dev.yml up -d --build --force-recreate
+# test
+docker-compose -f docker-compose.test.yml up -d --build --force-recreate
+# prod
+docker-compose -f docker-compose.prod.yml up -d --build --force-recreate
 
 # ========== 通用命令 ==========
 # 查看日志
@@ -1869,6 +2037,9 @@ docker-compose -f docker-compose.{环境}.yml logs -f
 # 停止
 docker-compose -f docker-compose.{环境}.yml down
 ```
+
+> ❌ **禁止**：`docker-compose restart`（不重建容器，新代码不生效）/ `docker-compose up -d`（容器没变，新镜像不被加载）。
+> 详见 `开发环境规范.md §4.4`。
 
 ### 21.6 三环境差异对照表
 

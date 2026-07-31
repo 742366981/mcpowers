@@ -10,6 +10,11 @@
 #   .\start_dev.ps1 -Logs          # 仅查看日志
 #
 # 前置条件：已安装 Docker Desktop
+#
+# 统一启动命令：
+#   - 默认（代码变更/容器重启）：up -d --force-recreate
+#   - -Build（依赖变了）：         up -d --build --force-recreate
+# 详见 开发环境规范.md §4.4 / Flask后端规范.md §21.5。
 
 param(
     [ValidateSet('dev', 'test', 'prod')]
@@ -96,15 +101,20 @@ if ($Down) {
 } else {
     Write-Info "启动 $EnvType 环境..."
 
+    # 统一命令：--force-recreate 强制重建容器，确保新代码生效；
+    # 仅在 -Build 时额外构建镜像（依赖变了才需要）。
+    # 若未检测到镜像且未传 -Build，提示用户首次构建。
     $images = docker compose -f $ComposeFile images --quiet 2>&1
     $hasImages = $LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($images)
 
-    if ($Build -or -not $hasImages) {
-        if (-not $Build) { Write-Warn "未检测到已构建的镜像，执行首次构建..." }
-        docker compose -f $ComposeFile up -d --build
-    } else {
-        docker compose -f $ComposeFile up -d
+    if (-not $Build -and -not $hasImages) {
+        Write-Err "未检测到已构建的镜像，请使用 -Build 参数首次构建（依赖层会缓存，后续很快）："
+        Write-Err "  .\start_dev.ps1 $EnvType -Build"
+        exit 1
     }
+
+    $buildArg = if ($Build) { "--build" } else { "" }
+    docker compose -f $ComposeFile up -d --force-recreate $buildArg
 
     Write-Host ""
     Write-Info "启动完成！"

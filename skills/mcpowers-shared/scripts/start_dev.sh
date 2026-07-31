@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # start_dev.sh - 一键启动本地开发环境
 # 用法：bash start_dev.sh [dev|test|prod] [--build] [--down] [--logs]
+#
+# 统一启动命令：
+#   - 默认（代码变更/容器重启）：up -d --force-recreate
+#   - --build（依赖变了）：          up -d --build --force-recreate
+# 详见 开发环境规范.md §4.4 / Flask后端规范.md §21.5。
 
 set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -32,12 +37,15 @@ CONFIG_FILE="config/config_${ENV_TYPE}.ini"
 case "${ACTION}" in
     up)
         info "启动 ${ENV_TYPE} 环境..."
-        if [[ -n "${BUILD_FLAG}" ]] || ! docker compose -f "${COMPOSE_FILE}" images --quiet 2>/dev/null | grep -q .; then
-            [[ -z "${BUILD_FLAG}" ]] && warn "未检测到已构建的镜像，自动 build..."
-            docker compose -f "${COMPOSE_FILE}" up -d --build
-        else
-            docker compose -f "${COMPOSE_FILE}" up -d
+        # 统一命令：--force-recreate 强制重建容器，确保新代码生效；
+        # 仅在 --build 时额外构建镜像（依赖变了才需要）。
+        # 若未检测到镜像且未传 --build，提示用户首次构建。
+        if [[ -z "${BUILD_FLAG}" ]] && ! docker compose -f "${COMPOSE_FILE}" images --quiet 2>/dev/null | grep -q .; then
+            error "未检测到已构建的镜像，请使用 --build 参数首次构建（依赖层会缓存，后续很快）："
+            error "  bash start_dev.sh ${ENV_TYPE} --build"
+            exit 1
         fi
+        docker compose -f "${COMPOSE_FILE}" up -d --force-recreate ${BUILD_FLAG}
         echo ""
         info "✅ 启动完成！"
         echo "  查看日志: bash start_dev.sh --logs"

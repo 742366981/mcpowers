@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **31 个可路由技能**（场景层 23 + 方法层 8，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`） |
+| `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.0 docker-compose 启动命令统一为 `up -d --force-recreate`，仅依赖变更才追加 `--build`） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 5 个脚本 + `hooks.json`） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
@@ -59,6 +59,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 **按需加载**：场景/方法层技能不预加载规范，而是通过 `mcpowers-spec-index` 查表（"做什么 → 读哪个规范"）按需 Read。
 
 **自动化选型基线**：新增自动化默认使用 Python + pytest；先检查项目已有测试文件、依赖、配置和 CI/脚本证据；已有非 Python 套件沿用原框架，未知框架不得凭 AI 熟悉度引入。
+
+**日志分文件基线**：按业务 type 分文件（`biz.log` / `audit.log` / `request.log` / …），**级别是 JSON 的 `level` 字段，不是文件名后缀**；禁止 `xxx_info.log` / `xxx_error.log` 这类按级别切文件（会拆散同一 `request_id` 的链路）；ERROR+ 仅以**聚合流**形式额外落一份 `error.log`。详见 `日志规范.md §7.2` + `Flask后端规范.md §6.0`。
 
 ## 仓库地址
 

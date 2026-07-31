@@ -42,6 +42,8 @@ Kotlin 不单独成技能：协程、编译器生成类和 metadata 是 Android 
 
 按统一入口「专项证据交接合同」返回 Android 指纹、接口证据、Hook/静态/Native 方法、算法对照、状态线索、设备与版本限制、模块输入和证据路径。
 
+> **v2.21.3 权威源声明**：`mcpowers-crawler-reverse/SKILL.md` §4「专项证据交接合同」是 8 项结构的唯一权威源；本节不再重复定义 8 项细节，跨项改动以主入口为准。
+
 ## 资源与安全边界
 
 设备、模拟器、App 进程、frida-server/调试服务均记录 owner；不停止用户已有设备或调试服务。若链路涉及 WebView/CDP，外部接管资源不可关闭，并转用 Hybrid/Web 的所有权规则。

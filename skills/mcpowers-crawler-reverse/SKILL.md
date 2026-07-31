@@ -31,9 +31,16 @@ description: "逆向统一入口 / 目标类型判断 / 抓包与加密还原 / 
 3. **专项只交证据，不宣布可交付**：只有公共阶段 5.5 能给出最终状态。
 4. **结果必须实测**：算法至少 3 组样本；模块还需重复、生命周期、跨会话和有界并发证据。
 5. **合规优先**：授权、robots.txt、服务条款和法律边界不清时先询问；越界即停。
-6. **资源所有权铁律（v2.19.0 重新声明）——外部接管资源不可关闭**：通过 CDP / 调试端口 / 外部 daemon
-   接管的用户 browser / context / page / tab 一律视为外部所有；任何阶段（启动、
-   接管、监控、收尾、异常、回退）都不得 `browser.close()` / `context.close()` /
+6. **资源所有权铁律（v2.19.0 重新声明，v2.21.3 加分类边界）——外部接管资源不可关闭**：
+
+   按所有权把浏览器/CDP 资源分成 2 类，关闭权限不同：
+
+   | 类别 | 范围 | 关闭权限 |
+   |:-----|:-----|:---------|
+   | **external/user-owned** | 用户 Chrome / 用户 context / 已有 page / 已有 tab / 用户 daemon / frida-server / LSPosed | **任何阶段不可 close / kill / stop**——含启动、接管、监控、收尾、异常、回退 |
+   | **task-owned** | reverse-analysis-session.py 创建的 Chrome / 临时 CDP 端口 / 调试用 user-data-dir；web_monitor_template.py 一次性 Chromium | finally 段允许 close / quit |
+
+   任何阶段（启动、接管、监控、收尾、异常、回退）都不得 `browser.close()` / `context.close()` /
    关闭既有 page / kill 用户 Chrome / 擅自 stop 外部 daemon；收尾与回退只能
    停止使用/断开客户端；`reverse-analysis-session.py web-stop` 自身也保持
    浏览器存活。

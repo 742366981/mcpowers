@@ -38,6 +38,8 @@ description: "iOS逆向 / IPA与Mach-O分析 / Swift Objective-C / Frida LLDB �
 
 按统一入口「专项证据交接合同」返回 iOS 指纹、接口与运行时证据、逆向方式、算法对照、Keychain/session/设备状态线索、环境限制、模块输入和证据路径。
 
+> **v2.21.3 权威源声明**：`mcpowers-crawler-reverse/SKILL.md` §4「专项证据交接合同」是 8 项结构的唯一权威源；本节不再重复定义 8 项细节，跨项改动以主入口为准。
+
 ## 资源与安全边界
 
 设备、App 进程、调试服务和代理环境都记录 owner；不得停止用户已有设备会话或调试服务。涉及 WKWebView/CDP 时，外部接管资源不可关闭，按 Hybrid/Web 所有权规则处理。

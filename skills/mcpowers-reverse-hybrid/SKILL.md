@@ -38,6 +38,8 @@ description: "混合App逆向 / uni-app与React Native / WebView JSBridge / Herm
 
 至少 3 组输入对照 JS → Bridge → Native → 请求的动态值和时序。按统一入口「专项证据交接合同」返回框架指纹、主逻辑层、接口证据、逆向方式、算法对照、状态绑定、平台限制、模块输入和证据路径。
 
+> **v2.21.3 权威源声明**：`mcpowers-crawler-reverse/SKILL.md` §4「专项证据交接合同」是 8 项结构的唯一权威源；本节不再重复定义 8 项细节，跨项改动以主入口为准。
+
 ## 反模式（禁止）
 
 - ❌ 把 uni-app/RN 一律当普通网页，只看 JS 不看 Bridge。

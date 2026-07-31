@@ -39,6 +39,8 @@ description: "Flutter逆向 / Dart AOT分析 / libapp.so与App.framework / Platf
 
 按统一入口「专项证据交接合同」返回 Flutter/引擎指纹、核心逻辑层、接口证据、Dart/Channel/Native 逆向方式、算法对照、状态线索、版本限制、模块输入和证据路径。
 
+> **v2.21.3 权威源声明**：`mcpowers-crawler-reverse/SKILL.md` §4「专项证据交接合同」是 8 项结构的唯一权威源；本节不再重复定义 8 项细节，跨项改动以主入口为准。
+
 ## 资源边界
 
 设备、App 进程、调试服务均记录 owner；涉及 DevTools、WebView 或浏览器时，外部接管资源不可关闭，不停止用户已有 Chrome、标签页或 daemon。

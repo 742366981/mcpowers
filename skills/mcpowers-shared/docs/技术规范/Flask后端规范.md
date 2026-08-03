@@ -525,16 +525,22 @@ admin_redis_conf = config.items('admin_redis')
 app_conf = config
 ```
 
+> ⚠️ **本技能禁止使用环境变量（强制）**
+>
+> 通用规则见 [`代码规范.md`](代码规范.md) 「本技能禁止使用环境变量」段。**Flask 栈的栈级落地**：所有配置统一通过 `Config.get()` / `Config.items()` 读取（详见 §4.1 + §4.2），`*/business/*`、`*/services/*`、`*/api/*`、`*/models/*` 目录下禁止 `import os` 后调用 `os.environ.*` 或 `os.getenv(...)`。
+
 ### 4.2 配置文件格式（强制）
 
-> ⚠️ **配置文件与环境变量关联（强制）**
+> ⚠️ **配置文件选择机制（强制）**
 >
-> 配置文件的加载由 **环境变量** 中的 `ENV_TYPE` 控制：
+> 配置文件的加载由 `ENV_TYPE` 变量控制（取值顺序详见 §19.1；命令行参数 `--dev` / `--test` / `--prod` 首选）：
 > - `ENV_TYPE='dev'` → 加载 `config_dev.ini`
 > - `ENV_TYPE='test'` → 加载 `config_test.ini`
 > - `ENV_TYPE='prod'` → 加载 `config_prod.ini`
 >
 > **禁止在代码中硬编码配置文件路径**，必须通过 `ENV_TYPE` 动态拼接。
+>
+> 注意：`ENV_TYPE` 是唯一允许通过命令行（或容器编排层注入）的元配置口子；按通用规则（[`代码规范.md`](代码规范.md) 「最高铁律」）业务代码**不直接读**任何环境变量。
 
 > ⚠️ **环境配置差异原则**
 >
@@ -590,10 +596,18 @@ origins = *
 supports_credentials = true
 
 [swagger]
-# Swagger 文档保护账号（dev 环境可在配置文件中硬编码，test/prod 建议从环境变量注入）
+# Swagger 文档保护账号（dev 环境可在配置文件中硬编码，test/prod 通过 docker-compose environment 注入）
 user = admin
 password = admin123
 ```
+
+> ⚠️ **敏感信息注入策略（强制）**
+>
+> `secret_key`、数据库密码、第三方 API key 等敏感字段的部署策略：
+>
+> - **dev**：直接写 `config_dev.ini`（便于本地开发）
+> - **test / prod**：**禁止**进 git，必须通过 `docker-compose.{env}.yml` 的 `environment:` 段注入到 `config_test.ini` / `config_prod.ini` 的占位符（如 `${SECRET_KEY}`），容器启动时 `envsubst` 替换
+> - 业务代码读取方式不变：**仍走 `config.get('app', 'secret_key')`**；按通用规则 ([`代码规范.md`](代码规范.md)) 业务代码**禁止**读环境变量——这里的 `docker-compose environment:` 注入发生在容器编排层，不进入 mcpowers 代码运行时
 
 > ⚠️ **配置加载器实现要求**
 >

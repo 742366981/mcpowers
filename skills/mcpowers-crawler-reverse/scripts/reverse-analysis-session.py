@@ -573,14 +573,19 @@ def create_recording_session(workspace: Path) -> tuple[str, Path]:
 # ----------------------------------------------------------------------------
 
 def browser_candidates(system_name: str, environment: dict[str, str] | None = None) -> list[str]:
-    """按宿主 OS 返回 Chromium 系浏览器候选路径。"""
+    """按宿主 OS 返回 Chromium 系浏览器候选路径。
 
-    env = environment or dict(os.environ)
+    不读环境变量：默认 Windows 安装路径硬编码 + pathlib.Path.home() 派生用户目录。
+    `environment` 参数仅作为外部测试注入点，函数内部不读取 `os.environ`。
+    """
+
     if system_name == "Windows":
+        # Windows 默认安装位置（硬编码 + pathlib fallback，替代原先读 os.environ）
+        env = environment or {}
         roots = [
-            env.get("PROGRAMFILES", ""),
-            env.get("PROGRAMFILES(X86)", ""),
-            env.get("LOCALAPPDATA", ""),
+            env.get("PROGRAMFILES", str(Path("C:/Program Files"))),
+            env.get("PROGRAMFILES(X86)", str(Path("C:/Program Files (x86)"))),
+            env.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")),
         ]
         relative_paths = [
             "Google/Chrome/Application/chrome.exe",

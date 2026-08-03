@@ -62,6 +62,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **日志分文件基线**：按业务 type 分文件（`biz.log` / `audit.log` / `request.log` / …），**级别是 JSON 的 `level` 字段，不是文件名后缀**；禁止 `xxx_info.log` / `xxx_error.log` 这类按级别切文件（会拆散同一 `request_id` 的链路）；ERROR+ 仅以**聚合流**形式额外落一份 `error.log`。详见 `日志规范.md §7.2` + `Flask后端规范.md §6.0`。
 
+**本技能禁止使用环境变量（v2.25.0+ 全栈适用最高铁律）**：仓库所有 .py / .sh / .js / .ts 源文件以及应用本规范的所有项目代码**一律禁止**读环境变量——Python 禁 `os.environ.*` / `os.getenv` / `from os import environ`；Shell 禁 `echo "$XXX"` / `${XXX}` 从外部环境读；JS/TS 运行时禁 `process.env.*` / `dotenv.config()`。配置统一走**文件 + 加载器**或**命令行参数**；OS 探测（浏览器路径、用户目录）走 `pathlib.Path.home()` + 已知路径硬编码 + `shutil.which()` 组合。唯一允许的例外：`hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 Docker Compose YAML 的 `environment:` 字段（这两处不进入 mcpowers 代码运行时）。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 「最高铁律 · 本技能禁止使用环境变量」段；栈级落地见 `Flask后端规范.md §4.1` / `Vue前端规范.md` / `爬虫工具与抓包规范.md`。
+
 **终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
 
 ## 仓库地址

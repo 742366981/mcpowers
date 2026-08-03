@@ -9,7 +9,7 @@ cat <<'EOF'
 [mcpowers] 会话启动 → 路由器已激活（~/.claude/skills/mcpowers/SKILL.md）
 [mcpowers] 路由表: ~/.claude/skills/mcpowers/SKILL.md
 
-[mcpowers] 铁律（8 条必须做 + 6 条禁止做）：
+[mcpowers] 铁律（8 条必须做 + 8 条禁止做）：
 
   必须做：
   1. 修改前先分析影响、询问用户确认
@@ -28,6 +28,8 @@ cat <<'EOF'
   4. 多处重复定义同一内容
   5. 在项目根目录创建临时文件
   6. 违反 SOLID/KISS/DRY/YAGNI 原则
+  7. 文档/注释保留历史演进痕迹（"原为 xxx"/"已废弃"/变更历史 → 交付物是终态快照，历史交给 git）
+  8. 交付物出现参考来源痕迹（"参考 xxx 文档"/"根据资料" → 读参考是学习，输出必须自己组织）
 
   完整规范见 mcpowers-shared/docs/AI操作规范.md（按需 Read）
 [mcpowers] 反模式详见各技能的 "反模式（禁止）" 段

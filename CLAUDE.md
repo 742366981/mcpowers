@@ -62,6 +62,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **日志分文件基线**：按业务 type 分文件（`biz.log` / `audit.log` / `request.log` / …），**级别是 JSON 的 `level` 字段，不是文件名后缀**；禁止 `xxx_info.log` / `xxx_error.log` 这类按级别切文件（会拆散同一 `request_id` 的链路）；ERROR+ 仅以**聚合流**形式额外落一份 `error.log`。详见 `日志规范.md §7.2` + `Flask后端规范.md §6.0`。
 
+**终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
+
 ## 仓库地址
 
 git@github.com:742366981/mcpowers.git

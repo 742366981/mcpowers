@@ -25,11 +25,14 @@ description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做
 
 **保护路径**（PreToolUse(Write) hook 强制确认）：`mcpowers-shared/`、`mcpowers/`、`hooks/` 三个目录的写操作触发前确认。
 
+**复用优先门禁**（v2.26.0+）：写新函数前必须先扫仓库是否已有等价实现。步骤 `## 2.5` 强制要求输出「已有资产扫描清单」，否则不允许进入第 3 步加载规范之后直接动手实现。
+详见 `代码规范.md §6.1.1 复用优先于二次抽象`；hooks 侧由 `pre-write-check-duplicate.sh` 物理兜底。
+
 **不允许跳过**：标注"必走"或"必读"的步骤必须执行。
 
 ---
 
-## 触发即执行（9 步）
+## 触发即执行（10 步）
 
 ### 1. 澄清需求
 - 需求**清楚** → 跳过，直接进入第 2 步
@@ -37,8 +40,40 @@ description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做
 - 用户明确说"按这个 PRD 做" → 跳过澄清，直接进入第 2 步
 
 ### 2. 任务拆解
-- 任务 **≤ 3 步** → 跳过拆解，直接进入第 3 步
+- 任务 **≤ 3 步** → 跳过拆解，直接进入第 2.5 步
 - 任务 **> 3 步** → 调 `mcpowers-plan` 拆成 2-5 分钟可验证小任务
+
+### 2.5 已有资产扫描（v2.26.0+ 强制）
+
+> **目的**：避免「明明 SDK 已有，又包一层」的过度抽象。
+>
+> 在写任何新函数 / 类 / 模块之前，必须先扫仓库里是否已有等价或近似实现。
+
+**清单格式**（PR 描述 / 对话回复必填；缺则不进入下一步）：
+
+```markdown
+## 已有资产扫描结果
+- [搜过] `from common.order import create_order` —— 完全满足，未引入
+- [搜过] `from sdk.pagination import paginate` —— 完全满足，未二次抽象
+- [搜过] `from common.validators import validate_phone` —— 与本需求不匹配（仅校验大陆手机号），改用 `re.match` 正则
+- [新写] `parse_url_v2` —— SDK `parse_url` 不支持本场景的 query 参数排序，未引入
+```
+
+**自检命令**（在动手前先跑一遍）：
+
+```bash
+# 1. 同名函数扫描（仓库内）
+rg --type py "def\s+${候选函数名}\b" .
+# 2. SDK / 通用模块扫描
+rg --type py "def\s+${候选关键词}\b" common/ sdk/ utils/ shared/ helpers/
+# 3. 跨项目搬运场景：是否在 common/ 或 sdk/ 里已有
+rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/common/
+```
+
+> 任一项命中已有 → **直接复用**，禁止包同名 wrapper。
+> 三个命令都跑过、都「未命中」 → 才能进第 3 步动手实现。
+
+**Hook 物理兜底**（免用户自觉）：`hooks/pre-write-check-duplicate.sh` 在 Write/Edit 时自动检测新增 `def` 与仓库内同名 def 冲突，命中则弹 confirm UI 让用户决策。
 
 ### 3. 加载规范
 - **必须** Read `mcpowers-shared/mcpowers-spec-index/SKILL.md`

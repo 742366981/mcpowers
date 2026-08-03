@@ -88,7 +88,44 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 - ❌ 给出无证据的质疑（"我觉得这里有问题"）
 - ❌ 接受表演性认同（"你写得很棒"）—— 审查要有具体证据
 
+### 「过度抽象 / 重复代码」反模式（v2.26.0+ 强制）
+
+> 对齐 `代码规范.md §6.1.1 复用优先于二次抽象`。命中以下任一 → **Critical 阻塞合并**。
+
+| # | 反模式 | 违反后果 |
+|:-:|:-------|:---------|
+| **R1** | ❌ **未先扫仓库/SKD/通用模块就写 wrapper**：`class MyHttpClient: def get(...): return requests.get(...)` 这种一行转发的「抽象」 | 引入不必要层；新人维护成本翻倍；测试无法隔离底层行为 |
+| **R2** | ❌ **二次抽象仅一行调用底层**（如 `def send_email(...): EmailService.get().send(...)`） | 抽象成本（多一层阅读）> 收益（去掉一句 `.get()`）；违反 YAGNI |
+| **R3** | ❌ **函数/类命名与 SDK / 公共模块已有定义冲突且非有意扩充**：SDK 有 `parse_url`，本仓库写 `parse_url_v2` 同名同义 | 应该提 PR 改 SDK 或复用；并存等于重复定义 |
+| **R4** | ❌ **跨项目搬运同名函数但不复用**：A 项目有 `validate_phone` → B 项目再写一个 `validate_phone` | 应该提到 `common/validators.py` 跨项目共享 |
+| **R5** | ❌ **抽象类（ABC / Protocol）只有一个具体实现**，第 2 个实现至今没出现 | 提前抽象；等到第 2 个实现再抽（YAGNI） |
+| **R6** | ❌ **新写公共函数但仓库内零调用方**（dead-on-arrival） | 违反 YAGNI；先写私有函数，等真有 3+ 调用方再升公共 |
+| **R7** | ❌ **业务代码绕过 `utils/loggings.py` 单独写清理/轮转逻辑**：自己写 `for f in glob('*.log.*'): os.system(f'gzip {f}')` | 与框架清理函数双跑；窗口语义模糊；详见 `日志规范.md §7.3` |
+
+**审查动作清单**（每个 PR 必跑）：
+
+1. **diff 内每个新 `def` 都过一遍**：用本仓库内置搜索命令找到仓库内同名 def，对照 PRD 看是否重复引入
+2. **新增 wrapper 类/管理器** 必须有明确职责（参数映射 / 批量调用 / 异常归一三选一），其他情况直接调底层
+3. **新增文件超过 100 行 且 ≥ 50% 是「call through」** → Critical，向作者追问「为什么这一层要存在」
+4. **同名函数跨文件出现 ≥ 2 次** → 提 `mcpowers-extract` 抽离公共模块
+
 ---
+
+## v2.26.0+ 复用扫描 Quick-Check（review 必跑）
+
+> 审查者收到 PR 后 30 秒内可执行的 3 条扫描命令：
+
+```bash
+# 1. diff 内新增/修改过的 def（看有无重名）
+git diff main...HEAD -U0 | grep -E "^\+[[:space:]]*(async[[:space:]]+)?(def|function|func|fn)[[:space:]]+" | sort -u
+# 2. 仓库内同名 def（看是否已有）
+rg --type py "def\s+${候选名}\b" . | grep -v "^${自身文件}:"
+# 3. SDK / common 是否有等价接口
+rg --type py "(class|def)\s+${候选关键词}\b" common/ sdk/ utils/ shared/
+```
+
+> 三条都「未命中仓库已有」 → 通过；任一命中 → Critical 阻塞。
+
 
 ## 审查后
 

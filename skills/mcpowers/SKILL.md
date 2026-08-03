@@ -173,7 +173,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 ---
 
-## 5. 硬约束完整覆盖（4 个事件组 / 5 个脚本）
+## 5. 硬约束完整覆盖（4 个事件组 / 6 个脚本）
 
 铁律从"软提示"升级为"硬约束"由以下 hooks 实现（详见 `hooks/README.md`）：
 
@@ -182,6 +182,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 | `SessionStart/startup` | 启动时 | 7 条必做 + 6 条禁止（铁律全文注入） | 0（注入） |
 | `PreToolUse/Bash` | Bash 前 | 阻断 `rm -rf /` 等危险命令 | 2 = 阻断 / 0 = 放行 |
 | `PreToolUse/Write` | Write 前 | 改前确认；接口相关文件变更时提示同步 API 文档（保护核心 4 目录） | 2 = 阻断 / 0 = 放行 |
+| `PreToolUse/Write\|Edit\|MultiEdit` | 写/编辑前 | v2.26.0+ 重复函数检测——新增 `def` 与仓库已有同名冲突时弹 confirm UI（防过度抽象铁律） | 2 = 命中 / 0 = 放行 |
 | `PostToolUse/Write\|Edit\|MultiEdit` | 写完后 | 改完即 commit 提醒 | 0（仅提醒） |
 
 **核心 4 目录保护**（PreToolUse/Write 范围）：`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。

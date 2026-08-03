@@ -9,6 +9,18 @@
 
 - 待发布
 
+## v2.26.0 - 2026-08-03
+
+- **新增**：[`日志规范.md §7.3`](skills/mcpowers-shared/docs/技术规范/日志规范.md) 新增「轮转 → 清理 → 压缩时序」——4 阶段强顺序：①轮转产生 `app.log.YYYY-MM-DD` ②保留 N 天原文件（默认 7 天，`keep_recent_uncompressed_days = 7`） ③超过窗口的轮转文件 `.gz` 压缩 ④超过保留期的 `.gz` 文件清理；§7.2 同时新增「免压缩窗口」配置项。
+- **新增**：[`Flask后端规范.md §6.3`](skills/mcpowers-shared/docs/技术规范/Flask后端规范.md) `compress_old_logs()` + `purge_old_logs()` 两个工具函数落地免压缩窗口与 `.gz` 清理；`_file_handler()` `use_gzip=False` 由清理函数接管压缩时机；新增 `LOG_KEEP_UNCOMPRESSED` 配置项（默认 7）。
+- **新增**：[`爬虫规范.md §12.3`](skills/mcpowers-shared/docs/技术规范/爬虫规范.md) 爬虫项目日志维护强制复用 Flask 的 `compress_old_logs` / `purge_old_logs`，新增 `daily_log_maintenance` 调度示例。
+- **新增**：[`代码规范.md §6.1.1`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 新增「复用优先于二次抽象（强制 · 防过度设计）」段——6 条反模式黑名单（R1-R6）+ 3 条 bash 自检命令 + 3 类 wrapper 合理论证场景（参数映射 / 批量调用 / 异常归一）。
+- **新增**：`hooks/check_duplicate_function.py` + `hooks/pre-write-check-duplicate.sh`——`PreToolUse(Write|Edit|MultiEdit)` 钩子，检测新增 `def` / `function` / `func` / `fn` 与仓库已有同名函数冲突；命中走 Claude Code confirm UI（exit 2）。同时保护 `skills/mcpowers-shared/` / `skills/mcpowers*/SKILL.md` 等白名单不被自身打扰。
+- **新增**：[`mcpowers-feat/SKILL.md`](skills/mcpowers-feat/SKILL.md) 触发即执行 10 步中插入「## 2.5 已有资产扫描」强制步骤——PR 描述必填「已有资产扫描结果」清单（含 SDK / common / utils / shared 同名扫描），3 条 `rg` 自检命令；不填不允许进入第 3 步。
+- **新增**：[`mcpowers-code-review/SKILL.md`](skills/mcpowers-code-review/SKILL.md) 「## 反模式（禁止）」段新增「过度抽象 / 重复代码 R1-R7」Critical 阻塞表 + 30 秒复用扫描 Quick-Check 3 条 `rg` 命令。
+- **调整**：[`hooks/hooks.json`](hooks/hooks.json) `PreToolUse` 新增 `Edit|MultiEdit` 匹配器，注册 `pre-write-check-duplicate.sh`（之前仅在 `Write` 上）。
+- **风险**：0 行为变更对外；日志免压缩窗口仅对启用新配置的项目生效，老项目沿用立即 gzip；钩子失败兜底放行（`try/except` 捕获所有异常 → exit 0），不会阻断正常 Write/Edit。
+
 ## v2.25.0 - 2026-08-03
 
 - **新增**：[`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 新增「最高铁律 · 本技能禁止使用环境变量（强制 · 全栈适用）」段——仓库所有 .py / .sh / .js / .ts 源文件以及应用本规范的所有项目代码**一律禁止**读环境变量；Python 禁 `os.environ.*` / `os.getenv`，Shell 禁 `$XXX` 从外部环境读，JS/TS 运行时禁 `process.env.*` / `dotenv.config()`；唯一允许例外 `hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 docker-compose `environment:` 字段。

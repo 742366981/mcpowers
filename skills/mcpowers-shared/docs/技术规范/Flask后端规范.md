@@ -711,11 +711,12 @@ def init_request_log(app):
 
 ## 6. 日志规范（强制）
 
-> **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则 → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关）。
+> **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则、轮转与免压缩窗口 → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关；v2.26.0 新增 §7.3 免压缩窗口）。
 >
-> **本节只保留 2 件事**：
-> 1. `utils/loggings.py` 封装类的实现
+> **本节只保留 3 件事**：
+> 1. `utils/loggings.py` 封装类的实现（含免压缩窗口实现）
 > 2. 全局请求日志中间件 `utils/request_log.py` 的实现（§5.2）
+> 3. 免压缩窗口与清理函数的配置/调用方式
 >
 > **所有 `logger.*` 调用必须符合 `日志规范.md §3` 字段约定**，禁止发明字段名。
 
@@ -772,6 +773,8 @@ from common.settings import config
 LOG_LEVEL = config.get('log', 'level', fallback='INFO').upper()
 LOG_CONSOLE_JSON = config.getboolean('log', 'console_json', fallback=False)
 LOG_LARGE_ENABLED = config.getboolean('log', 'large_enabled', fallback=False)
+# 日志规范 §7.3（v2.26.0+）：免压缩窗口，生产默认 7 天；显式改 0 = 关闭免压缩（轮转即压缩）
+LOG_KEEP_UNCOMPRESSED = config.getint('log', 'keep_recent_uncompressed_days', fallback=7)
 
 # ---- 日志规范 §2：7 类固定 type，禁止发明新类型（铁律 5） ----
 LOG_TYPES = ('biz', 'operation', 'audit', 'request', 'perf', 'schedule', 'exception')
@@ -885,12 +888,17 @@ def _file_handler(filename, level, formatter):
 
     注：7 个 type logger 各挂一个指向 error.log 的 handler，靠 concurrent-log-handler
     的文件锁保证轮转不打架；需 concurrent-log-handler >= 0.9.20（支持 maxBytes 组合）。
+
+    v2.26.0 变更（对齐日志规范 §7.3 免压缩窗口）：
+        use_gzip 由 True 改为 False（旧版：轮转即 gzip）。
+        新版：轮转后保持 .log 状态，由 §6.3 的 compress_old_logs() 在免压缩窗口
+        满（默认 7 天）后再主动 gzip。
     """
     handler = ConcurrentTimedRotatingFileHandler(
         os.path.join(LOGGING_BASE_DIR, filename),
         when='D', interval=1, encoding='utf-8',
         maxBytes=MAX_FILE_BYTES,     # 日志规范 §7.2：单文件 ≤ 200MB 强制轮转
-        use_gzip=True,               # 日志规范 §7.2：轮转后立即 gzip
+        use_gzip=False,              # 日志规范 §7.3：免压缩窗口期间不压缩；超龄由 compress_old_logs 处理
         backupCount=BACKUP_DAYS.get(filename.split('.')[0], DEFAULT_BACKUP_DAYS),
     )
     handler.setLevel(level)
@@ -1008,6 +1016,130 @@ error_log = get_logger('error')      # ValueError：非 7 类之一
 | `logs/error.log` | 上例第二条的**副本**（ERROR+ 聚合，供告警脚本 tail） |
 
 > ⚠️ **`extra` 禁用 LogRecord 保留字段名**：`msg` / `message` / `args` / `name` / `module` / `levelname` / `exc_info` / `asctime` 等。传了会直接 `KeyError: "Attempt to overwrite 'xxx' in LogRecord"`。业务字段用 `biz_msg` / `biz_module` 这类带前缀的名字（日志规范 §3.5）。`module` 由 Formatter 自动取 `record.name` 填充。
+
+### 6.3 免压缩窗口与清理函数（v2.26.0+ 强制）
+
+> **本节配套 `日志规范.md §7.3`**。轮转 → 清理 → 压缩的 4 个时序阶段（轮转/窗口/压缩/清理）的实现细节都在本节。
+>
+> **两个新函数是接口契约**：业务代码禁止自己写清理脚本，只能调用本节的函数。
+
+```python
+# utils/loggings.py（接 §6.1 末尾）
+import gzip
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+from common.constants import LOGGING_BASE_DIR
+# 同 §6.1 顶部 LOG_KEEP_UNCOMPRESSED / LOG_TYPES / BACKUP_DAYS / DEFAULT_BACKUP_DAYS
+
+
+def _parse_rotated_date(filename: str) -> date | None:
+    """从 `xx.log.2026-07-20` 解析日期；解析不到返回 None（兼容早期未按时命名的轮转文件）"""
+    parts = filename.rsplit('.', 2)        # ['xx', 'log', '2026-07-20'] 或 ['xx', 'log-2026-07-20']
+    try:
+        return datetime.strptime(parts[-1], '%Y-%m-%d').date()
+    except (ValueError, IndexError):
+        return None
+
+
+def compress_old_logs(keep_recent_days: int | None = None) -> list[str]:
+    """压缩超过「免压缩窗口」的轮转文件（日志规范 §7.3 阶段 ③）
+
+    Args:
+        keep_recent_days: 免压缩窗口天数；None = 用配置 LOG_KEEP_UNCOMPRESSED（默认 7）
+
+    Returns:
+        被压缩的文件路径列表（用于运维回显/告警检测）
+
+    触发时机：
+        - 定时任务（推荐每天凌晨 00:30 跑一次，配合 §13 schedule）
+        - 手动排查时也可单独调用
+    """
+    keep = LOG_KEEP_UNCOMPRESSED if keep_recent_days is None else keep_recent_days
+    cutoff = date.today() - timedelta(days=keep)
+    compressed = []
+    for path in Path(LOGGING_BASE_DIR).glob('*.log.*'):    # 轮转文件 = <name>.log.<date>
+        if path.suffix == '.gz':
+            continue
+        d = _parse_rotated_date(path.name)
+        if d is None or d >= cutoff:
+            continue
+        gz_path = path.with_suffix(path.suffix + '.gz')
+        with open(path, 'rb') as f_in, gzip.open(gz_path, 'wb') as f_out:
+            f_out.writelines(f_in)
+        path.unlink()
+        compressed.append(str(path))
+    return compressed
+
+
+def purge_old_logs() -> dict[str, int]:
+    """清理超过保留期的 .gz 文件（日志规范 §7.3 阶段 ④）
+
+    Returns:
+        {type 名称: 删除数量}，用于运维回显
+
+    差异化保留（来自 BACKUP_DAYS，§6.1 顶部常量）：
+        - audit.log.*.gz ≥ 180 天
+        - exception.log.*.gz ≥ 90 天
+        - error.log.*.gz ≥ 90 天
+        - 其他 ≥ 30 天（DEFAULT_BACKUP_DAYS）
+
+    ⚠️ 大文件清理：按 BACKUP_DAYS 直接 unlink，不进回收站（生产环境慎用前手动 dry-run）。
+    """
+    today = date.today()
+    deleted: dict[str, int] = {}
+    for gz_path in Path(LOGGING_BASE_DIR).glob('*.log.*.gz'):
+        stem = gz_path.name.split('.')[0]    # 'biz' / 'audit' / 'error' / ...
+        keep_days = BACKUP_DAYS.get(stem, DEFAULT_BACKUP_DAYS)
+        d = _parse_rotated_date(gz_path.name.removesuffix('.gz'))
+        if d is None:
+            continue
+        if (today - d).days <= keep_days:
+            continue
+        gz_path.unlink()
+        deleted[stem] = deleted.get(stem, 0) + 1
+    return deleted
+```
+
+**配置项登记**（`config.ini [log]` 段，对齐 §4.2）：
+
+```ini
+[log]
+level = INFO
+console_json = false
+large_enabled = false
+keep_recent_uncompressed_days = 7        # 日志规范 §7.3：生产默认 7；调试开发场景可改 0
+```
+
+**定时触发**（推荐挂到系统 cron / APScheduler / Celery beat 调度的定时任务上）：
+
+```python
+# apps/schedule_jobs/log_cleanup.py（已对齐 §13 schedule 写法）
+from utils.loggings import compress_old_logs, purge_old_logs
+
+def daily_log_maintenance():
+    """每天凌晨 00:30 跑：先压缩超龄 .log，再清理超期 .gz"""
+    compressed = compress_old_logs()
+    deleted = purge_old_logs()
+    if compressed or deleted:
+        # 清理动作走 schedule 日志，方便追溯
+        schedule_log = get_logger('schedule')
+        schedule_log.info('日志维护完成', extra={
+            'log_type': 'schedule',
+            'job_name': 'log_maintenance',
+            'compressed_count': len(compressed),
+            'deleted_by_type': deleted,
+        })
+```
+
+**反模式**（code-review 必须 Critical）：
+
+| # | 反模式 | 后果 |
+|:-:|:-------|:-----|
+| 1 | ❌ 业务代码自己写 `for f in glob('*.log.*'): os.system(f'gzip {f}')` | 与框架压缩函数双跑/打架；窗口语义模糊 |
+| 2 | ❌ 在 `cron` 或 `apscheduler` 里写定时清理，但**未声明**到 `config.ini` | 配置漂移，运维排查困难 |
+| 3 | ❌ 把 `keep_recent_uncompressed_days` 改 `30`，磁盘占用没算过 | OOM 风险 |
+| 4 | ❌ `purge_old_logs` 直接 `unlink` 但**没有 schedule 日志记录** | 删了就删了，事后无法追溯 |
 
 ---
 

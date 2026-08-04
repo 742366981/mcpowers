@@ -80,16 +80,16 @@ description: "新项目 / 脚手架 / 项目初始化 / 帮我搭个新项目 / 
 | **`log/`**（v2.6.0+ 必建） | 日志输出目录（按 `日志规范.md §7.2` 文件命名与轮转规范） |
 
 ### 5. 接入 mcpowers 规范（所有项目类型）
-- 把 `mcpowers-shared/docs/` 软链或复制到项目 `docs/`
+- **不软链不复制**到项目 `docs/`：AI 按 `mcpowers-spec-index` 索引在 Claude Code 会话里按需 Read `mcpowers-shared/docs/技术规范/`，避免软链指向带版本号的 cache 路径、mcpowers 升级后软链失效（详见 `代码规范.md` 「最高铁律 · mcpowers 注入路径稳定性」段）
 - 在 `CLAUDE.md` 顶部加：
   ```markdown
   ## 加载规范
   本项目遵循 mcpowers 规范体系：
   - 路由器：mcpowers 主入口（自动注入）
-  - 规范索引：mcpowers-spec-index（按需 Read）
-  - 规范文件：docs/技术规范/*.md
+  - 规范索引：mcpowers-spec-index（按需 Read，**不**复制到项目）
+  - 规范文件：mcpowers-shared/docs/技术规范/（AI 按需 Read，**不**复制不软链）
   ```
-- 提示用户安装 mcpowers 系列技能到 `~/.claude/skills/`
+- 提示用户通过 Claude Code 插件市场安装（v2.0+ 唯一安装机制）：`/plugin marketplace add https://github.com/742366981/mcpowers && /plugin install mcpowers@mcpowers`
 
 ### 5+ 联动安装 doc-sync 纪律（v2.9.1+ 新增 · 与用户零摩擦）
 

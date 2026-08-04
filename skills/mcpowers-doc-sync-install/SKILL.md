@@ -65,12 +65,12 @@ else echo "无法自动识别，请 AskUserQuestion"; fi
 
 ```bash
 mkdir -p scripts
-cp <mcpowers>/scripts/templates/project-doc-sync-check.sh scripts/check-doc-sync.sh
+cp "${CLAUDE_PLUGIN_ROOT}/scripts/templates/project-doc-sync-check.sh" scripts/check-doc-sync.sh
 chmod +x scripts/check-doc-sync.sh
-cp <mcpowers>/scripts/templates/project-doc-sync-rules.<type>.yml .doc-sync-rules.yml
+cp "${CLAUDE_PLUGIN_ROOT}/scripts/templates/project-doc-sync-rules.<type>.yml" .doc-sync-rules.yml
 ```
 
-`<mcpowers>` 是 mcpowers 仓库绝对路径。**告诉用户调路径的方式**：从 Claude Code `${CLAUDE_PLUGIN_ROOT}` 环境变量读（如果本会话已装 mcpowers）或 `git rev-parse --show-toplevel` 的兄弟目录。
+`${CLAUDE_PLUGIN_ROOT}` 是 Claude Code 框架在工具调用时自动展开的占位符（**非环境变量**，是钩子配置层的字符串替换，AI 在 Claude Code 会话里跑 bash 时会被解析为当前激活的 mcpowers 插件根目录，例如 `~/.claude/plugins/cache/mcpowers/mcpowers/2.26.2/`）。本技能触发的 cp 命令由 AI 执行，不是用户手动跑，所以展开机制是闭环的。
 
 ### 阶段 3 · 注入 pre-commit hook（可选，但默认开）
 

@@ -9,6 +9,14 @@
 
 - 待发布
 
+## v2.26.2 - 2026-08-04
+
+- **修复**：[`mcpowers-init/SKILL.md`](skills/mcpowers-init/SKILL.md) §5 安装指引——"提示用户安装到 `~/.claude/skills/`" 改为 v2.0+ 唯一安装机制 `Claude Code 插件市场`（`/plugin marketplace add ... && /plugin install ...`）；§5 软链提议改为"**不软链不复制**，AI 按 mcpowers-spec-index 按需 Read"，避免软链指向带版本号 cache 路径、mcpowers 升级后失效；§5 注入的 CLAUDE.md「加载规范」段同步改为"按需 Read，**不**复制不软链"以消除内部矛盾。
+- **修复**：[`mcpowers-doc-sync-install/SKILL.md`](skills/mcpowers-doc-sync-install/SKILL.md) §阶段 2 的 `<mcpowers>` 自定义占位符改用 `${CLAUDE_PLUGIN_ROOT}`，AI 在 Claude Code 会话里跑 cp 时框架自动展开；同时改"从环境变量读"措辞为"**Claude Code 框架在工具调用时自动展开的占位符（**非环境变量**）**"，避免与 v2.25.0 最高铁律"禁止使用环境变量"产生语感冲突。
+- **修复**：[`开发环境规范.md`](skills/mcpowers-shared/docs/技术规范/开发环境规范.md) §2 给 `${CLAUDE_PLUGIN_ROOT}` 加脚注：说明是框架层字符串替换非环境变量、mcpowers-shared/docs/ 部分是稳定路径仅插件根目录带版本号。
+- **新增**：[`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 新增「最高铁律 · mcpowers 注入路径稳定性（强制 · 全栈适用 · v2.26.2+）」段——3 类禁行字面值（`cache/mcpowers/mcpowers/{version}/...` / `~/.claude/skills/mcpowers-shared/...` / 自定义占位符如 `<mcpowers>`）+ 3 条配套铁律（不软链、不装旧路径、AI 引用规范只用抽象路径）。
+- **风险**：0 行为变更对外；本次纯文档级路径字面值修正 + 1 段铁律新增；CI 门禁 20+41 项验证（`bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh`）；插件版本号 2.26.1 → 2.26.2。
+
 ## v2.26.1 - 2026-08-04
 
 - **修复**：[`开发环境规范.md`](skills/mcpowers-shared/docs/技术规范/开发环境规范.md) §2 + [`AI操作规范.md`](skills/mcpowers-shared/docs/AI操作规范.md) 10 处 + [`hooks/session-start.sh`](hooks/session-start.sh) 启动横幅——所有指向 `~/.claude/skills/mcpowers-shared/` 的旧路径改用 `${CLAUDE_PLUGIN_ROOT}` 占位符，与 `hooks/hooks.json` 既有惯例对齐；插件版本号同步 `2.26.0 → 2.26.1`。

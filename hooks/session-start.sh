@@ -6,8 +6,8 @@
 set -e
 
 cat <<'EOF'
-[mcpowers] 会话启动 → 路由器已激活（~/.claude/skills/mcpowers/SKILL.md）
-[mcpowers] 路由表: ~/.claude/skills/mcpowers/SKILL.md
+[mcpowers] 会话启动 → 路由器已激活（${CLAUDE_PLUGIN_ROOT}/skills/mcpowers/SKILL.md）
+[mcpowers] 路由表: ${CLAUDE_PLUGIN_ROOT}/skills/mcpowers/SKILL.md
 
 [mcpowers] 铁律（8 条必须做 + 8 条禁止做）：
 

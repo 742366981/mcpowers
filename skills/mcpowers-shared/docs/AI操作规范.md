@@ -217,7 +217,7 @@
 |:-----|:-----|:-----|
 | **CLAUDE.md** | AI 项目配置，开机自动加载 | 项目根目录（从开发环境规范模板创建） |
 | **AGENTS.md** | AI 项目配置，开机自动加载 | 项目根目录（从开发环境规范模板创建） |
-| **AI操作规范.md** | 定义所有 AI 操作规范 | `~/.claude/skills/mcpowers-shared/docs/AI操作规范.md` |
+| **AI操作规范.md** | 定义所有 AI 操作规范 | `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/AI操作规范.md` |
 | **原始需求/** | 用户提供的原始需求材料（md/pdf/URL） | `docs/` |
 | **需求文档/** | 标准化后的需求文档 | `docs/` |
 | **设计文档/** | 项目架构和技术方案，包含技术选型 | `docs/` |
@@ -273,7 +273,7 @@ AI 在需要保存文件时会**自动创建不存在的目录**，无需手动�
 | 记录细节 | `docs/细节记录/` |
 | 保存API文档 | `docs/API文档/` |
 
-> 注：技术规范由 AI 从技能目录 `~/.claude/skills/mcpowers-shared/docs/技术规范/` 直接读取，不保存在项目中
+> 注：技术规范由 AI 从技能目录 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/` 直接读取，不保存在项目中
 
 **示例**：
 ```
@@ -296,7 +296,7 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 | `docs/API文档/` | 有接口开发时创建 | AI 保存到项目目录 |
 | `docs/细节记录/` | 有重要细节时创建 | AI 保存到项目目录 |
 
-> 注：技术规范、产品设计规范等由 AI 从技能目录 `~/.claude/skills/mcpowers-shared/docs/` 直接读取，无需复制到项目
+> 注：技术规范、产品设计规范等由 AI 从技能目录 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/` 直接读取，无需复制到项目
 
 ---
 
@@ -717,7 +717,7 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 
    请确认。
    ```
-2. **用户确认后** - 按 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 执行：
+2. **用户确认后** - 按 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 执行：
    1. 创建 .gitignore（根据项目类型识别）
    2. 创建语言特定文件
    3. 创建虚拟环境脚本
@@ -738,16 +738,16 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 
 **执行内容**：
 
-### Step 1-1 扫描规范目录（强制）
+### Step 1-1 读取规范索引（强制）
 
 > ⚠️ **规范文件位于共享技能 `mcpowers-shared` 目录**
 >
-> 使用 Bash 工具**实际执行**以下命令：
-> ```bash
-> ls ~/.claude/skills/mcpowers-shared/docs/技术规范/*.md
-> ```
+> 使用 Read 工具**实际读取**以下索引文件：
+> `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/mcpowers-spec-index.md`
+>
+> 索引文件包含所有规范的「做什么 → 读哪个」查表，按需 Read。
 
-**执行后必须输出扫描结果**
+**读取后必须输出读取到的索引内容**
 
 ### Step 1-2 确定项目类型
 
@@ -774,12 +774,12 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 
 | 项目类型 | 必须读取的规范文件 |
 |:--------|:------------------|
-| 所有项目 | `~/.claude/skills/mcpowers-shared/docs/技术规范/Git规范.md`、`代码同步修改规范.md`、`开发环境规范.md`、`设计规范.md`、`代码规范.md` |
+| 所有项目 | `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/Git规范.md`、`代码同步修改规范.md`、`开发环境规范.md`、`设计规范.md`、`代码规范.md` |
 | 后端 + Flask | 上述文件 + `API规范.md`、`Flask后端规范.md` |
 | 前端 + Vue | 上述文件 + `Vue前端规范.md` |
 | 爬虫 | 上述文件 + `爬虫规范.md` |
 
-每读取一个文件，输出：`✓ 已读取：~/.claude/skills/mcpowers-shared/docs/技术规范/{文件名}`
+每读取一个文件，输出：`✓ 已读取：${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/{文件名}`
 
 > ⚠️ **读取规范后必须严格遵守，不得违背其中任何规定**
 
@@ -797,7 +797,7 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 ### 2. 识别到的所有规范
 根据 Step 1-1 的扫描结果，**列出技能目录下的所有规范文件**：
 
-> 规范路径：`~/.claude/skills/mcpowers-shared/docs/技术规范/`
+> 规范路径：`${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/`
 
 | 序号 | 规范 | 文件 | 状态 |
 |:----:|:-----|:-----|:-----|
@@ -822,14 +822,14 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 - [ ] 项目类型是否已识别？ → 验证：明确项目类型
 - [ ] 技术锁规范是否已定位？ → 验证：对应规范文件存在
 - [ ] 是否已读取所有适用的规范？ → 验证：每个适用规范都有"✓ 已读取"输出
-- [ ] **是否已读取设计规范.md？** → 验证：有"✓ 已读取：~/.claude/skills/mcpowers-shared/docs/技术规范/设计规范.md"输出
+- [ ] **是否已读取设计规范.md？** → 验证：有"✓ 已读取：${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/设计规范.md"输出
 - [ ] 是否已向用户汇报？ → 验证：已发送项目情况汇报
 
 ⚠️ 若有任何一项为"否"，必须先完成该项才能继续。
 
 ### Step 1-6 执行环境检查（强制）
 
-读取 `~/.claude/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 第 6.1 节后，**使用 Bash 工具实际执行相应的检查命令**（命令参考该文档），展示实际输出结果。
+读取 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 第 6.1 节后，**使用 Bash 工具实际执行相应的检查命令**（命令参考该文档），展示实际输出结果。
 
 **执行后向用户确认**：
 ```

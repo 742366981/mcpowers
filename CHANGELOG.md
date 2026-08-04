@@ -9,6 +9,12 @@
 
 - 待发布
 
+## v2.26.1 - 2026-08-04
+
+- **修复**：[`开发环境规范.md`](skills/mcpowers-shared/docs/技术规范/开发环境规范.md) §2 + [`AI操作规范.md`](skills/mcpowers-shared/docs/AI操作规范.md) 10 处 + [`hooks/session-start.sh`](hooks/session-start.sh) 启动横幅——所有指向 `~/.claude/skills/mcpowers-shared/` 的旧路径改用 `${CLAUDE_PLUGIN_ROOT}` 占位符，与 `hooks/hooks.json` 既有惯例对齐；插件版本号同步 `2.26.0 → 2.26.1`。
+- **调整**：[`AI操作规范.md` Step 1-1](skills/mcpowers-shared/docs/AI操作规范.md) 由 `ls ${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/*.md` 扫描改为 `Read mcpowers-spec-index.md` 索引（按 CLAUDE.md 既有"按需 Read"协议，bash 中 `${CLAUDE_PLUGIN_ROOT}` 不会被展开、`ls` 实际不可执行，原协议与现实不符）；[`mcpowers-spec-index/SKILL.md`](skills/mcpowers-shared/mcpowers-spec-index/SKILL.md) 删除"安装到 `~/.claude/skills/` 后调整相对路径"的过时提示行（plugin 整体安装机制下该用法不存在）。
+- **风险**：0 行为变更对外；本次仅修正路径字面值与一处协议命令演示，不改动技能触发条件、路由表、技能/规范数量。
+
 ## v2.26.0 - 2026-08-03
 
 - **新增**：[`日志规范.md §7.3`](skills/mcpowers-shared/docs/技术规范/日志规范.md) 新增「轮转 → 清理 → 压缩时序」——4 阶段强顺序：①轮转产生 `app.log.YYYY-MM-DD` ②保留 N 天原文件（默认 7 天，`keep_recent_uncompressed_days = 7`） ③超过窗口的轮转文件 `.gz` 压缩 ④超过保留期的 `.gz` 文件清理；§7.2 同时新增「免压缩窗口」配置项。

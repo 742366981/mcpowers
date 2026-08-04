@@ -68,6 +68,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **日志免压缩窗口（v2.26.0+ 强制基线）**：日志文件轮转后**不立即** gzip——保留最近 N 天的轮转文件为明文（默认 7 天，`keep_recent_uncompressed_days = 7`，可配 `0` 表示立即压缩）；超过窗口的轮转文件才压缩为 `.gz`；超过保留期的 `.gz` 文件清理。详见 [`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §7.2 + §7.3「轮转 → 清理 → 压缩时序」4 阶段；栈级落地见 `Flask后端规范.md §6.3` 的 `compress_old_logs` / `purge_old_logs` 双函数（爬虫项目复用同一对函数，详见 `爬虫规范.md §12.3`）。
 
+**mcpowers 注入路径稳定性（v2.26.2+ 全栈适用铁律）**：mcpowers 注入到用户项目的内容（CLAUDE.md 段、`utils/loggings.py`、`.doc-sync-rules.yml`、`.git/hooks/pre-commit`、模板等）**禁止**含物理路径字面值——`~/.claude/plugins/cache/mcpowers/mcpowers/{version}/...`（升级即失效）、`~/.claude/skills/mcpowers-shared/...`（v2.0+ 已废弃）、自定义占位符如 `<mcpowers>`。AI 引用规范**只写抽象路径**（如 `mcpowers-shared/docs/技术规范/Flask后端规范.md §6.3`）；AI 在 Claude Code 会话里跑 bash 需要物理路径时用 `${CLAUDE_PLUGIN_ROOT}/...`（框架层字符串替换，**非环境变量**）；**不**提议"软链 mcpowers-shared/docs 到项目 docs/"。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 「最高铁律 · mcpowers 注入路径稳定性」段。
+
 **终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
 
 ## 仓库地址

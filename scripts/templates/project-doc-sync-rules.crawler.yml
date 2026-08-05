@@ -1,5 +1,9 @@
 # .doc-sync-rules.yml — 爬虫项目预设
-# v2.9.0 L2 项目级纪律（由 mcpowers-doc-sync-install 注入）
+# 项目级文档同步纪律（由 mcpowers 体系的 mcpowers-doc-sync-install 技能注入）
+#
+# 本文件对应 mcpowers 最新版本的纪律。
+# 后续访问：必须始终读取 mcpowers 最新版本（不写具体版本号，跨升级永久适用）。
+# 版本演进历史在 mcpowers 仓库的 .claude-plugin/*.json 和 CHANGELOG.md。
 
 # 规则 1：app/crawlers 下含 http/https URL 字符串的常量必须在 docs/targets.md 被提及
 RULE_START crawler_targets

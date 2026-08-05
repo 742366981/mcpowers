@@ -9,6 +9,14 @@
 
 - 待发布
 
+## v2.27.3 - 2026-08-05
+
+- **修复**：5 份 doc-sync 注入物模板（[`scripts/templates/project-doc-sync-rules.{generic,flask,vue,crawler}.yml`](scripts/templates/) + [`scripts/templates/project-doc-sync-check.sh`](scripts/templates/project-doc-sync-check.sh)）头部 `v2.9.0 L2 项目级纪律（由 mcpowers-doc-sync-install 注入）` 硬编码版本号违反 v2.26.2+ 「mcpowers 注入路径稳定性」铁律——升级时模板内残留旧版本号。统一改为「本文件对应 mcpowers 最新版本的纪律 / 后续访问必须始终读取 mcpowers 最新版本（不写具体版本号，跨升级永久适用）」正向框架。
+- **修复**：[`mcpowers-doc-sync-install/SKILL.md`](skills/mcpowers-doc-sync-install/SKILL.md) §阶段 2 注释里的 `~/.claude/plugins/cache/mcpowers/mcpowers/2.26.2/` 硬编码示例路径违反 v2.26.2+ 注入路径稳定性铁律——改为 `${CLAUDE_PLUGIN_ROOT}/scripts/templates/...` 抽象 + 「框架层字符串替换自动展开为 mcpowers 最新版本对应的物理路径」说明。
+- **新增**：[`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) §最高铁律·mcpowers 注入路径稳定性 增「注入物版本号写死禁令（v2.27.3+ · 全栈适用）」5 条强制条款：①禁止硬编码 mcpowers 版本号 ②必须描述为"对应 mcpowers 最新版本" ③禁止以"注入时刻的版本"为说明基准 ④版本演进历史只允许出现在 `.claude-plugin/*.json` / `CHANGELOG.md` / `docs/历史教训.md` ⑤物理兜底：注入脚本以本规范为唯一来源。
+- **调整**：[`CLAUDE.md`](CLAUDE.md) 顶层铁律指针段同步标注 v2.27.3 新增的「注入物版本号写死禁令」；`README.md` §维护指南 增 1 行 v2.27.3 修复条目。
+- **风险**：0 行为变更对外；本次纯文档级路径字面值修正 + 1 段铁律新增；CI 门禁 20+41 项验证（`bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh`）；插件版本号 2.27.2 → 2.27.3。
+
 ## v2.26.2 - 2026-08-04
 
 - **修复**：[`mcpowers-init/SKILL.md`](skills/mcpowers-init/SKILL.md) §5 安装指引——"提示用户安装到 `~/.claude/skills/`" 改为 v2.0+ 唯一安装机制 `Claude Code 插件市场`（`/plugin marketplace add ... && /plugin install ...`）；§5 软链提议改为"**不软链不复制**，AI 按 mcpowers-spec-index 按需 Read"，避免软链指向带版本号 cache 路径、mcpowers 升级后失效；§5 注入的 CLAUDE.md「加载规范」段同步改为"按需 Read，**不**复制不软链"以消除内部矛盾。

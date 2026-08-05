@@ -5,7 +5,7 @@ description: "装项目级文档同步纪律 / 给现有项目加 doc-sync / 一
 
 # mcpowers-doc-sync-install（项目级 doc-sync 纪律安装）
 
-> **v2.9.0 L2 用户项目纪律** —— 把"代码改了什么就同步什么文档"的硬性校验塞进用户项目。
+> **用户项目纪律** —— 把"代码改了什么就同步什么文档"的硬性校验塞进用户项目。
 > **何时用**：拿到一个已有项目（不是从 mcpowers-init 来的），想让它接 mcpowers 的纪律，从此 AI 改完代码必须在 commit 前证明"文档也对得上"。
 
 ---
@@ -70,7 +70,9 @@ chmod +x scripts/check-doc-sync.sh
 cp "${CLAUDE_PLUGIN_ROOT}/scripts/templates/project-doc-sync-rules.<type>.yml" .doc-sync-rules.yml
 ```
 
-`${CLAUDE_PLUGIN_ROOT}` 是 Claude Code 框架在工具调用时自动展开的占位符（**非环境变量**，是钩子配置层的字符串替换，AI 在 Claude Code 会话里跑 bash 时会被解析为当前激活的 mcpowers 插件根目录，例如 `~/.claude/plugins/cache/mcpowers/mcpowers/2.26.2/`）。本技能触发的 cp 命令由 AI 执行，不是用户手动跑，所以展开机制是闭环的。
+`${CLAUDE_PLUGIN_ROOT}` 是 Claude Code 框架在工具调用时自动展开的占位符（**非环境变量**，是钩子配置层的字符串替换），AI 在 Claude Code 会话里跑 bash 时会被解析为当前激活的 mcpowers 插件根目录。本技能触发的 cp 命令由 AI 执行，不是用户手动跑，所以展开机制是闭环的。
+
+> **铁律 · 注入路径稳定性（v2.26.2+ · 注入物版本号写死禁令 v2.27.3+）**：本文件**禁止**在文档/记忆里硬编码具体版本号物理路径（如 `cache/mcpowers/mcpowers/{version}/`）。AI 引用资产时**只**写抽象路径 `scripts/templates/...`；在 Claude Code 会话里跑 bash 需要物理路径时直接用 `${CLAUDE_PLUGIN_ROOT}/scripts/templates/...`（框架层字符串替换，由 Claude Code 在调用前自动展开为 mcpowers 最新版本对应的物理路径），展开后的版本号无需写回本文件。**注入物 / 其他项目的说明文档 / CLAUDE.md / 记忆**写 mcpowers 能力时必须描述为"对应 mcpowers 最新版本"，**禁止**硬编码版本号（详见 `mcpowers-shared/docs/技术规范/代码规范.md`「最高铁律 · mcpowers 注入路径稳定性」§注入物版本号写死禁令）。
 
 ### 阶段 3 · 注入 pre-commit hook（可选，但默认开）
 

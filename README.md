@@ -11,10 +11,10 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
-| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助 + v2.17.0 模块产物封装形式标准化 + v2.18.0 浏览器自动化默认切 DrissionPage + v2.22.0 Flask 日志实现层对齐日志规范：JSON 结构化 + 按 type 分文件、禁止按级别切文件 + v2.23.1 docker-compose 启动命令统一为 `up -d --force-recreate`，`--build` 不带 `--force-recreate`、stop/down 区分停止 vs 删除 + **v2.25.0 本技能禁止使用环境变量（全栈适用最高铁律）：仓库所有 .py .sh .js .ts 禁读 env，统一走配置文件 + 加载器或命令行参数；唯一例外 `hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 docker-compose `environment:` 字段** + **v2.26.0 防过度抽象铁律：复用优先于二次抽象——写新函数前必先扫仓库/SDK/通用模块是否已有等价实现；新增 `def` 时 PreToolUse(Write/Edit) 钩子自动比对同名函数并弹 confirm UI；日志规范加 7 天免压缩窗口（`keep_recent_uncompressed_days = 7`），Flask/爬虫项目落地 `compress_old_logs` + `purge_old_logs` 双函数；code-review 增 R1-R7 Critical 反模式表**） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
+| 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助 + v2.17.0 模块产物封装形式标准化 + v2.18.0 浏览器自动化默认切 DrissionPage + v2.22.0 Flask 日志实现层对齐日志规范：JSON 结构化 + 按 type 分文件、禁止按级别切文件 + v2.23.1 docker-compose 启动命令统一为 `up -d --force-recreate`，`--build` 不带 `--force-recreate`、stop/down 区分停止 vs 删除 + **v2.25.0 本技能禁止使用环境变量（全栈适用最高铁律）：仓库所有 .py .sh .js .ts 禁读 env，统一走配置文件 + 加载器或命令行参数；唯一例外 `hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 docker-compose `environment:` 字段** + **v2.26.0 防过度抽象铁律：复用优先于二次抽象——写新函数前必先扫仓库/SDK/通用模块是否已有等价实现；新增 `def` 时 PreToolUse(Write/Edit) 钩子自动比对同名函数并弹 confirm UI；日志规范加 7 天免压缩窗口（`keep_recent_uncompressed_days = 7`），Flask/爬虫项目落地 `compress_old_logs` + `purge_old_logs` 双函数；code-review 增 R1-R7 Critical 反模式表** + **v2.27.3 注入物版本号写死禁令：5 份 doc-sync 模板 + mcpowers-doc-sync-install SKILL.md 示例路径中所有 `v2.9.0 L2` / `cache/mcpowers/mcpowers/2.26.2/` 硬编码版本号字面值清除，统一改为"对应 mcpowers 最新版本的纪律"，后续访问永远读取最新版本**） | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
-| 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令） |
+| 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令 + v2.26.0 重复函数检测 + v2.27.0 Python 局部 import 拦截 + v2.27.3 注入物版本号硬编码自动清理待办） |
 | 6 | **🪝 4 个事件组 / 7 个 Hook 脚本** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.26.0+）+ Python 局部 import 拦截（v2.27.0+）、PostToolUse 提醒提交 |
 | 7 | **🔧 完全独立 Git 操作** | 内置 `commit / worktree / rollback / cleanBranches` 4 个 git 技能，无需依赖任何外部技能 |
 
@@ -279,7 +279,7 @@ mcpowers 通过 `hooks/hooks.json` 声明 4 个 Claude Code Hook 事件组，并
 | `PreToolUse (Write)` | 每次 Write 文件前 | `pre-write-confirm.sh` 保护核心资产；`pre-write-confirm-api-hint.sh` 在接口相关文件变更时提示同步 API 文档 |
 | `PostToolUse (Write/Edit/MultiEdit)` | 每次修改后 | 改完即 commit 提醒（仅在已暂存且工作区干净时触发） |
 
-> Hooks 通过 `${CLAUDE_PLUGIN_ROOT}` 环境变量定位脚本，跨平台零适配（Windows / macOS / Linux 统一）。
+> Hooks 通过 Claude Code 框架在调用前自动展开的 `${CLAUDE_PLUGIN_ROOT}` 字符串占位符定位脚本（**非环境变量**），跨平台零适配（Windows / macOS / Linux 统一）。本地开发模式解析为 `marketplaces/mcpowers`（不带版本号），GitHub 模式解析为 `cache/mcpowers/mcpowers/{version}/`（带版本号）。
 
 ### 故障排查与详细说明
 

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # scripts/check-doc-sync.sh
-# 用户项目级 doc-sync 校验器（v2.9.0 L2，由 mcpowers-doc-sync-install 注入）
+# 用户项目级 doc-sync 校验器（由 mcpowers 体系的 mcpowers-doc-sync-install 技能注入）
+#
+# 本文件对应 mcpowers 最新版本的纪律。
+# 后续访问：必须始终读取 mcpowers 最新版本（不写具体版本号，跨升级永久适用）。
+# 规则定义见项目根 .doc-sync-rules.yml；版本演进历史在 mcpowers 仓库
+# 的 .claude-plugin/*.json 和 CHANGELOG.md。
 #
 # 用法：
 #   bash scripts/check-doc-sync.sh
@@ -19,8 +24,6 @@
 #   path_in_doc    从 doc_file 提取 ```scripts/xxx.sh``` ```bin/yyy.py``` 等代码块，
 #                  验证每个路径真实存在
 #                  适用：README 中引用的脚本路径都必须真实存在
-#
-# v2.9.0：初版（项目级纪律）
 
 set -e
 

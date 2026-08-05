@@ -229,7 +229,7 @@ Python 文件的 `import` / `from ... import ...` **必须**位于模块级导�
 |:-----|:-----|:-----|
 | **CLAUDE.md** | AI 项目配置，开机自动加载 | 项目根目录（从开发环境规范模板创建） |
 | **AGENTS.md** | AI 项目配置，开机自动加载 | 项目根目录（从开发环境规范模板创建） |
-| **AI操作规范.md** | 定义所有 AI 操作规范 | `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/AI操作规范.md` |
+| **AI操作规范.md** | 定义所有 AI 操作规范 | `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/AI操作规范.md`（抽象路径；`${CLAUDE_PLUGIN_ROOT}` 是 Claude Code 框架字符串占位符，**runtime 始终解析为** `cache/mcpowers/mcpowers/{version}/`（带版本号），`marketplaces/mcpowers/` 仅是 marketplace add 源——详见 `代码规范.md §最高铁律 · mcpowers 注入路径稳定性`） |
 | **原始需求/** | 用户提供的原始需求材料（md/pdf/URL） | `docs/` |
 | **需求文档/** | 标准化后的需求文档 | `docs/` |
 | **设计文档/** | 项目架构和技术方案，包含技术选型 | `docs/` |
@@ -285,7 +285,7 @@ AI 在需要保存文件时会**自动创建不存在的目录**，无需手动�
 | 记录细节 | `docs/细节记录/` |
 | 保存API文档 | `docs/API文档/` |
 
-> 注：技术规范由 AI 从技能目录 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/` 直接读取，不保存在项目中
+> 注：技术规范由 AI 从技能目录 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/` 直接读取，不保存在项目中（`${CLAUDE_PLUGIN_ROOT}` 是 Claude Code 框架字符串占位符，非环境变量；详见 `代码规范.md §最高铁律 · mcpowers 注入路径稳定性`）
 
 **示例**：
 ```
@@ -308,7 +308,7 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 | `docs/API文档/` | 有接口开发时创建 | AI 保存到项目目录 |
 | `docs/细节记录/` | 有重要细节时创建 | AI 保存到项目目录 |
 
-> 注：技术规范、产品设计规范等由 AI 从技能目录 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/` 直接读取，无需复制到项目
+> 注：技术规范、产品设计规范等由 AI 从技能目录 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/` 直接读取，无需复制到项目（`${CLAUDE_PLUGIN_ROOT}` 是 Claude Code 框架字符串占位符，**runtime 始终解析为** `cache/mcpowers/mcpowers/{version}/`（带版本号）；`marketplaces/mcpowers/` 仅是 marketplace add 源——详见 `代码规范.md §最高铁律 · mcpowers 注入路径稳定性`）
 
 ---
 
@@ -758,6 +758,13 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 > `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/mcpowers-spec-index.md`
 >
 > 索引文件包含所有规范的「做什么 → 读哪个」查表，按需 Read。
+>
+> 💡 `${CLAUDE_PLUGIN_ROOT}` 是 **Claude Code 框架在调用 Read/Bash 工具前自动展开的字符串占位符**（**非环境变量**），AI 在工具输入里写它就能拿到当前激活的插件根目录：
+>
+> - **本地开发模式**（`/plugin marketplace add <本地路径>`，`marketplaces/mcpowers` 不带版本号） → AI 当前会话对应的物理目录就是 `~/.claude/plugins/marketplaces/mcpowers`
+> - **GitHub 插件市场模式**（`marketplace add https://...` + `install`）→ AI 当前会话对应的物理目录是 `~/.claude/plugins/cache/mcpowers/mcpowers/{version}/`（带版本号，如 `2.27.0/`）
+>
+> AI **写代码 / 写文档 / 写注释**只写抽象路径（`mcpowers-shared/docs/技术规范/Flask后端规范.md`），**不**硬编码物理路径；**在工具输入字符串里**用 `${CLAUDE_PLUGIN_ROOT}/...` 让框架替换——源文件运行时**读不到**这个占位符。详见 `代码规范.md §最高铁律 · mcpowers 注入路径稳定性`。
 
 **读取后必须输出读取到的索引内容**
 

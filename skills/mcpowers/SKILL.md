@@ -187,7 +187,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 **核心 4 目录保护**（PreToolUse/Write 范围）：`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`——修改这些目录的 Write 调用会被阻断，触发 Claude Code CLI 的 confirm UI。
 
-**无需手动配置**：v2.0 插件市场模式下，hooks 由 `${CLAUDE_PLUGIN_ROOT}` 环境变量自动定位，跨平台零适配。
+**无需手动配置**：v2.0 插件市场模式下，hooks 由 Claude Code 框架在调用前自动展开 `${CLAUDE_PLUGIN_ROOT}` 占位符定位脚本（**非环境变量**），跨平台零适配。本地开发模式解析为 `marketplaces/mcpowers`，GitHub 模式解析为 `cache/mcpowers/mcpowers/{version}/`，详见 `代码规范.md §最高铁律 · mcpowers 注入路径稳定性`。
 
 ---
 
@@ -222,7 +222,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 ### 6.3 维护铁律
 
-- ❌ **不**直接修改 `${CLAUDE_PLUGIN_ROOT}` 下的安装副本（插件系统会覆盖）
+- ❌ **不**直接修改 `${CLAUDE_PLUGIN_ROOT}` 解析路径下的安装副本（插件系统会覆盖；本地开发模式是 `~/.claude/plugins/marketplaces/mcpowers/`，GitHub 模式是 `~/.claude/plugins/cache/mcpowers/mcpowers/{version}/`，**只读**，所有改动必须在仓库源目录进行）
 - ❌ **不**跳过"自动化保障清单"里的 2 个脚本（commit 前必跑）
 - ❌ **不**漏改 spec-index 查表（新增/删除规范时必查 `skills/mcpowers-shared/mcpowers-spec-index/SKILL.md`）
 - ✅ **必**同步更新 frontmatter 的 `last_updated` 字段

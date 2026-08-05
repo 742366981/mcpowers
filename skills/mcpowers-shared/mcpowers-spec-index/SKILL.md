@@ -15,7 +15,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 
 | 任务 / 文件类型 | 必读规范 |
 |:----------------|:---------|
-| **任何写代码** | `代码规范.md`（SOLID/KISS/DRY/YAGNI，常驻基线） |
+| **任何写代码** | `代码规范.md`（SOLID/KISS/DRY/YAGNI，常驻基线，**含 §Python import 位置规范**——`import` 必须位于模块顶部） |
 | **任何接口契约设计 / API 设计**（v2.3.0）⭐ | **`接口契约规范.md`**（栈无关通用层：19 类接口 + 简短 description + parameters/responses 完整结构化规则 + 多栈 docstring 模板） |
 | **Flask / 后端 `.py`** | `Flask后端规范.md` + `API规范.md` |
 | **Vue / 前端 `.vue`** | `Vue前端规范.md` + `设计规范.md` |

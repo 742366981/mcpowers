@@ -15,7 +15,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 ### 1. 加载规范
 - Read `mcpowers-shared/mcpowers-spec-index/SKILL.md`
 - 加载：
-  - `mcpowers-shared/docs/技术规范/代码规范.md`（**必读**，SOLID/KISS/DRY/YAGNI）
+  - `mcpowers-shared/docs/技术规范/代码规范.md`（**必读**，SOLID/KISS/DRY/YAGNI，含 §Python import 位置规范——所有 import 必须位于模块顶部）
   - 对应栈规范（Flask / Vue / 爬虫）
   - 涉及 API → `API规范.md`
   - 涉及 DB → `数据库规范.md`
@@ -27,7 +27,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | 维度 | 关注点 |
 |:-----|:-------|
 | **正确性** | 逻辑是否正确？边界条件？异常处理？ |
-| **规范** | 是否符合代码规范？命名？注释？格式？注释是否残留历史演进/参考来源痕迹（代码规范 §11.3）？ |
+| **规范** | 是否符合代码规范？命名？注释？格式？注释是否残留历史演进/参考来源痕迹（代码规范 §11.3）？Python import 是否全部位于模块顶部（代码规范 §Python import 位置规范）？ |
 | **安全** | SQL 注入？XSS？权限校验？敏感信息泄露？ |
 | **性能** | N+1 查询？大循环？阻塞操作？ |
 | **可维护性** | 是否易读？是否易测试？是否易扩展？ |
@@ -101,6 +101,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R5** | ❌ **抽象类（ABC / Protocol）只有一个具体实现**，第 2 个实现至今没出现 | 提前抽象；等到第 2 个实现再抽（YAGNI） |
 | **R6** | ❌ **新写公共函数但仓库内零调用方**（dead-on-arrival） | 违反 YAGNI；先写私有函数，等真有 3+ 调用方再升公共 |
 | **R7** | ❌ **业务代码绕过 `utils/loggings.py` 单独写清理/轮转逻辑**：自己写 `for f in glob('*.log.*'): os.system(f'gzip {f}')` | 与框架清理函数双跑；窗口语义模糊；详见 `日志规范.md §7.3` |
+| **R8** | ❌ **Python 函数/方法/类/条件块内部出现 `import` 或 `from … import`**（局部 import）：包括 `if TYPE_CHECKING` 放在函数内、`try/except ImportError` 写在函数体里 | 违反代码规范 §Python import 位置规范；物理门禁 `pre-write-check-import.sh` 会阻断；只有循环依赖或真正可选依赖且写明原因并由用户确认才可放行 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -108,6 +109,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 2. **新增 wrapper 类/管理器** 必须有明确职责（参数映射 / 批量调用 / 异常归一三选一），其他情况直接调底层
 3. **新增文件超过 100 行 且 ≥ 50% 是「call through」** → Critical，向作者追问「为什么这一层要存在」
 4. **同名函数跨文件出现 ≥ 2 次** → 提 `mcpowers-extract` 抽离公共模块
+5. **Python 文件完整扫描 + diff 扫描局部 import**：以全文件 AST 视角检查 `FunctionDef` / `AsyncFunctionDef` / `ClassDef` 体内是否新增 `import` / `from … import`；diff 中任意缩进 import 行（`+` 行）均视为新增违规；只有循环依赖或真正可选依赖且写明原因才可放行
 
 ---
 
@@ -125,6 +127,19 @@ rg --type py "(class|def)\s+${候选关键词}\b" common/ sdk/ utils/ shared/
 ```
 
 > 三条都「未命中仓库已有」 → 通过；任一命中 → Critical 阻塞。
+
+## v2.27.0+ Python import 位置扫描 Quick-Check（review 必跑）
+
+> 对齐代码规范 §Python import 位置规范。审查者收到 PR 后必须执行的 2 条扫描命令：
+
+```bash
+# 1. diff 内新增的缩进 import 行（只看 + 行；- 行不查）
+git diff main...HEAD -U0 | grep -E "^\+[[:space:]]+(import[[:space:]]+[A-Za-z_]|from[[:space:]]+[A-Za-z_.]+[[:space:]]+import)" | sort -u
+# 2. 仓库所有 .py 文件的缩进 import（确认全文件现状）
+rg --type py -n '^( +|\t+)(import|from\s+[^ ]+\s+import)' .
+```
+
+> 命令 1 命中 → Critical 阻塞，必须改为模块级导入；命令 2 仅作为全文件盘点依据，不直接阻塞但应纳入修复计划。
 
 
 ## 审查后

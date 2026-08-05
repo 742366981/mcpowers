@@ -231,16 +231,19 @@ project/
 ```python
 # apps/__init__.py
 
+# 蓝图统一在模块顶部导入，避免 register_blueprints 内部出现局部 import
+from apps.system.auth.views import auth_bp
+from apps.system.user.views import user_bp
+from apps.system.role.views import role_bp
+from apps.system.permission.views import permission_bp
+from apps.system.menu.views import menu_bp
+from apps.system.dict.views import dict_bp
+from apps.operation.log.views import log_bp
+from apps.file.upload.views import upload_bp
+
+
 def register_blueprints(app):
     url_prefix = '/api'
-
-    # system 模块
-    from apps.system.auth.views import auth_bp
-    from apps.system.user.views import user_bp
-    from apps.system.role.views import role_bp
-    from apps.system.permission.views import permission_bp
-    from apps.system.menu.views import menu_bp
-    from apps.system.dict.views import dict_bp
 
     app.register_blueprint(auth_bp, url_prefix=f'{url_prefix}/auth')
     app.register_blueprint(user_bp, url_prefix=f'{url_prefix}/user')
@@ -249,15 +252,10 @@ def register_blueprints(app):
     app.register_blueprint(menu_bp, url_prefix=f'{url_prefix}/menu')
     app.register_blueprint(dict_bp, url_prefix=f'{url_prefix}/dict')
 
-    # operation 模块
-    from apps.operation.log.views import log_bp
     app.register_blueprint(log_bp, url_prefix=f'{url_prefix}/log')
-
-    # file 模块
-    from apps.file.upload.views import upload_bp
     app.register_blueprint(upload_bp, url_prefix=f'{url_prefix}/upload')
 
-    # business 模块（按需注册）
+    # business 模块按需注册：
     # from apps.business.order.views import order_bp
     # app.register_blueprint(order_bp, url_prefix=f'{url_prefix}/order')
 ```
@@ -363,8 +361,10 @@ from flask_compress import Compress
 from flask_migrate import Migrate
 from flask_cors import CORS
 
-from common.settings import config
+from common.settings import config, admin_mysql_conf
 from db.mysql.helpers import db  # SQLAlchemy 实例（详见 数据库规范.md 第 2.2 节）
+from utils.middleware import init_request_id
+from utils.request_log import init_request_log
 
 compress = Compress()
 migrate = Migrate()
@@ -387,7 +387,6 @@ def create_app(protect_swagger=True):
     app.json.ensure_ascii = False  # 响应中文不转义
 
     # === 数据库配置 ===
-    from common.settings import admin_mysql_conf
     db_user = admin_mysql_conf.get('username')
     db_pass = admin_mysql_conf.get('password')
     db_host = admin_mysql_conf.get('host')
@@ -416,10 +415,7 @@ def create_app(protect_swagger=True):
     CORS(app, resources={r'/*': {'origins': cors_origins_list, 'supports_credentials': supports_credentials}})
 
     # === 中间件（顺序敏感：request_id 必须在 request_log 之前） ===
-    from utils.middleware import init_request_id
     init_request_id(app)
-
-    from utils.request_log import init_request_log
     init_request_log(app)
 
     # === 注册蓝图 ===
@@ -768,6 +764,16 @@ from concurrent_log_handler import ConcurrentTimedRotatingFileHandler
 from common.constants import LOGGING_BASE_DIR
 from common.settings import config
 
+# ContextFilter 依赖 flask 上下文；flask 是必选依赖，此处 try/except 仅保证
+# utils/loggings.py 在脱离 Flask 环境（单元测试脚本）导入时不崩。
+try:
+    from flask import g, has_request_context
+    _HAS_FLASK = True
+except ImportError:
+    g = None
+    has_request_context = lambda: False
+    _HAS_FLASK = False
+
 # 日志开关统一来自 config.ini 的 [log] 段（§4.2），禁止 if DEBUG 硬编码在业务代码里
 # 注：本文件属框架层，按 §4.1 约定可使用 fallback；业务代码禁止传 fallback
 LOG_LEVEL = config.get('log', 'level', fallback='INFO').upper()
@@ -840,15 +846,11 @@ class ContextFilter(logging.Filter):
     FIELDS = ('request_id', 'trace_id', 'span_id', 'user_id')
 
     def filter(self, record):
-        in_request = False
-        try:
-            from flask import g, has_request_context
-            in_request = has_request_context()
-        except ImportError:
-            g = None
+        in_request = has_request_context() if _HAS_FLASK else False
+        flask_g = g if in_request else None
         for field in self.FIELDS:
             if not hasattr(record, field):
-                setattr(record, field, getattr(g, field, '-') if in_request else '-')
+                setattr(record, field, getattr(flask_g, field, '-') if flask_g else '-')
         if not hasattr(record, 'log_type'):
             record.log_type = 'biz'
         return True
@@ -1150,6 +1152,16 @@ def daily_log_maintenance():
 ```python
 # apps/__init__.py
 
+from db.mysql.helpers import db  # 已被 create_app 顶部导入；此处保留只为说明异常处理器依赖
+from flask import g, jsonify, request
+from marshmallow import ValidationError
+from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import HTTPException
+
+from utils.loggings import exception_log
+from utils.responses import api_error
+
+
 def register_error_handlers(app):
     """注册全局异常处理器
 
@@ -1160,12 +1172,6 @@ def register_error_handlers(app):
     - 参数验证错误（ValidationError → 400）
     - 所有其他 Exception
     """
-    from werkzeug.exceptions import HTTPException
-    from sqlalchemy.exc import IntegrityError
-    from marshmallow import ValidationError
-    from utils.responses import api_error
-    from utils.loggings import exception_log
-    from flask import request, g
 
     @app.errorhandler(404)
     def not_found(e):
@@ -1183,7 +1189,6 @@ def register_error_handlers(app):
     @app.errorhandler(IntegrityError)
     def handle_integrity_error(e):
         """数据库完整性约束失败（唯一索引冲突等）"""
-        from db.mysql.helpers import db
         db.session.rollback()
         return api_error(409, '数据已存在或违反约束')
 
@@ -1202,7 +1207,6 @@ def register_error_handlers(app):
             'method': request.method,
         })
         # 响应中携带 request_id 便于用户反馈排查
-        from flask import jsonify
         response = jsonify({'code': 500, 'msg': '服务器内部错误', 'request_id': request_id})
         return response, 500
 ```
@@ -1314,12 +1318,14 @@ def login_required(f):
 ### 10.2 权限装饰器（强制）
 
 ```python
+# 顶部导入区（与文件其他公共依赖一并放置）
+from db.mysql.models import User, Role
+
+
 def permission_required(*permission_codes):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            from db.mysql.models import User, Role
-
             user_id = getattr(g, 'user_id', None)
             if not user_id:
                 return api_error(401, '请先登录')
@@ -1392,19 +1398,22 @@ if old_token:
 ```python
 # apps/__init__.py
 
+import socket
+
+from flasgger import NO_SANITIZER, Swagger
+
+from common.constants import ENV_TYPE
+from common.settings import app_conf
+
+
 def get_internal_ip():
-    import socket
     hostname = socket.gethostname()
     return socket.gethostbyname(hostname)
 
 
 def register_swagger(app, protect=True):
-    from common.constants import ENV_TYPE
-
     if ENV_TYPE == 'prod':
         return  # 生产环境不启用Swagger
-
-    from flasgger import Swagger, NO_SANITIZER
 
     swagger_config = {
         "headers": [],
@@ -1436,7 +1445,6 @@ def register_swagger(app, protect=True):
     # HTTP Basic Auth保护文档
     if protect:
         # 账号密码从配置文件读取，禁止硬编码（详见 安全规范.md）
-        from common.settings import app_conf
         swagger_user = app_conf.get('swagger_user')
         swagger_pass = app_conf.get('swagger_password')
 
@@ -1898,13 +1906,13 @@ import multiprocessing
 from gunicorn.app.base import BaseApplication
 from geventwebsocket.gunicorn.workers import GeventWebSocketWorker
 
-from common.settings import app_conf
 from common.constants import ENV_TYPE  # 环境类型（dev/test/prod）
+from common.settings import app_conf
+from app import app  # WSGI 应用实例（apps.create_app() 的返回值）
 
 
 def create_application():
     """创建 WSGI 应用实例"""
-    from app import app
     return app
 
 

@@ -123,11 +123,13 @@ apps/
 ```python
 # apps/__init__.py
 
+from apps.v1.user.views import user_bp as user_bp_v1
+
+
 def register_blueprints(app):
-    from apps.v1.user.views import user_bp as user_bp_v1
     app.register_blueprint(user_bp_v1, url_prefix='/api/v1/user')
 
-    # v2 按需启用
+    # v2 按需启用：注释保留示例，取消注释后 import 仍需放到顶部导入区
     # from apps.v2.user.views import user_bp as user_bp_v2
     # app.register_blueprint(user_bp_v2, url_prefix='/api/v2/user')
 ```

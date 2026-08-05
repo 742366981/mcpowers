@@ -142,6 +142,9 @@ assert "session-start.sh 存在" "[ -f '$REPO_DIR/hooks/session-start.sh' ]"
 assert "pre-bash-guard.sh 存在" "[ -f '$REPO_DIR/hooks/pre-bash-guard.sh' ]"
 assert "pre-write-confirm.sh 存在" "[ -f '$REPO_DIR/hooks/pre-write-confirm.sh' ]"
 assert "pre-write-confirm-api-hint.sh 存在" "[ -f '$REPO_DIR/hooks/pre-write-confirm-api-hint.sh' ]"
+assert "pre-write-check-duplicate.sh 存在（v2.26.0+）" "[ -f '$REPO_DIR/hooks/pre-write-check-duplicate.sh' ]"
+assert "pre-write-check-import.sh 存在（v2.27.0+）" "[ -f '$REPO_DIR/hooks/pre-write-check-import.sh' ]"
+assert "check_python_import_placement.py 存在（v2.27.0+）" "[ -f '$REPO_DIR/hooks/check_python_import_placement.py' ]"
 assert "post-write-commit-reminder.sh 存在" "[ -f '$REPO_DIR/hooks/post-write-commit-reminder.sh' ]"
 assert "pre-bash-guard 可执行" "[ -x '$REPO_DIR/hooks/pre-bash-guard.sh' ]"
 
@@ -245,6 +248,38 @@ RC_TEST=$?
 set -e
 assert_eq "pre-write 放行 README.md（exit 0）" "$RC_README" "0"
 assert_eq "pre-write 放行 tests/foo.sh（exit 0）" "$RC_TEST" "0"
+
+# pre-write-check-import 行为断言（v2.27.0+）
+# Write 视为覆盖：模块级 import 放行、函数内 import 阻断
+# 注意：Windows 下 POSIX 路径（含 /）在 Path() 里可正常解析；用 REPO_DIR（POSIX）而非 REPO_DIR_WIN（带 \，会污染 JSON 字符串）
+TMP_IMPORT="$REPO_DIR/tests/.tmp_import_check"
+mkdir -p "$TMP_IMPORT" 2>/dev/null || true
+PAYLOAD_OK='{"tool_input":{"file_path":"'$TMP_IMPORT'/ok_module.py","content":"import os\nfrom flask import Flask\n\ndef foo():\n    return 1\n"}}'
+PAYLOAD_BAD='{"tool_input":{"file_path":"'$TMP_IMPORT'/bad_local.py","content":"import os\nfrom flask import Flask\n\ndef foo():\n    from datetime import datetime\n    return datetime.now()\n"}}'
+PAYLOAD_CLASS='{"tool_input":{"file_path":"'$TMP_IMPORT'/bad_class.py","content":"class Bar:\n    def baz(self):\n        from datetime import datetime\n        return datetime.now()\n"}}'
+PAYLOAD_TRY='{"tool_input":{"file_path":"'$TMP_IMPORT'/ok_try.py","content":"try:\n    from flask import g\nexcept ImportError:\n    g = None\n"}}'
+PAYLOAD_NON_PY='{"tool_input":{"file_path":"'$TMP_IMPORT'/foo.md","content":"# not python"}}'
+
+if [ -n "$PY_BIN" ]; then
+    set +e
+    echo "$PAYLOAD_OK" | bash "$REPO_DIR/hooks/pre-write-check-import.sh" >/dev/null 2>&1
+    RC_IMP_OK=$?
+    echo "$PAYLOAD_BAD" | bash "$REPO_DIR/hooks/pre-write-check-import.sh" >/dev/null 2>&1
+    RC_IMP_BAD=$?
+    echo "$PAYLOAD_CLASS" | bash "$REPO_DIR/hooks/pre-write-check-import.sh" >/dev/null 2>&1
+    RC_IMP_CLASS=$?
+    echo "$PAYLOAD_TRY" | bash "$REPO_DIR/hooks/pre-write-check-import.sh" >/dev/null 2>&1
+    RC_IMP_TRY=$?
+    echo "$PAYLOAD_NON_PY" | bash "$REPO_DIR/hooks/pre-write-check-import.sh" >/dev/null 2>&1
+    RC_IMP_NON_PY=$?
+    set -e
+    assert_eq "pre-write-check-import 放行模块级 import（exit 0）" "$RC_IMP_OK" "0"
+    assert_eq "pre-write-check-import 阻断函数内 import（exit 2）" "$RC_IMP_BAD" "2"
+    assert_eq "pre-write-check-import 阻断类方法内 import（exit 2）" "$RC_IMP_CLASS" "2"
+    assert_eq "pre-write-check-import 放行模块级 try/except import（exit 0）" "$RC_IMP_TRY" "0"
+    assert_eq "pre-write-check-import 放行非 .py 文件（exit 0）" "$RC_IMP_NON_PY" "0"
+fi
+rm -rf "$TMP_IMPORT" 2>/dev/null || true
 
 # ============== 7.5 逆向会话编排自检 ==============
 echo "[7.5] 逆向会话编排工具自检"

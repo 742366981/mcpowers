@@ -33,6 +33,12 @@ cat <<'EOF'
 
   完整规范见 mcpowers-shared/docs/AI操作规范.md（按需 Read）
 [mcpowers] 反模式详见各技能的 "反模式（禁止）" 段
+
+[mcpowers] Python 导入位置红线（v2.27.0+，物理门禁 hooks/pre-write-check-import.sh）：
+  - import / from ... import 必须位于模块级导入区
+  - 函数、方法、类体、条件块内部禁止出现 import
+  - 不能以"延迟加载/按需使用/性能"作为默认理由；只有循环依赖或真正可选依赖可例外
+  - 例外必须写明原因并由用户确认；Hook 只弹确认 UI，不自动白名单
 EOF
 
 exit 0

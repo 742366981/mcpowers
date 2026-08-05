@@ -115,6 +115,7 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
 - 严格遵守已加载的规范
 - SOLID / KISS / DRY / YAGNI 是基线
 - 改动波及多处 → Read `代码同步修改规范.md` 找全引用点
+- **Python import 顶层（v2.27.0+）**：所有 `import` / `from ... import ...` 必须位于模块顶部导入区；函数/方法/类体、条件块、装饰器内部禁止出现 import；物理门禁 `hooks/pre-write-check-import.sh` 会自动检测新增违规并弹 confirm UI
 
 ### 7. 自审
 - 调 `mcpowers-code-review`，多维并行审查
@@ -178,6 +179,10 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
   - [ ] 前端 TS 客户端已通知（如有协作前端）
 - [ ] 测试覆盖核心逻辑
 - [ ] 自审通过（无 Critical 问题）
+- [ ] **Python import 全部位于模块顶部（v2.27.0+ 必检）**
+  - [ ] 函数/方法/类/条件块/装饰器内部无 import
+  - [ ] 仅有循环依赖或真正可选依赖可例外，并已写明原因
+  - [ ] Hook 阻断时已向用户确认继续放行
 - [ ] **端到端自检 5 步已通过**（见 Step 8）
   - [ ] 服务已重启
   - [ ] 主链路接口 curl 通过

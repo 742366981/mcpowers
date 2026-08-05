@@ -51,7 +51,12 @@ description: "TDD / 测试驱动 / 先写测试 / 红绿循环 / 测试先行 �
 - Read `mcpowers-shared/mcpowers-spec-index/SKILL.md`
 - 加载：
   - `mcpowers-shared/docs/技术规范/测试规范.md`（**必读**）
-  - `mcpowers-shared/docs/技术规范/代码规范.md`（SOLID/KISS/DRY/YAGNI）
+  - `mcpowers-shared/docs/技术规范/代码规范.md`（SOLID/KISS/DRY/YAGNI，含 §Python import 位置规范）
+
+## 测试代码规范
+- 测试文件 import 也必须位于模块顶部导入区；函数、类、`@pytest.fixture` 内部禁止局部 import
+- 共享 `conftest.py` 或 helpers 应通过模块级 import 暴露，禁止在用例内 inline import
+- Hook `pre-write-check-import.sh` 在 Write/Edit/MultiEdit 时检测新增测试代码中的局部 import，命中即弹 confirm UI
 
 ---
 

@@ -15,7 +15,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令 + v2.26.0 重复函数检测 + v2.27.0 Python 局部 import 拦截 + v2.27.4 stability / last_breaking_change / CHANGELOG Breaking Changes 段强制声明） |
-| 6 | **🪝 4 个事件组 / 7 个 Hook 脚本** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.26.0+）+ Python 局部 import 拦截（v2.27.0+）、PostToolUse 提醒提交 |
+| 6 | **🪝 4 个事件组 / 8 个 Hook 脚本** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.26.0+）+ Python 局部 import 拦截（v2.27.0+）+ 规范 frontmatter 双字段强制声明（v2.27.4+）、PostToolUse 提醒提交 |
 | 7 | **🔧 完全独立 Git 操作** | 内置 `commit / worktree / rollback / cleanBranches` 4 个 git 技能，无需依赖任何外部技能 |
 
 ### 1 句话总结
@@ -37,7 +37,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **终态交付**：文档与代码注释只写当前状态，不留历史演进痕迹和"参考 xxx"来源指代（详见《文档编写规范》§9）
 - **编排显式化**：23 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
 - **规范元数据化**：31 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
-- **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 7 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write/Edit) + PostToolUse，含 v2.27.0+ Python 局部 import 拦截）、冒烟测试 + 同步校验脚本
+- **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 8 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write/Edit) + PostToolUse，含 v2.27.0+ Python 局部 import 拦截 + v2.27.4+ 规范 frontmatter 双字段强制声明）、冒烟测试 + 同步校验脚本
 
 ---
 
@@ -226,7 +226,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 31 个场景/方法技能（23 场景 + 8 方法）
 - ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.16.0 抓包失败 7 层诊断 + cURL 12 项快速帮助；v2.17.0 模块产物封装形式 + 顶层文档中文；v2.18.0 浏览器自动化 DrissionPage 全场景默认 + 漏抓 7 层 DrissionPage 重新映射 + popup-handler / user-action-recorder DrissionPage 适配；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——`get_logger` 按 type 取 logger、级别降为 `level` 字段、ERROR+ 聚合流 `error.log`；v2.23.1 docker-compose 启动命令统一：默认 `up -d --force-recreate`、`--build` 不带 `--force-recreate`（compose 自动检测）、stop/down 区分停止与删除；**v2.25.0 本技能禁止使用环境变量——`代码规范.md` 新增「最高铁律」段：Python 禁 `os.environ.*` / `os.getenv`、Shell 禁 `$XXX` 从外部环境读、JS/TS 运行时禁 `process.env.*`；唯一允许例外 `hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 docker-compose `environment:` 字段；栈级落地 Flask 走 `Config.get()` / Vue 走构建时注入 / 爬虫走 `config.yaml`**；**v2.26.0 防过度抽象铁律——`代码规范.md §6.1.1` 新增「复用优先于二次抽象」段（6 类反模式黑名单 + 3 条 bash 自检命令 + 3 类 wrapper 合理论证场景）+ `PreToolUse(Write/Edit|MultiEdit)` 新增 `pre-write-check-duplicate.sh` 钩子检测同名函数 + 日志规范 §7.3 新增「轮转 → 清理 → 压缩」4 阶段时序 + 默认 7 天免压缩窗口（`keep_recent_uncompressed_days = 7`，可配 `0`）+ Flask §6.3 / 爬虫 §12.3 落地 `compress_old_logs` + `purge_old_logs` 双函数 + code-review 增 R1-R7 Critical 反模式表**；**v2.27.0 Python 局部 import 拦截——`代码规范.md` 新增「Python import 位置规范」段（模块级导入区强制 + 函数/方法/类/条件块/装饰器内部禁止；仅循环依赖或真正可选依赖可例外，必须写明原因并由用户确认）+ `PreToolUse(Write|Edit|MultiEdit)` 新增 `pre-write-check-import.sh` 钩子（含 `check_python_import_placement.py`）AST 检测新增局部 import，Write 视为覆盖、Edit/MultiEdit 仅 diff 新增违规 + `AI操作规范.md §1.7` 补充铁律 + `mcpowers-spec-index`「任何写代码」基线引用 §Python import 位置 + `mcpowers-feat` Step 6 / `mcpowers-tdd` 测试代码规范 / `mcpowers-code-review` R8 反模式 + Quick-Check grep + Flask / API版本管理 / 健康检查 / 定时任务 / 测试 / 导入导出 等 6 份规范示例的局部 import 全量改写为模块顶部导入**）
-- ✅ 4 个 Hook 事件组 / 7 个 Hook 脚本（自动注册，无需改 `settings.json`）
+- ✅ 4 个 Hook 事件组 / 8 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
 
@@ -297,7 +297,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 31 个可路由技能 + 24 技术规范 + 4 个 Hook 事件组 / 7 个脚本全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 31 个可路由技能 + 24 技术规范 + 4 个 Hook 事件组 / 8 个脚本全功能 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |
@@ -312,7 +312,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 #### Claude Code（主推）
 
-- 完整支持 4 个 Hook 事件组 / 7 个脚本（`SessionStart` + `PreToolUse(Bash/Write/Edit)` + `PostToolUse`）
+- 完整支持 4 个 Hook 事件组 / 8 个脚本（`SessionStart` + `PreToolUse(Bash/Write/Edit)` + `PostToolUse`，含 v2.27.4+ `pre-write-check-spec-frontmatter.sh`）
 - 路由器自动加载，用户输入自然语言路由到对应技能
 - 安装命令（**分两步执行，不要用 `&&` 串联**——`&&` 会让 Claude Code 把 install 部分也拼进 marketplace URL，导致 git clone 失败）：
 
@@ -454,7 +454,7 @@ last_updated: 2026-07-08
 
 1. 创建 `hooks/<hook-name>.sh`，头部加 `#!/usr/bin/env bash`，可执行
 2. `hooks/hooks.json` 追加对应事件段（不动现有段）
-3. `CLAUDE.md` 和 `README.md` 同步更新 Hook 事件组/脚本清单及维护说明（v2.27.0+ 累计 7 个脚本 / 4 个事件组）
+3. `CLAUDE.md` 和 `README.md` 同步更新 Hook 事件组/脚本清单及维护说明（v2.27.4+ 累计 8 个脚本 / 4 个事件组）
 4. `skills/mcpowers/SKILL.md` "## 5. 硬约束完整覆盖" 表**加一行**（如新增事件组）或补充对应脚本
 5. `hooks/README.md` 加一段说明
 6. `tests/plugin-verify.sh` 补充脚本存在性或行为断言

@@ -24,7 +24,9 @@
 #  18. 根文档结构门禁（v2.21.1 新增：禁止 CLAUDE.md 出现"### 历史教训（v" / README.md 出现"### vX.Y.Z"）
 #  19. 根文档尺寸门禁（v2.21.1 新增：CLAUDE.md ≤ 350 行 / 35,000 字符，README.md ≤ 650 行 / 50,000 字符）
 #  20. 单一权威源门禁（v2.21.1 新增：关键短语在 CLAUDE.md / README.md 出现即告警，应在规范权威源维护）
+#  21. 规范 frontmatter 双字段门禁（v2.27.4 新增：31 规范必须声明 stability + last_breaking_change）
 #
+# v2.27.4：新增 section 21
 # v2.21.1：新增 section 18/19/20
 # v2.21.0：新增 section 17
 # v2.20.0：新增 section 16
@@ -1033,6 +1035,41 @@ if [ "$AUTHORITY_FAIL" -eq 0 ]; then
 else
     echo "  提示：上述短语已在对应规范权威源维护（参见 docs/历史教训.md 关联），顶层文档应只保留 1 行相对链接"
     FAIL=$((FAIL + AUTHORITY_FAIL))
+fi
+
+# ============== §21 规范 frontmatter 双字段门禁（v2.27.4+） ==============
+# 强制要求：31 个技术规范 frontmatter 必须声明
+#   - stability: stable|evolving|deprecated
+#   - last_breaking_change: v{major}.{minor}.{patch}
+# 这是 v2.27.4「规范稳定性分级」铁律的 CI 兜底层（与 pre-write-check-spec-frontmatter.sh 物理 Hook 互补）
+echo "[21/21] 校验 31 规范都有 stability: + last_breaking_change: 字段（v2.27.4+）..."
+
+SPEC_DIR="skills/mcpowers-shared/docs/技术规范"
+SPEC_TOTAL=$(find "$SPEC_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l)
+SPEC_STABILITY=$(grep -l "^stability:" "$SPEC_DIR"/*.md 2>/dev/null | wc -l)
+SPEC_BREAKING=$(grep -l "^last_breaking_change:" "$SPEC_DIR"/*.md 2>/dev/null | wc -l)
+
+FRONTMATTER_FAIL=0
+if [ "$SPEC_STABILITY" -ne "$SPEC_TOTAL" ]; then
+    echo "  ✗ 仅 $SPEC_STABILITY/$SPEC_TOTAL 规范标注 stability:（缺字段列表："
+    for f in "$SPEC_DIR"/*.md; do
+        if ! grep -q "^stability:" "$f" 2>/dev/null; then
+            echo "      - $(basename "$f")"
+        fi
+    done
+    echo "    ）"
+    FRONTMATTER_FAIL=$((FRONTMATTER_FAIL + 1))
+fi
+if [ "$SPEC_BREAKING" -ne "$SPEC_TOTAL" ]; then
+    echo "  ✗ 仅 $SPEC_BREAKING/$SPEC_TOTAL 规范标注 last_breaking_change:"
+    FRONTMATTER_FAIL=$((FRONTMATTER_FAIL + 1))
+fi
+
+if [ "$FRONTMATTER_FAIL" -eq 0 ]; then
+    echo "  ✓ 31 规范 frontmatter 双字段完整（stability + last_breaking_change 全部标注）"
+else
+    echo "  修复：在每个规范文件 frontmatter 补 'stability: stable|evolving|deprecated' + 'last_breaking_change: v{major}.{minor}.{patch}'"
+    FAIL=$((FAIL + FRONTMATTER_FAIL))
 fi
 
 # ============== 汇总 ==============

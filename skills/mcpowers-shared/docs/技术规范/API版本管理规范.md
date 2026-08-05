@@ -5,6 +5,8 @@ applies_to: [Flask后端]
 priority: required
 version: 1.1
 last_updated: 2026-07-14
+stability: stable
+last_breaking_change: v1.1
 ---
 
 # API 版本管理规范

@@ -6,6 +6,8 @@ priority: recommended
 version: 2.14.0
 last_updated: 2026-07-27-v2.14.0
 description: uni-app / React Native / Cordova / Capacitor / 自定义 WebView / JSBridge 的三层定位（JS / Bridge / Native）与接管 WebView 调试端口的实操。接管 WebView / CDP / chrome inspect 是外部资源，按主册 §1.3 铁律不可关闭。与 `mcpowers-reverse-hybrid` 1:1 对应。
+stability: evolving
+last_breaking_change: v2.14.0
 ---
 
 # 爬虫Hybrid逆向规范

@@ -802,6 +802,21 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 
 > ⚠️ **读取规范后必须严格遵守，不得违背其中任何规定**
 
+### Step 1-4.5 检查规范稳定性分级（v2.27.4+ · 强制）
+
+读取每个规范后，**必须**读其 frontmatter 的 `stability` + `last_breaking_change` 字段，据此决定行为：
+
+| stability | AI 行为 |
+|:----------|:--------|
+| `stable` | 跨 minor 版本假设 API / 签名兼容，可放心引用 |
+| `evolving` | 升级时主动查 CHANGELOG.md Breaking Changes 段；当前会话里写代码前提示用户"该规范正在演进" |
+| `deprecated` | **不**写新代码遵循该规范；提示用户迁移到推荐替代（如有） |
+
+**关键约束**：
+- `stability` / `last_breaking_change` 元数据**仅**作为 AI 内部决策辅助，**禁止**写回用户项目 CLAUDE.md / 注入物
+- 用户的 `.mcpowers-version: v{major}.{minor}.{patch}` 项目级冻结标记**优先于**最新版 stability 字段——若项目冻结到某旧版，对该旧版的 stability 判定仍有效
+- 写新代码前若发现某规范的 stability 在最新版已是 `evolving`，必须 Read 该规范的最新内容，**不**依赖训练时的旧记忆
+
 ### Step 1-5 汇报项目情况（强制）
 
 向用户汇报以下内容：

@@ -72,6 +72,12 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **Python import 顶层（v2.27.0+ 全栈适用铁律）**：Python 文件的 `import` / `from ... import ...` 必须位于模块级导入区，按标准库、第三方、本项目模块分组；函数、方法、类体、条件块、装饰器内部禁止局部 import。局部 import 仅在循环依赖或真正可选依赖时可例外，且必须写明原因并由用户确认；禁止以"延迟加载 / 按需使用 / 性能优化"作为默认理由。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「Python import 位置规范」段。物理兜底：`hooks/pre-write-check-import.sh`（含 `check_python_import_placement.py`）在 `PreToolUse(Write|Edit|MultiEdit)` 时 AST 检测新增的局部 import，命中则弹 Claude Code confirm UI（exit 2）；Write 视为覆盖、Edit/MultiEdit 仅 diff 新增违规。规范层落地：`mcpowers-feat` / `mcpowers-tdd` / `mcpowers-code-review` 已在自检清单与审查维度加 import 位置检查，`mcpowers-code-review` 增 R8 反模式条目与「v2.27.0+ Python import 位置扫描 Quick-Check」grep 两条。
 
+**注入物版本号写死禁令（v2.27.3+ 全栈适用铁律）**：mcpowers 注入到用户项目的内容（CLAUDE.md 段、`utils/loggings.py`、`.doc-sync-rules.yml`、`.git/hooks/pre-commit`、`.doc-sync-check.sh` 模板、`user-action-recorder.py` 等）**禁止**硬编码 mcpowers 版本号字面值（`v{major}.{minor}.{patch}` / `{version}/` / `cache/mcpowers/mcpowers/{version}/`）；注入物必须描述为"对应 mcpowers 最新版本的纪律"，后续访问永远指向最新版本。版本演进历史只允许出现在 `.claude-plugin/*.json` / `CHANGELOG.md` / `docs/历史教训.md`。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §注入物版本号写死禁令」。
+
+**运行时版本访问白名单（v2.27.4+ 全栈适用铁律）**：上条禁的是"注入物硬编码版本号"。本条允许的是"AI 运行时访问历史版本"——AI 在 Claude Code 工具调用层 `ls ~/.claude/plugins/cache/mcpowers/mcpowers/` 发现用户已装的旧版本 → `Read` 读该版本规范（version 是运行时发现，**不**是预先硬编码）；项目根存在 `.mcpowers-version: v{major}.{minor}.{patch}` 时 AI 默认读该版本；用户显式指定"按 v{major}.{minor}.{patch} 规范写"时 AI 按指令读历史版本。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §运行时版本访问白名单」。
+
+**规范稳定性分级 + CHANGELOG 强制破坏声明（v2.27.4+ 全栈适用铁律）**：所有 31 份规范 frontmatter 必须声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；AI 读取规范后必读这两个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG / deprecated 不写新代码）。每次 mcpowers 发布的 `CHANGELOG.md` 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的**唯一权威索引**。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §CHANGELOG 强制破坏声明段」；方法层落地：`mcpowers-code-review` 增 R9 stability 审查维度 + 审查动作清单第 6 项。
+
 **终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
 
 ## 仓库地址

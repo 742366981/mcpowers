@@ -6,6 +6,8 @@ priority: recommended
 version: 2.14.0
 last_updated: 2026-07-27-v2.14.0
 description: Flutter Dart AOT snapshot、libapp.so / App.framework、Platform Channel 桥接回追的方法论；与 `mcpowers-reverse-flutter` 1:1 对应。Android / iOS 外壳与原生桥接证据保留引用本规范主册对应章节；本规范不重复叙述通用方法。
+stability: evolving
+last_breaking_change: v2.14.0
 ---
 
 # 爬虫Flutter逆向规范

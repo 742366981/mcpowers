@@ -6,6 +6,8 @@ priority: recommended
 version: 2.14.0
 last_updated: 2026-07-27-v2.14.0
 description: Android APK 的脱壳 / SSL Pinning 绕过 / 静态分析 / 动态分析 / so 层分析通用方法。与 `mcpowers-reverse-android` 1:1 对应。iOS 单独见《爬虫IOS逆向规范》；Flutter / Hybrid / 小程序的 Android 外壳分析也读本规范但只处理外壳与原生桥接证据。外部接管资源（LSPosed 注入 / frida attach / 调试 USB）按主册 §1.3 铁律不可关闭。
+stability: evolving
+last_breaking_change: v2.14.0
 ---
 
 # 爬虫Android逆向规范

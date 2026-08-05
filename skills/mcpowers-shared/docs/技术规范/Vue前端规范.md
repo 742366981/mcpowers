@@ -5,6 +5,8 @@ applies_to: [Vue前端]
 priority: required
 version: 1.0
 last_updated: 2026-07-08
+stability: stable
+last_breaking_change: v1.0
 ---
 
 # Vue 3 前端项目规范

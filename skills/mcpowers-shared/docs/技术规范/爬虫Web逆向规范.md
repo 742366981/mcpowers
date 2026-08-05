@@ -6,6 +6,8 @@ priority: recommended
 version: 2.21.0
 last_updated: 2026-07-29-v2.21.0
 description: Web JS 反混淆、补环境、算法复现与正确性校验的方法论；与 `mcpowers-reverse-web` 1:1 对应。与《爬虫工具与抓包规范》§3 浏览器复用配合使用抓包；以《爬虫分析规范》§9.4 模块真实可用性验收收尾。Web 逆向必读；非 Web 任务不读。
+stability: evolving
+last_breaking_change: v2.21.0
 ---
 
 # 爬虫Web逆向规范

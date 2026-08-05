@@ -378,14 +378,14 @@ REFERENCED=$(grep -rhoE 'mcpowers-[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]' \
 
 # 引用合法性 3 条规则（任一满足即视为有效）：
 #   1. 等于一个 DECLARED 的技能目录
-#   2. 历史白名单（仅 2 个：mcpowers-spec-index / mcpowers-workflow）
+#   2. 白名单：`mcpowers-spec-index`（规范库入口 skill）+ `mcpowers-workflow`（历史单体已删除）+ `mcpowers-version`（项目级冻结标记，v2.27.4+ 用户项目根 .mcpowers-version 文件，非技能）
 #   3. 是 DECLARED 中某技能的严格前缀（ref + "-..." 出现在 DECLARED）
 #      例：`mcpowers-git` 是 `mcpowers-git-commit` 等的前缀，文档中作为家族引用合法
 for ref in $REFERENCED; do
     valid=0
     if echo "$DECLARED" | grep -qx "$ref" 2>/dev/null; then
         valid=1
-    elif [ "$ref" = "mcpowers-spec-index" ] || [ "$ref" = "mcpowers-workflow" ]; then
+    elif [ "$ref" = "mcpowers-spec-index" ] || [ "$ref" = "mcpowers-workflow" ] || [ "$ref" = "mcpowers-version" ]; then
         valid=1
     elif echo "$DECLARED" | grep -q "^${ref}-" 2>/dev/null; then
         valid=1

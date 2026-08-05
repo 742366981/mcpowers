@@ -9,6 +9,21 @@
 
 - 待发布
 
+## v2.27.4 - 2026-08-05
+
+### Breaking Changes
+
+- 无。3 条新铁律均为新增约束层（运行时版本访问白名单 / 规范稳定性分级 / CHANGELOG 强制破坏声明），不改动已有行为。
+- v2.27.3 注入物版本号写死禁令同样不破坏：v2.27.4 在其基础上增补运行时例外条款，明确"运行时访问历史版本"合法，与原禁令互补。
+
+- **新增**：[`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) §最高铁律·mcpowers 注入路径稳定性 增「运行时版本访问白名单（v2.27.4+ 全栈适用）」——明确区分"注入物禁硬编码版本号"（v2.27.3+）与"AI 运行时访问历史版本"（v2.27.4+）是两条铁律不冲突；3 种合法访问方式：①AI 主动 `ls ~/.claude/plugins/cache/mcpowers/mcpowers/` 发现用户已装旧版本后 `Read` 读该版本规范 ②项目根存在 `.mcpowers-version: v{major}.{minor}.{patch}` 标记时默认读该版本 ③用户显式"按 v{major}.{minor}.{patch} 规范写"。
+- **新增**：[`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) §最高铁律·mcpowers 注入路径稳定性 增「CHANGELOG 强制破坏声明段（v2.27.4+ 全栈适用）」——每次发布 `CHANGELOG.md` **必须**含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的唯一权威索引；mcpowers 仓库自身禁止"minor bump + 破坏性变更"——破坏性变更必须 bump major。
+- **新增**：31 份规范 frontmatter 全部增 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}` 字段——按 §代码规范.md 稳定性分级铁律 AI 读规范后必读这 2 个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG Breaking Changes / deprecated 不写新代码）；**stability 元数据禁止写回用户项目 CLAUDE.md / 注入物**。
+- **新增**：[`AI操作规范.md`](skills/mcpowers-shared/docs/AI操作规范.md) Step 1-4.5「检查规范稳定性分级」——AI 读取每个规范后必读 frontmatter 的 stability + last_breaking_change，按 3 档分别采取不同行为；用户的 `.mcpowers-version` 冻结标记**优先于**最新版 stability。
+- **新增**：[`mcpowers-code-review/SKILL.md`](skills/mcpowers-code-review/SKILL.md) 增 R9 反模式条目——未声明 stability / last_breaking_change 就改规范 frontmatter 视为 Critical；审查动作清单增第 6 项"v2.27.4+ 规范 stability 自检"。
+- **调整**：[`CLAUDE.md`](CLAUDE.md) 顶层铁律指针段增 3 条 v2.27.4 新铁律（运行时版本访问白名单 / 规范稳定性分级 / CHANGELOG 强制破坏声明）+ 补回 v2.27.3 注入物版本号写死禁令指针（v2.27.3 release 时漏写指针）；[`README.md`](README.md) 核心功能表 §2 / §5 同步标注 v2.27.4。
+- **风险**：0 行为变更对外；本次纯规范 / 元数据 / 指针层新增；CI 门禁 `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 验证；插件版本号 2.27.3 → 2.27.4。
+
 ## v2.27.3 - 2026-08-05
 
 - **修复**：5 份 doc-sync 注入物模板（[`scripts/templates/project-doc-sync-rules.{generic,flask,vue,crawler}.yml`](scripts/templates/) + [`scripts/templates/project-doc-sync-check.sh`](scripts/templates/project-doc-sync-check.sh)）头部 `v2.9.0 L2 项目级纪律（由 mcpowers-doc-sync-install 注入）` 硬编码版本号违反 v2.26.2+ 「mcpowers 注入路径稳定性」铁律——升级时模板内残留旧版本号。统一改为「本文件对应 mcpowers 最新版本的纪律 / 后续访问必须始终读取 mcpowers 最新版本（不写具体版本号，跨升级永久适用）」正向框架。

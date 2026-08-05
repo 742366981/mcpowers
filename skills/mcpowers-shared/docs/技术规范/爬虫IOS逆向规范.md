@@ -6,6 +6,8 @@ priority: recommended
 version: 2.14.0
 last_updated: 2026-07-27-v2.14.0
 description: iOS IPA / Mach-O / Swift / Objective-C 通用逆向方法（不涵盖 Flutter App.framework）。与 `mcpowers-reverse-ios` 1:1 对应。外部接管资源（调试设备 / frida iOS / SSH 隧道）按主册 §1.3 铁律不可关闭；不再依赖已经退役的越狱通道时优先用 corellium 等授权环境。
+stability: evolving
+last_breaking_change: v2.14.0
 ---
 
 # 爬虫IOS逆向规范

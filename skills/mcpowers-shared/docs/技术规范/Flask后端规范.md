@@ -4,7 +4,9 @@ type: tech-spec
 applies_to: [Flask后端]
 priority: required
 version: 1.1
-last_updated: 2026-07-31
+last_updated: 2026-08-05
+stability: evolving
+last_breaking_change: v2.22.0
 ---
 
 # Flask后端项目规范

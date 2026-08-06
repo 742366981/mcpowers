@@ -9,6 +9,18 @@
 
 - 待发布
 
+## v2.28.1 - 2026-08-06
+
+### Breaking Changes
+
+- 无。「绝对零业务」是 v2.28.0 已建立的零业务审计强度的**精确化命名**——把原来 13/14 条规则中的"零业务字眼"提升为定义性铁律 + 增加 4 类新禁止项（外部参考字眼 / 其他项目路径 / 模块名业务前缀 / docstring 错误消息业务字段），不改变既有行为。
+
+- **强化**：[`skills/mcpowers-min-module/SKILL.md`](skills/mcpowers-min-module/SKILL.md) 「绝对零业务」升级为定义性铁律——v2.28.0 的"零业务字眼"只是 7 条规则中的一条，v2.28.1 提升为 **§0 绝对零业务审计**：① 加 §0 段（7 类禁止字眼 + 7 类例外允许 + 7 条审计命令）；② 通用规则从 7 条平铺重排为 6 条铁律 + 1 条实现细节分层；③ 自检清单独立 §0 段（10 项硬门槛 + 一键脚本兜底）；④ description 关键词加「绝对零业务 / 无任何外部参考 / business-free / no external reference」；⑤ 触发即执行 Step 2 从「零业务字眼审计」改为「§0 绝对零业务审计（强制首步）」；⑥ 编排段铁律从 5 条扩到 6 条；⑦ 反模式段拆为「§0 绝对零业务相关」+「实现细节相关」两层。
+- **强化**：[`skills/mcpowers-sdk-design/SKILL.md`](skills/mcpowers-sdk-design/SKILL.md) 同步 §0 强化——加 §0 段；通用规则从 13 条重排为 6 条铁律 + 7 条实现细节；触发即执行 Step 2 从「混合复用判断」改为「§0 绝对零业务审计（强制首步）」，原 Step 2 顺延为 Step 3；编排段铁律从 7 条扩到 8 条；反模式段拆层；自检清单独立 §0 段（10 项硬门槛 + 一键脚本兜底）；description 关键词加「绝对零业务 / 无任何外部参考」；通讯层中立措辞统一（去掉"段设计参考"等中性参考字眼改为"段结构"，去掉"Node / TS 类似"改为"Node / TS 同理"）。
+- **新增**：[`scripts/check-min-module.sh`](scripts/check-min-module.sh) §0 绝对零业务审计一键脚本——固化 7 类扫描命令（业务字眼 / 路径字面值 / 环境变量读取 / 真实凭据 / 外部参考字眼 / 其他项目路径 / 模块名业务前缀），支持 `--exclude PATTERN` 排除规则定义文件；任何一项命中退出码 1 + 打印命中位置；CI 物理兜底的轻量替代方案。
+- **调整**：[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) `version` 2.28.0 → 2.28.1（patch bump，措辞 / 信息架构调整）；[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) 顶层 `version` + `plugins[0].version` 同步 bump。
+- **风险**：0 行为变更对外；纯措辞 / 信息架构 / 元数据层强化；§0 的硬门槛**早就隐含在 v2.28.0 的"零业务字眼"中**——v2.28.1 显式提到禁止位 + 加 4 类新禁止项（外部参考字眼 / 其他项目路径 / 模块名业务前缀 / docstring 错误消息业务字段）；新增 `scripts/check-min-module.sh` 是零依赖半自动扫描（仅依赖 `rg`），不影响既有 33 个技能工作流；CI 门禁 `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 全绿。
+
 ## v2.28.0 - 2026-08-06
 
 ### Breaking Changes

@@ -103,6 +103,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R7** | ❌ **业务代码绕过 `utils/loggings.py` 单独写清理/轮转逻辑**：自己写 `for f in glob('*.log.*'): os.system(f'gzip {f}')` | 与框架清理函数双跑；窗口语义模糊；详见 `日志规范.md §7.3` |
 | **R8** | ❌ **Python 函数/方法/类/条件块内部出现 `import` 或 `from … import`**（局部 import）：包括 `if TYPE_CHECKING` 放在函数内、`try/except ImportError` 写在函数体里 | 违反代码规范 §Python import 位置规范；物理门禁 `pre-write-check-import.sh` 会阻断；只有循环依赖或真正可选依赖且写明原因并由用户确认才可放行 |
 | **R9** | ❌ **未声明 stability / last_breaking_change 就改规范 frontmatter**（v2.27.4+）：新增 / 删除 / 重命名规范章节必须同步声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；破坏性变更还必须在 CHANGELOG Breaking Changes 段列出 | 违反代码规范 §CHANGELOG 强制破坏声明段；用户升级时无法判断兼容性；AI 引用规范时无法判断是否需主动提示风险 |
+| **R10** | ❌ **二次包装 vs 合法重名未区分**（v2.27.5 及之前 hook 行为）：仅按函数名命中就阻断，把 4 类典型合法重名（①同命名空间不同目录 `utils/a.py::format_response` vs `utils/b.py::format_response` ②同名异义签名 `parse(s)` vs `parse(s, strict=True)` ③绑定对象不同 `def parse(self, s)` vs `def parse(s)` ④单行透传真二次包装 `def run(x): return other.process(x)`）混为一谈 → 误报/漏报 | v2.27.6+ 必须走启发式分级：单行透传强化阻断；其余三类降级 warn 不弹 UI。审查时若看到 R10 旧行为（不分类全走 exit 2），CR 阻塞要求升级到 v2.27.6 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -142,6 +143,20 @@ rg --type py -n '^( +|\t+)(import|from\s+[^ ]+\s+import)' .
 ```
 
 > 命令 1 命中 → Critical 阻塞，必须改为模块级导入；命令 2 仅作为全文件盘点依据，不直接阻塞但应纳入修复计划。
+
+## v2.27.6+ 启发式分级 Quick-Check（review 必跑）
+
+> 对齐 `代码规范.md §6.1.1` v2.27.6 补充段。审查者收到 PR 后必须执行的单行透传扫描命令（gold standard——单行透传是真二次包装，必须阻断）：
+
+```bash
+# 单行透传扫描：函数体仅一行 `return <已有函数>(...)` 的二次包装
+git diff main...HEAD -U0 | rg -U "(?:async\s+)?(?:def|function|func|fn)\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\("
+# 或全文件视角（审查时优先用 diff 视角）
+rg --type py -U "def\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\(" .
+```
+
+> 命令命中 → Critical 阻塞——这是最经典的二次包装，无论同/不同命名空间都必须复用底层。
+> 同命名空间跨段 / 同名异义 / 绑定对象不同 三类合法重名由 hook 自动降级，**不阻塞**；审查者只需把"单行透传"作为 R10 的强判定信号。
 
 
 ## 审查后

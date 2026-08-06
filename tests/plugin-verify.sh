@@ -271,6 +271,95 @@ if [ -n "$PY_BIN" ]; then
 fi
 rm -rf "$TMP_DUPLICATE" 2>/dev/null || true
 
+# pre-write-check-duplicate v2.27.6 启发式分级行为断言
+# 临时子仓：建一个独立 git 仓库、灌入 fixtures、再模拟 hook 检测
+if [ -n "$PY_BIN" ]; then
+    TMP_HEUR="$REPO_DIR/tests/.tmp_heur_check"
+    rm -rf "$TMP_HEUR" 2>/dev/null || true
+    mkdir -p "$TMP_HEUR/src/utils" 2>/dev/null || true
+    cd "$TMP_HEUR"
+    git init -q .
+    git config user.email "verify@x" && git config user.name "verify"
+    # fixture1: utils/a.py::format_response + utils/b.py::format_response（基线）
+    cat > src/utils/a.py <<'PYFIX'
+def format_response(data):
+    return {"ok": True, "data": data}
+PYFIX
+    cat > src/utils/b.py <<'PYFIX'
+def format_response(payload):
+    return {"ok": True, "payload": payload}
+PYFIX
+    git add -A && git commit -q -m "baseline"
+    if command -v cygpath >/dev/null 2>&1; then
+        TMP_HEUR_WIN=$(cygpath -m "$TMP_HEUR")
+    else
+        TMP_HEUR_WIN="$TMP_HEUR"
+    fi
+
+    # case_a: 同一 utils 命名空间内第三个同名（应触发 [降级 · 命名空间]，exit 0）
+    PAYLOAD_A='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/c.py","content":"def format_response(item):\n    return {\"wrapped\": item}\n"}}'
+    set +e
+    STDERR_A=$(echo "$PAYLOAD_A" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
+    RC_A=$?
+    set -e
+    assert_eq "v2.27.6 case_a 命名空间内同名 → exit 0" "$RC_A" "0"
+    if echo "$STDERR_A" | grep -q "降级.*合法重名"; then
+        echo "  ✓ case_a stderr 含 [降级 · 合法重名]"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ case_a stderr 缺 [降级 · 合法重名] 标签"
+        FAIL=$((FAIL + 1))
+    fi
+
+    # case_b: 签名差异（同 utils，但参数完全不同）→ 触发 [降级 · 签名]，exit 0
+    PAYLOAD_B='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/d.py","content":"def format_response(text, strict, encoding):\n    return text if strict else encoding\n"}}'
+    set +e
+    STDERR_B=$(echo "$PAYLOAD_B" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
+    RC_B=$?
+    set -e
+    assert_eq "v2.27.6 case_b 签名差异 → exit 0" "$RC_B" "0"
+    if echo "$STDERR_B" | grep -q "降级.*合法重名"; then
+        echo "  ✓ case_b stderr 含 [降级 · 合法重名]"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ case_b stderr 缺 [降级 · 合法重名] 标签"
+        FAIL=$((FAIL + 1))
+    fi
+
+    # case_c: 绑定方法混搭（class Formatter::def format_response(self, data)）→ 触发 [降级 · 绑定方法]，exit 0
+    PAYLOAD_C='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/e.py","content":"class Formatter:\n    def format_response(self, data):\n        return data\n"}}'
+    set +e
+    STDERR_C=$(echo "$PAYLOAD_C" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
+    RC_C=$?
+    set -e
+    assert_eq "v2.27.6 case_c 绑定方法混搭 → exit 0" "$RC_C" "0"
+    if echo "$STDERR_C" | grep -q "降级.*合法重名"; then
+        echo "  ✓ case_c stderr 含 [降级 · 合法重名]"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ case_c stderr 缺 [降级 · 合法重名] 标签"
+        FAIL=$((FAIL + 1))
+    fi
+
+    # case_d: 单行透传（def format_response(text): return other.format_response(text)）→ 强化 [阻断]，exit 2
+    PAYLOAD_D='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/wrapper.py","content":"def format_response(text):\n    return some_other.format_response(text)\n"}}'
+    set +e
+    STDERR_D=$(echo "$PAYLOAD_D" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
+    RC_D=$?
+    set -e
+    assert_eq "v2.27.6 case_d 单行透传 → exit 2" "$RC_D" "2"
+    if echo "$STDERR_D" | grep -q "\[阻断\]"; then
+        echo "  ✓ case_d stderr 含 [阻断]"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ case_d stderr 缺 [阻断] 标签"
+        FAIL=$((FAIL + 1))
+    fi
+
+    cd "$REPO_DIR"
+    rm -rf "$TMP_HEUR" 2>/dev/null || true
+fi
+
 # pre-write-check-import 行为断言（v2.27.0+）
 # Write 视为覆盖：模块级 import 放行、函数内 import 阻断
 # 注意：Windows 下 POSIX 路径（含 /）在 Path() 里可正常解析；用 REPO_DIR（POSIX）而非 REPO_DIR_WIN（带 \，会污染 JSON 字符串）

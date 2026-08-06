@@ -75,6 +75,16 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
 
 **Hook 物理兜底**（免用户自觉）：`hooks/pre-write-check-duplicate.sh` 在 Write/Edit 时自动检测新增 `def` 与仓库内同名 def 冲突，命中则弹 confirm UI 让用户决策。
 
+**v2.27.6 补充：hook 自动化分级**——重复检测并非纯按函数名一刀切，按 4 类启发式分级：
+
+- **单行透传**（gold standard）：`def run(x): return other.process(x)` → 无论命名空间/签名如何都**强化阻断**（exit 2 + UI），是最经典的二次包装
+- **同命名空间跨段**（`utils/a.py::format_response` vs `utils/b.py::format_response`）→ 视为模块自治，**降级 warn**（exit 0，stderr 写提示，不弹 UI）
+- **签名差异**（参数列表归一化后不同 / 首个参数类型注解不同）→ 视为同名异义，**降级 warn**
+- **绑定对象不同**（`def foo(self, ...)` 命中模块级 `def foo(...)`，或反之）→ **降级 warn**
+- **都没命中** → 真业务重复，**强化阻断**
+
+> 手工 Q1/Q2/Q3 + 自检命令仍是写新函数前必走；hook 是兜底不是替代——真二次包装（单行透传）它会拦下；合法重名（同命名空间 / 同名异义 / 绑定对象不同）它会放行。详见 `代码规范.md §6.1.1` 的「v2.27.6 补充：hook 自动启发式分级」段。
+
 ### 3. 加载规范
 - **必须** Read `mcpowers-shared/mcpowers-spec-index/SKILL.md`
 - 按查表结果加载对应规范（基线 + 栈规范 + 场景规范）

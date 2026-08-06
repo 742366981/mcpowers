@@ -9,6 +9,22 @@
 
 - 待发布
 
+## v2.27.6 - 2026-08-06
+
+### Breaking Changes
+
+- **block 行为不变**（单行透传 / 启发式全不命中仍 exit 2 + Claude Code confirm UI）。
+- **warn 候选改走 exit 0**：命名空间跨段 / 签名差异 / 绑定方法混搭但**不是**单行透传的"合法重名"不再弹 confirm UI——自动放行，仅 stderr 写出 `⚠ [降级 · 合法重名·<理由>]` 提示；如确需强制复用/重命名请手动调整。
+- 单行透传（`return <已有函数>(...)` 一行包转发）作为 gold standard，无论是否触发上述任一降级都强化阻断。
+
+- **新增**：[`hooks/check_duplicate_function.py`](hooks/check_duplicate_function.py) 重复函数检测引入 4 类启发式精细化——①命名空间启发式：新文件与命中点都在同一通用命名空间（`utils/ helpers/ common/ lib/ ...`）但不同目录 → 视为模块自治，降级 warn；②签名启发式：参数列表归一化后不同（参数数量 / 第一个参数类型注解）→ 视为同名异义，降级 warn；③绑定方法启发式：新是 `def foo(self, ...)` 命中是模块函数（或反之）→ 视为绑定对象不同，降级 warn；④单行透传启发式（gold standard）：函数体仅一行 `return <已有函数>(...)` → 最经典二次包装，强化阻断（即使触发上述任一降级也仍阻断）。
+- **调整**：[`代码规范.md §6.1.1`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 在三段式 Q1/Q2/Q3 + 自检清单之后插入「**v2.27.6 补充：hook 自动启发式分级**」段——把 hook 自动化分级策略与手动 Q1/Q2/Q3 分层标注（Q1/Q2/Q3 是手动判断，本段是 hook 自动兜底），同时说明单行透传强化阻断规则 + warn 候选不弹 confirm UI 的语义。
+- **调整**：[`mcpowers-feat/SKILL.md §2.5`](skills/mcpowers-feat/SKILL.md) 「已有资产扫描」段末补 4 行——hook 会按方案 A 自动分级，真复用不必手工判；同命名空间/同名异义/绑定对象不同会被自动放行，仅 stderr 写提示；真二次包装仍被 confirm UI 拦下。
+- **调整**：[`mcpowers-code-review/SKILL.md`](skills/mcpowers-code-review/SKILL.md) 「## 反模式（禁止）」段增 R10「**二次包装 vs 合法重名未区分**」条目（v2.27.5 及之前 hook 仅按函数名判定，4 类典型合法重名被误报为重复；R8/R9 已分别被 Python import 局部 / 规范 stability 占用，v2.27.6 反模式序号顺延）；新 Quick-Check 段「v2.27.6+ 启发式分级」增 1 条 `rg` 命令验证「单行透传」。
+- **调整**：[`CLAUDE.md`](CLAUDE.md) 与 [`README.md`](README.md) 「复用优先于二次抽象（v2.26.0+ 全栈适用铁律）」段末各加 1 行 v2.27.6 补注。
+- **修复**：[`hooks/check_duplicate_function.py`](hooks/check_duplicate_function.py) 入口函数从 `main()` 重命名为 `hook_main()`，避开与 [`hooks/check_spec_frontmatter.py:88`](hooks/check_spec_frontmatter.py) 的 `hook_main` 约定重复；同步 `CONVENTION_NAMES = frozenset({'main', 'hook_main'})` 提供豁免。
+- **风险**：warn 候选不再弹 confirm UI 对**真二次包装**无影响（真二次包装走单行透传 gold standard 仍 exit 2 + UI）；受影响的是**合法重名**（同命名空间不同目录、同名异义、绑定对象不同）——自动放行但 stderr 写提示，需要用户主动翻 terminal 日志才能感知。CI 门禁 `bash tests/plugin-verify.sh` 增 4 类用例（命名空间跨段 / 签名差异 / 绑定方法混搭 / 单行透传）共 8 项断言验证；插件版本号 2.27.5 → 2.27.6。
+
 ## v2.27.5 - 2026-08-06
 
 ### Breaking Changes

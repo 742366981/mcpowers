@@ -10,7 +10,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **31 个可路由技能**（场景层 23 + 方法层 8，扁平化） |
 | `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除） |
-| `hooks/` | Claude Code hooks 资产（4 个事件组 / 8 个脚本 + `hooks.json`；v2.26.0+ 含 `pre-write-check-duplicate.sh` 重复函数检测；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明） |
+| `hooks/` | Claude Code hooks 资产（4 个事件组 / 8 个脚本 + `hooks.json`；v2.27.5+ 含 `pre-write-check-duplicate.sh` 重复函数检测（豁免 `main` 入口惯例）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
 
@@ -64,7 +64,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **本技能禁止使用环境变量（v2.25.0+ 全栈适用最高铁律）**：仓库所有 .py / .sh / .js / .ts 源文件以及应用本规范的所有项目代码**一律禁止**读环境变量——Python 禁 `os.environ.*` / `os.getenv` / `from os import environ`；Shell 禁 `echo "$XXX"` / `${XXX}` 从外部环境读；JS/TS 运行时禁 `process.env.*` / `dotenv.config()`。配置统一走**文件 + 加载器**或**命令行参数**；OS 探测（浏览器路径、用户目录）走 `pathlib.Path.home()` + 已知路径硬编码 + `shutil.which()` 组合。唯一允许的例外：`hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 Docker Compose YAML 的 `environment:` 字段（这两处不进入 mcpowers 代码运行时）。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 「最高铁律 · 本技能禁止使用环境变量」段；栈级落地见 `Flask后端规范.md §4.1` / `Vue前端规范.md` / `爬虫工具与抓包规范.md`。
 
-**复用优先于二次抽象（v2.26.0+ 全栈适用铁律）**：写新函数 / 新类 / 新模块前必须先扫仓库 + SDK + 通用模块是否已有等价实现——禁止「明明 SDK 已有，又包一层」的二次抽象。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) §6.1.1。物理兜底：`hooks/pre-write-check-duplicate.sh` 在 `PreToolUse(Write|Edit|MultiEdit)` 时检测新增 `def` / `function` / `func` / `fn` 与仓库已有同名定义冲突，命中则弹 Claude Code confirm UI（exit 2）。审查门禁：`mcpowers-code-review` 增 R1-R7 Critical 反模式表（未扫仓库就写 wrapper / 二次抽象仅一行调用 / 命名冲突 / 跨项目搬运不复用 / 抽象类单实现 / 公共函数零调用方 / 绕过 `utils/loggings.py` 自写清理）。方法层落地：`mcpowers-feat` 触发即执行 10 步中新增「## 2.5 已有资产扫描」强制步骤（PR 描述必填扫描清单）。
+**复用优先于二次抽象（v2.26.0+ 全栈适用铁律）**：写新函数 / 新类 / 新模块前必须先扫仓库 + SDK + 通用模块是否已有等价实现——禁止「明明 SDK 已有，又包一层」的二次抽象。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) §6.1.1。物理兜底：`hooks/pre-write-check-duplicate.sh` 在 `PreToolUse(Write|Edit|MultiEdit)` 时检测新增 `def` / `function` / `func` / `fn` 与仓库已有同名定义冲突，Python `main` 入口惯例不计入冲突，命中其他重名则弹 Claude Code confirm UI（exit 2）。审查门禁：`mcpowers-code-review` 增 R1-R7 Critical 反模式表（未扫仓库就写 wrapper / 二次抽象仅一行调用 / 命名冲突 / 跨项目搬运不复用 / 抽象类单实现 / 公共函数零调用方 / 绕过 `utils/loggings.py` 自写清理）。方法层落地：`mcpowers-feat` 触发即执行 10 步中新增「## 2.5 已有资产扫描」强制步骤（PR 描述必填扫描清单）。
 
 **日志免压缩窗口（v2.26.0+ 强制基线）**：日志文件轮转后**不立即** gzip——保留最近 N 天的轮转文件为明文（默认 7 天，`keep_recent_uncompressed_days = 7`，可配 `0` 表示立即压缩）；超过窗口的轮转文件才压缩为 `.gz`；超过保留期的 `.gz` 文件清理。详见 [`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §7.2 + §7.3「轮转 → 清理 → 压缩时序」4 阶段；栈级落地见 `Flask后端规范.md §6.3` 的 `compress_old_logs` / `purge_old_logs` 双函数（爬虫项目复用同一对函数，详见 `爬虫规范.md §12.3`）。
 

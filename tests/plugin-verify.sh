@@ -249,6 +249,28 @@ set -e
 assert_eq "pre-write 放行 README.md（exit 0）" "$RC_README" "0"
 assert_eq "pre-write 放行 tests/foo.sh（exit 0）" "$RC_TEST" "0"
 
+# pre-write-check-duplicate 行为断言（入口惯例名豁免）
+TMP_DUPLICATE="$REPO_DIR/tests/.tmp_duplicate_check"
+if command -v cygpath >/dev/null 2>&1; then
+    TMP_DUPLICATE_PATH=$(cygpath -m "$TMP_DUPLICATE")
+else
+    TMP_DUPLICATE_PATH="$TMP_DUPLICATE"
+fi
+mkdir -p "$TMP_DUPLICATE" 2>/dev/null || true
+PAYLOAD_MAIN='{"tool_input":{"file_path":"'$TMP_DUPLICATE_PATH'/main.py","content":"def main():\n    return 0\n"}}'
+PAYLOAD_DUPLICATE='{"tool_input":{"file_path":"'$TMP_DUPLICATE_PATH'/duplicate.py","content":"def extract_function_names():\n    return set()\n"}}'
+if [ -n "$PY_BIN" ]; then
+    set +e
+    echo "$PAYLOAD_MAIN" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" >/dev/null 2>&1
+    RC_DUP_MAIN=$?
+    echo "$PAYLOAD_DUPLICATE" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" >/dev/null 2>&1
+    RC_DUP_OTHER=$?
+    set -e
+    assert_eq "pre-write-check-duplicate 放行 main 入口（exit 0）" "$RC_DUP_MAIN" "0"
+    assert_eq "pre-write-check-duplicate 阻断普通同名函数（exit 2）" "$RC_DUP_OTHER" "2"
+fi
+rm -rf "$TMP_DUPLICATE" 2>/dev/null || true
+
 # pre-write-check-import 行为断言（v2.27.0+）
 # Write 视为覆盖：模块级 import 放行、函数内 import 阻断
 # 注意：Windows 下 POSIX 路径（含 /）在 Path() 里可正常解析；用 REPO_DIR（POSIX）而非 REPO_DIR_WIN（带 \，会污染 JSON 字符串）

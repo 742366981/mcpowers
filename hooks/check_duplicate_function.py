@@ -28,6 +28,8 @@ DEF_KEYWORDS = r'(?:def|function|func|fn)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\('
 ASYNC_DEF_RE = re.compile(
     r'(?m)^\s*(?:async\s+)?' + DEF_KEYWORDS
 )
+# Python 模块入口惯例：各脚本独立定义，不视为跨模块重复实现。
+CONVENTION_NAMES = frozenset({'main'})
 
 
 def extract_function_names(source: str) -> set[str]:
@@ -175,6 +177,8 @@ def main() -> int:
     # 7. 仓库内扫重名
     duplicates = []
     for name in sorted(new_names):
+        if name in CONVENTION_NAMES:
+            continue
         hits = git_grep_duplicate(repo_root, rel_path, name)
         if hits:
             duplicates.append((name, hits))
@@ -197,9 +201,9 @@ def main() -> int:
     block.extend([
         '[说明] 本检查对齐 `代码规范.md §6.1.1 复用优先于二次抽象`：',
         '   - 命中重名通常意味着：SDK / 通用模块已有等价实现，不必再写',
-        '   - 例外场景（如双版本兼容、duck type 故意同名）→ 用户在 confirm 中选 Y 继续',
+        '   - 例外场景（如双版本兼容、duck type 故意同名）→ 请在 Claude Code confirm UI 中选择是否继续',
         '',
-        '按 Y 继续（确认仍需新增），按 N 取消（改为复用已有）。',
+        '请在 Claude Code confirm UI 中确认是否继续；取消则改为复用已有实现。',
     ])
     sys.stderr.write('\n'.join(block))
     sys.stderr.write('\n')

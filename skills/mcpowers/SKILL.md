@@ -1,6 +1,6 @@
 ---
 name: mcpowers
-description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse/reverse-web/reverse-app/reverse-android/reverse-ios/reverse-flutter/reverse-hybrid/reverse-miniprogram/extract/doc-sync-install），禁止先调用本 skill 完整正文再判断。会话产物生成/接口候选排序/模块封装种子/目标接口候选→crawler-reverse。文档膨胀/治理顶层文档/历史教训归档/CHANGELOG 同步→进入维护模式（CLAUDE.md §6 维护指南）。完整路由表（31 行骨架）见「强制分流表」段；各技能 description 是 L1 语义匹配主依据。"
+description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse/reverse-web/reverse-app/reverse-android/reverse-ios/reverse-flutter/reverse-hybrid/reverse-miniprogram/extract/min-module/sdk-design/doc-sync-install），禁止先调用本 skill 完整正文再判断。会话产物生成/接口候选排序/模块封装种子/目标接口候选→crawler-reverse。文档膨胀/治理顶层文档/历史教训归档/CHANGELOG 同步→进入维护模式（CLAUDE.md §6 维护指南）。完整路由表（33 行骨架）见「强制分流表」段；各技能 description 是 L1 语义匹配主依据。"
 ---
 
 # mcpowers 路由器
@@ -54,6 +54,8 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 | 混合 App 逆向 / uni-app / React Native / Cordova / Capacitor / WebView / JSBridge / Hermes | `mcpowers-reverse-hybrid` | 场景层（专项） | `mcpowers-reverse-hybrid/SKILL.md` description |
 | 小程序逆向 / 小游戏 / 微信小程序 / 支付宝小程序 / 抖音小程序 / 百度小程序 / wxapkg | `mcpowers-reverse-miniprogram` | 场景层（专项） | `mcpowers-reverse-miniprogram/SKILL.md` description |
 | 抽离公共模块 / 抽离通用能力 / 提取可复用组件 / 拆出独立库 / 爬虫逆向层剥离 / 抽成公共库 / 做成可调用脚本 / 模块化调用 / extract module / reusable library | `mcpowers-extract` | 场景层 | `mcpowers-extract/SKILL.md` description |
+| 最小模块化 / 通用模块 / 零业务自包含 / 复制即用 / 跨项目可搬运 / 自包含四件套 / min-module / standalone module / self-contained | `mcpowers-min-module` | 场景层 | `mcpowers-min-module/SKILL.md` description |
+| SDK 设计 / 封装领域 API / 业务封装库 / 客户端 SDK / 接口封装库 / SDK design / API wrapper / client library / health check / upstream vs client error | `mcpowers-sdk-design` | 场景层 | `mcpowers-sdk-design/SKILL.md` description |
 | 装项目级文档同步纪律 / 给现有项目加 doc-sync / 一键安装校验+hook / 安装 .doc-sync-rules | `mcpowers-doc-sync-install` | 方法层 | `mcpowers-doc-sync-install/SKILL.md` description |
 
 ---
@@ -139,6 +141,8 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 - `skills/mcpowers-reverse-hybrid/SKILL.md`（v2.13.0 新增）
 - `skills/mcpowers-reverse-miniprogram/SKILL.md`（v2.13.0 新增）
 - `skills/mcpowers-extract/SKILL.md`（v2.8.0 新增）
+- `skills/mcpowers-min-module/SKILL.md`（v2.28.0 新增）
+- `skills/mcpowers-sdk-design/SKILL.md`（v2.28.0 新增）
 
 ### 3.2 方法层（Layer 2）—— 被编排，也可单独触发
 - `skills/mcpowers-brainstorm/SKILL.md`
@@ -165,7 +169,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 - ✅ **规范文件**：`mcpowers-shared/docs/...` 路径不变
 - ✅ **旧 `mcpowers-workflow` 已删除**：原 2142 行单体已拆解为路由器 + 场景/方法技能
 
-只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（31 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
+只需安装 `skills/mcpowers/`（路由器）+ `skills/mcpowers-*`（33 个可路由技能）+ `skills/mcpowers-shared/`（规范库）三个层级即可完整使用。
 
 ---
 

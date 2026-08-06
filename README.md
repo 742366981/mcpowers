@@ -10,7 +10,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 | # | 功能 | 说明 |
 |:-:|:-----|:-----|
-| 1 | **🎯 场景化技能路由** | 31 个技能（23 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
+| 1 | **🎯 场景化技能路由** | 33 个技能（25 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
 | 2 | **📋 31 个技术规范**（v2.3.0 接口契约规范 + v2.6.0 `日志规范.md` + v2.14.0 爬虫拆分 7 册 + v2.15.0 协作模式 B 工具化 + v2.16.0 漏抓 7 层诊断 + cURL 快速帮助 + v2.17.0 模块产物封装形式标准化 + v2.18.0 浏览器自动化默认切 DrissionPage + v2.22.0 Flask 日志实现层对齐日志规范：JSON 结构化 + 按 type 分文件、禁止按级别切文件 + v2.23.1 docker-compose 启动命令统一为 `up -d --force-recreate`，`--build` 不带 `--force-recreate`、stop/down 区分停止 vs 删除 + **v2.25.0 本技能禁止使用环境变量（全栈适用最高铁律）：仓库所有 .py .sh .js .ts 禁读 env，统一走配置文件 + 加载器或命令行参数；唯一例外 `hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 docker-compose `environment:` 字段** + **v2.26.0 防过度抽象铁律：复用优先于二次抽象——写新函数前必先扫仓库/SDK/通用模块是否已有等价实现；新增 `def` 时 PreToolUse(Write/Edit) 钩子自动比对同名函数并弹 confirm UI；日志规范加 7 天免压缩窗口（`keep_recent_uncompressed_days = 7`），Flask/爬虫项目落地 `compress_old_logs` + `purge_old_logs` 双函数；code-review 增 R1-R7 Critical 反模式表** + **v2.27.3 注入物版本号写死禁令：5 份 doc-sync 模板 + mcpowers-doc-sync-install SKILL.md 示例路径中所有 `v2.9.0 L2` / `cache/mcpowers/mcpowers/2.26.2/` 硬编码版本号字面值清除，统一改为"对应 mcpowers 最新版本的纪律"，后续访问永远读取最新版本** + **v2.27.4 运行时版本访问白名单（与 v2.27.3 互补）：注入物禁版本号，但 AI 运行时 `ls cache/...` 发现用户已装的旧版本后 `Read` 读历史版本规范合法——覆盖 forensic 调试 / 跨项目兼容 / 升级迁移 3 类场景** + **v2.27.4 规范稳定性分级 + CHANGELOG 强制破坏声明：31 份规范 frontmatter 全部声明 `stability: stable|evolving|deprecated` + `last_breaking_change: vX.Y.Z`；每次发布的 CHANGELOG.md 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的唯一权威索引；AI 读规范后必读 stability 字段决定行为（stable 假设跨 minor 兼容 / evolving 主动查 CHANGELOG / deprecated 不写新代码）；code-review 增 R9 stability 审查维度** + **v2.27.6 重复检测启发式精细化：`hooks/check_duplicate_function.py` 引入 4 类启发式分级——单行透传（`return <已有函数>(...)` 一行包转发）作为 gold standard 强化阻断（exit 2 + confirm UI），同命名空间跨段 / 签名差异 / 绑定对象不同 3 类合法重名降级 warn（exit 0 + stderr 写 `⚠ [降级 · 合法重名·<理由>]` 提示，**不弹 confirm UI**）；`代码规范.md §6.1.1` 增补注段；`mcpowers-feat §2.5` / `mcpowers-code-review` R10 + Quick-Check 同步**）** | Flask/Vue/爬虫/API/数据库/缓存/部署/安全/版本管理/健康检查/自动化测试/日志等，按需加载避免爆上下文 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
@@ -58,7 +58,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── pre-write-confirm-api-hint.sh  # 接口变更时提示同步 API 文档
 │   └── post-write-commit-reminder.sh  # 改完即 commit 提醒
 │
-├── skills/                            # 技能（扁平化：1 路由器 + 31 个可路由技能 + 1 规范库）
+├── skills/                            # 技能（扁平化：1 路由器 + 33 个可路由技能 + 1 规范库）
 │   ├── mcpowers/                      # 主入口路由器（每次对话注入）
 │   │
 │   │ ── 场景层（23 个，用户输入直接命中）──
@@ -85,6 +85,8 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-reverse-hybrid/       # uni-app/RN/Cordova/Capacitor/WebView/JSBridge 专项
 │   ├── mcpowers-reverse-miniprogram/  # 微信/支付宝/抖音/百度小程序与小游戏专项
 │   ├── mcpowers-extract/              # 模块抽离（v2.8.0 新增，从已有项目抽离通用能力/逆向层为可复用库）
+│   ├── mcpowers-min-module/            # 最小通用模块化（v2.28.0 新增，零业务自包含四件套 + 跨项目可搬运）
+│   ├── mcpowers-sdk-design/            # SDK 设计（v2.28.0 新增，封装领域能力 + 健康检查硬拒绝 + 上游错误重试 vs 客户端错误分离）
 │   │
 │   │ ── 方法层（8 个，被场景层调用）──
 │   ├── mcpowers-doc-sync-install/     # 项目级 doc-sync 纪律安装（v2.9.0 新增，给已有项目注入校验+hook）
@@ -198,6 +200,8 @@ mcpowers/                              # 仓库根 = 插件根
 | 混合App逆向/uni-app/React Native/Cordova/Capacitor/WebView/JSBridge/Hermes | `mcpowers-reverse-hybrid` |
 | 小程序逆向/小游戏/微信小程序/支付宝小程序/抖音小程序/百度小程序/wxapkg | `mcpowers-reverse-miniprogram` |
 | 抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用 | `mcpowers-extract`（v2.8.0 新增） |
+| 最小模块化/通用模块/零业务自包含工具/复制即用/跨项目可搬运 | `mcpowers-min-module`（v2.28.0 新增） |
+| SDK 设计/封装领域 API/业务封装库/客户端 SDK/接口封装库 | `mcpowers-sdk-design`（v2.28.0 新增） |
 | 装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules | `mcpowers-doc-sync-install`（v2.9.0 新增） |
 | commit/提交 | `mcpowers-git-commit` |
 | worktree/分支隔离/并行工作区 | `mcpowers-git-worktree` |
@@ -224,7 +228,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
-- ✅ 31 个场景/方法技能（23 场景 + 8 方法）
+- ✅ 33 个场景/方法技能（25 场景 + 8 方法）
 - ✅ 31 个技术规范（`mcpowers-shared`，v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.16.0 抓包失败 7 层诊断 + cURL 12 项快速帮助；v2.17.0 模块产物封装形式 + 顶层文档中文；v2.18.0 浏览器自动化 DrissionPage 全场景默认 + 漏抓 7 层 DrissionPage 重新映射 + popup-handler / user-action-recorder DrissionPage 适配；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——`get_logger` 按 type 取 logger、级别降为 `level` 字段、ERROR+ 聚合流 `error.log`；v2.23.1 docker-compose 启动命令统一：默认 `up -d --force-recreate`、`--build` 不带 `--force-recreate`（compose 自动检测）、stop/down 区分停止与删除；**v2.25.0 本技能禁止使用环境变量——`代码规范.md` 新增「最高铁律」段：Python 禁 `os.environ.*` / `os.getenv`、Shell 禁 `$XXX` 从外部环境读、JS/TS 运行时禁 `process.env.*`；唯一允许例外 `hooks.json` 的 `${CLAUDE_PLUGIN_ROOT}` 与 docker-compose `environment:` 字段；栈级落地 Flask 走 `Config.get()` / Vue 走构建时注入 / 爬虫走 `config.yaml`**；**v2.26.0 防过度抽象铁律——`代码规范.md §6.1.1` 新增「复用优先于二次抽象」段（6 类反模式黑名单 + 3 条 bash 自检命令 + 3 类 wrapper 合理论证场景）+ `PreToolUse(Write/Edit|MultiEdit)` 新增 `pre-write-check-duplicate.sh` 钩子检测同名函数 + 日志规范 §7.3 新增「轮转 → 清理 → 压缩」4 阶段时序 + 默认 7 天免压缩窗口（`keep_recent_uncompressed_days = 7`，可配 `0`）+ Flask §6.3 / 爬虫 §12.3 落地 `compress_old_logs` + `purge_old_logs` 双函数 + code-review 增 R1-R7 Critical 反模式表**；**v2.27.0 Python 局部 import 拦截——`代码规范.md` 新增「Python import 位置规范」段（模块级导入区强制 + 函数/方法/类/条件块/装饰器内部禁止；仅循环依赖或真正可选依赖可例外，必须写明原因并由用户确认）+ `PreToolUse(Write|Edit|MultiEdit)` 新增 `pre-write-check-import.sh` 钩子（含 `check_python_import_placement.py`）AST 检测新增局部 import，Write 视为覆盖、Edit/MultiEdit 仅 diff 新增违规 + `AI操作规范.md §1.7` 补充铁律 + `mcpowers-spec-index`「任何写代码」基线引用 §Python import 位置 + `mcpowers-feat` Step 6 / `mcpowers-tdd` 测试代码规范 / `mcpowers-code-review` R8 反模式 + Quick-Check grep + Flask / API版本管理 / 健康检查 / 定时任务 / 测试 / 导入导出 等 6 份规范示例的局部 import 全量改写为模块顶部导入**；**v2.27.6 重复检测启发式精细化——`hooks/check_duplicate_function.py` 引入 4 类启发式分级（命名空间跨段 / 签名差异 / 绑定对象不同 三类降级为 warn exit 0 + stderr 写 `⚠ [降级 · 合法重名·<理由>]` 不弹 UI；单行透传 `return <已有函数>(...)` 作 gold standard 强化阻断仍 exit 2 + confirm UI）+ `代码规范.md §6.1.1` 增补注段 + `mcpowers-feat §2.5` / `mcpowers-code-review` 增 R10 反模式条目 + 启发式分级 Quick-Check 单行透传 rg 命令**）
 - ✅ 4 个 Hook 事件组 / 8 个 Hook 脚本（自动注册，无需改 `settings.json`）
 
@@ -297,7 +301,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 31 个可路由技能 + 24 技术规范 + 4 个 Hook 事件组 / 8 个脚本全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 33 个可路由技能 + 24 技术规范 + 4 个 Hook 事件组 / 8 个脚本全功能 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |

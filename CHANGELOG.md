@@ -9,6 +9,21 @@
 
 - 待发布
 
+## v2.28.0 - 2026-08-06
+
+### Breaking Changes
+
+- 无。仅新增 2 个场景层技能（`mcpowers-min-module` / `mcpowers-sdk-design`），既有 31 个技能、工作流、规范铁律全部保持不变。
+
+- **新增**：[`skills/mcpowers-min-module/SKILL.md`](skills/mcpowers-min-module/SKILL.md) 最小通用模块化场景层技能——把通用技术能力沉淀为「任何项目复制即用、零业务字眼、自包含日志/异常/配置/验证脚本」的最小工具模块。核心判定：①零业务字眼（模块代码 / 注释 / docstring / 配置 / README 不出现具体业务名 / 字段名 / 项目名 / 厂商名）②外部依赖边界（仅该语言标准库 + 直接相关第三方库）③禁止 import 业务模块 ④禁止读环境变量 ⑤自包含四件套（日志 / 异常 / 配置 / 验证脚本）⑥复制即用（任意项目 `cp -r {module_name}/` 即可使用）。SKILL.md 是机制层标准（不绑 Python 模板），用户项目按语言自行实现。
+- **新增**：[`skills/mcpowers-sdk-design/SKILL.md`](skills/mcpowers-sdk-design/SKILL.md) SDK 设计场景层技能——把某个特定领域能力（HTTP API / gRPC / WebSocket / 数据库 / 第三方库 / CLI 工具）封装成可独立分发、可 `import`、可调用的 SDK。核心判定：①SDK = 升级版最小模块 + 领域能力封装 + 混合复用判断（用户声明优先 → 轻量扫描 → 集中询问一次 → 自包含兜底）②通讯层中立（HTTP / gRPC / WebSocket / 文件 IO / CLI 包装都支持；不绑具体技术栈）③健康检查硬拒绝（构造时调 `validate()`，发现 `CHANGE_ME` 必填字段未覆盖 → 立即抛 `ConfigError`）④上游错误 vs 客户端错误严格分离（上游错误指数退避重试，客户端错误立即抛业务异常，绝不重试）⑤资源泄漏防护（`with` 块 / `try/finally` / `close()`）+ 路径锚定（`pathlib.Path.home() / ".cache" / "{SDK 名称}"`）。
+- **调整**：[`skills/mcpowers/SKILL.md`](skills/mcpowers/SKILL.md) 路由器加 2 行：①强制分流表（line 56 后）新增 `mcpowers-min-module` / `mcpowers-sdk-design` 两条路由 ②场景层清单（line 141 后）新增 `mcpowers-min-module/SKILL.md` + `mcpowers-sdk-design/SKILL.md` 2 条引用 ③路由器 description 段（line 3）补全 `min-module/sdk-design` 关键词 + 「31 行骨架」→「33 行骨架」+「31 个可路由技能」→「33 个可路由技能」。
+- **调整**：[`CLAUDE.md`](CLAUDE.md) 顶栏 `skills/mcpowers-*` 行「**31 个可路由技能**（场景层 23 + 方法层 8）」→「**33 个可路由技能**（场景层 25 + 方法层 8）」；触发条件表（line 28-29 后）新增 2 条（`mcpowers-min-module` / `mcpowers-sdk-design`）；设计维度段「31 个可路由技能」→「33 个可路由技能」。
+- **调整**：[`README.md`](README.md) 核心功能表「31 个技能（23 场景 + 8 方法）」→「33 个技能（25 场景 + 8 方法）」；技能树（line 87-90 区间）新增 2 行（`mcpowers-min-module/` + `mcpowers-sdk-design/`）；触发条件表（line 200-201 区间）新增 2 行；检查清单「31 个场景/方法技能（23 场景 + 8 方法）」→「33 个场景/方法技能（25 场景 + 8 方法）」；安装说明「31 个可路由技能」→「33 个可路由技能」。
+- **调整**：[`scripts/check-readme-sync.sh`](scripts/check-readme-sync.sh) `SCENE_SKILLS` 变量（line 135）末尾追加 `mcpowers-min-module mcpowers-sdk-design`——CI 门禁自动校验 2 个新技能的路由表 / 场景清单 / 描述字符数。
+- **调整**：[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) `version` 2.27.6 → 2.28.0（minor 升级，因新增 2 个技能）；[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) 顶层 `version` + `plugins[0].version` 同步 bump + 主入口描述「31 个技能 + 31 个技术规范」→「33 个技能 + 31 个技术规范」+ 数量声明「场景层 23 个 + 方法层 8 个」→「场景层 25 个 + 方法层 8 个」。
+- **风险**：无破坏性变更。2 个新技能均为单纯增量（新增文件 + 文档同步），不影响已有 31 个技能的工作流、规范铁律、Hook 行为。CI 门禁 `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 全绿。插件版本号 2.27.6 → 2.28.0。
+
 ## v2.27.6 - 2026-08-06
 
 ### Breaking Changes

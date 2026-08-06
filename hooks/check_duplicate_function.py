@@ -34,6 +34,49 @@ ASYNC_DEF_RE = re.compile(r'(?m)^\s*(?:async\s+)?' + DEF_KEYWORDS)
 # v2.27.5+ 入口命名惯例。v2.27.6+ 进一步为 hook 自身的 hook_main() 约定提供豁免。
 CONVENTION_NAMES = frozenset({'main', 'hook_main'})
 
+# v2.28.0+ Python dunder 协议方法豁免：__init__ / __new__ / __repr__ 等是 Python
+# 语言级协议，不是「可复用普通函数」。任何自定义类都必须重新实现这些 dunder，
+# 重复检测不应覆盖它们（否则所有自定义 Exception / dataclass 都会被误判 block）。
+DUNDER_NAMES = frozenset({
+    # 构造 / 析构
+    '__init__', '__new__', '__del__', '__init_subclass__', '__subclasshook__',
+    # 字符串表示
+    '__repr__', '__str__', '__format__', '__bytes__',
+    # 比较 / 哈希
+    '__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__', '__hash__', '__bool__',
+    # 容器协议
+    '__len__', '__length_hint__', '__getitem__', '__setitem__', '__delitem__',
+    '__contains__', '__iter__', '__next__', '__reversed__',
+    # 可调用 / 上下文
+    '__call__', '__enter__', '__exit__', '__aenter__', '__aexit__',
+    # 算术
+    '__add__', '__radd__', '__sub__', '__rsub__',
+    '__mul__', '__rmul__', '__truediv__', '__rtruediv__',
+    '__floordiv__', '__rfloordiv__', '__mod__', '__rmod__',
+    '__divmod__', '__rdivmod__', '__pow__', '__rpow__',
+    '__lshift__', '__rlshift__', '__rshift__', '__rrshift__',
+    '__and__', '__rand__', '__or__', '__ror__', '__xor__', '__rxor__',
+    '__matmul__', '__rmatmul__',
+    '__neg__', '__pos__', '__abs__', '__invert__',
+    '__complex__', '__int__', '__float__', '__index__', '__round__', '__trunc__', '__floor__', '__ceil__',
+    # 描述符 / 属性
+    '__getattr__', '__getattribute__', '__setattr__', '__delattr__', '__dir__',
+    '__get__', '__set__', '__delete__', '__set_name__',
+    # pickle / copy
+    '__reduce__', '__reduce_ex__', '__getstate__', '__setstate__', '__getnewargs__', '__getnewargs_ex__',
+    '__copy__', '__deepcopy__', '__sizeof__',
+    # 类型相关
+    '__class_getitem__', '__instancecheck__', '__subclasscheck__',
+    # 异步
+    '__await__', '__aiter__', '__anext__',
+    # dataclass
+    '__post_init__',
+    # 模块级常被作为属性的 dunder
+    '__annotations__', '__doc__', '__module__', '__name__', '__qualname__',
+    '__dict__', '__weakref__', '__all__', '__slots__', '__file__',
+    '__path__', '__version__', '__author__', '__copyright__', '__license__',
+})
+
 NAMESPACE_SEGMENTS = frozenset({
     'utils', 'helpers', 'common', 'lib', 'libs', 'sdk',
     'adapters', 'parsers', 'serializers', 'handlers',
@@ -334,7 +377,7 @@ def hook_main():
 
     duplicates = []
     for name in sorted(new_names):
-        if name in CONVENTION_NAMES:
+        if name in CONVENTION_NAMES or name in DUNDER_NAMES:
             continue
         hits = git_grep_duplicate(repo_root, rel_path, name)
         if not hits:

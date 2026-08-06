@@ -8,7 +8,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 |:-----|:-----|
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
-| `skills/mcpowers-*` | **31 个可路由技能**（场景层 23 + 方法层 8，扁平化） |
+| `skills/mcpowers-*` | **33 个可路由技能**（场景层 25 + 方法层 8，扁平化） |
 | `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 8 个脚本 + `hooks.json`；v2.27.5+ 含 `pre-write-check-duplicate.sh` 重复函数检测（豁免 `main` 入口惯例）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
@@ -25,6 +25,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **部署/上线/发布** → `mcpowers-deploy`
 - **需求变更/调整逻辑/加字段** → `mcpowers-requirement-change`
 - **新项目/初始化/脚手架** → `mcpowers-init`
+- **最小模块化/通用模块/零业务自包含工具/复制即用/跨项目可搬运** → `mcpowers-min-module`
+- **SDK 设计/封装领域 API/业务封装库/客户端 SDK/接口封装库** → `mcpowers-sdk-design`
 - **写需求/PRD/文档** → `mcpowers-prd`
 - **任务拆解/列计划** → `mcpowers-plan`
 - **按计划执行/实施计划/开始执行** → `mcpowers-execute`
@@ -219,7 +221,7 @@ for f in sorted(os.listdir('skills')):
 
 ## 设计维度
 
-- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（31 个可路由技能），按意图关键词精准分流
+- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（33 个可路由技能），按意图关键词精准分流
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断

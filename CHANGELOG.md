@@ -9,6 +9,20 @@
 
 - 待发布
 
+## v2.28.2 - 2026-08-09
+
+### Breaking Changes
+
+- **有**。重复函数检测 hook 行为从「v2.27.6~v2.28.1 的 4 类启发式分级（单行透传 block / 命名空间跨段 / 签名差异 / 绑定方法混搭 → warn 放行 + 默认 block）」改为 **v2.28.2+ 极简判定：跨文件同名默认放行，只保留「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类 block**。原本依赖 hook 拦截「跨文件同名业务模块各自实现的 parse(data)」等场景的用户将不再被拦截；其余二次包装反模式由 `mcpowers-code-review` R1-R6 黑名单 + 同文件重名 / 单行透传两类 block 兜底。
+
+- **调整**：[`hooks/check_duplicate_function.py`](hooks/check_duplicate_function.py) 重复函数检测 hook 行为简化（v2.28.2+）——删除 3 类启发式降级（命名空间 / 签名 / 绑定方法）+ 删除 `classify_namespace` / `is_cross_namespace` / `normalize_params` / `is_bound_method` / `decide_severity` / `format_warn_message` 等约 80 行代码 + 新增 `count_in_source(source, name)` 实现同文件内重名检测 + 重写 `hook_main` 主流程为 3 档判定：①同文件重名 count ≥ 2 → block ②跨文件同名 + `is_one_line_wrapper` 命中 → block ③其他跨文件同名 → 放行（不计入 duplicates）。理由：跨文件同名是合法常态（业务模块各自的 `parse(data)`），原 4 类启发式是给「过度拦截」打补丁，源头砍掉后不需要补丁；`is_one_line_wrapper` 是唯一值得保留的精准信号（gold standard，命中即真二次包装）。
+- **修复**：[`hooks/check_duplicate_function.py`](hooks/check_duplicate_function.py) 修复「同文件内重名漏报」反向 bug——`git_grep_duplicate` 原本显式跳过新文件自身（`if rel == rel_path: continue`），意味着同一文件里写两个 `def foo()` 的真 bug（Python 后者覆盖前者，导致静默丢失前一个实现）反而被 hook 漏过；v2.28.2+ 通过 `count_in_source` 主动扫描新内容内的同名定义数，count ≥ 2 即 block；同时原 hook 也漏报「新增内容自身重名」场景（如 `Write` 内容里既有 `def foo` 又新增 `def foo`），新逻辑一并覆盖。
+- **调整**：[`代码规范.md §6.1.1`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 表格从 5 行（单行透传 / 命名空间 / 签名 / 绑定 / 默认）简化为 3 档（同文件重名 / 跨文件同名 + 单行透传 / 跨文件同名其他情况），删掉「降级候选语义」「入口命名豁免（与具体启发式无关）」等过时描述；豁免段重写为「入口命名 + Python dunder 协议方法 + 单下划线私有名」3 类明确豁免；frontmatter `last_breaking_change` 字段 `v2.27.6` → `v2.28.2`；新增「为什么跨文件同名默认放行」段说明 v2.27.6 启发式是设计缺陷、v2.28.2 回归极简原则。
+- **调整**：[`mcpowers-code-review/SKILL.md`](skills/mcpowers-code-review/SKILL.md) R10 反模式条目从「v2.27.6 启发式分级（命名空间 / 签名 / 绑定 / 单行透传）」改为「v2.28.2+ hook 已简化（跨文件默认放行 + 同文件重名 + 单行透传 block）」+ 旧 R10 描述（4 类典型合法重名被误报）作为 v2.27.6 历史问题归档；Quick-Check 段从「v2.27.6+ 启发式分级」改为「v2.28.2+ 单行透传」（hook 已自动处理单行透传 + 同文件重名，review 主要兜底扫描）；审查动作清单第 4 条「同名函数跨文件出现 ≥ 2 次」加「看是否真有共性」判断条件——hook 默认放行后由 review 判断是否属真重复（命中则提 `mcpowers-extract`）。
+- **调整**：[`hooks/README.md`](hooks/README.md) 重复函数检测行描述从「v2.26.0+ 防过度抽象——与仓库已有同名定义冲突时弹 confirm UI」改为 v2.28.2+ 新行为描述。
+- **调整**：[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) `version` `2.28.1` → `2.28.2`（patch bump；行为简化为修复过度拦截）+ [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) 顶层 `version` + `plugins[0].version` 同步 bump。
+- **风险**：跨文件同名从 block 改为放行——原本依赖 hook 拦截的业务模块同名（业务模块各自的 `parse(data)` 等）的用户**不再**被 hook 拦截；同文件重名 + 单行透传 wrapper 仍被 block（这 2 类是真 bug 的兜底）；其余二次包装反模式（命名空间统一 / 跨项目搬运 / 抽象类单实现 / 公共函数零调用方）由 `mcpowers-code-review` R1-R6 黑名单 + PR 审查兜底；前端写代码时若依赖旧 hook 行为（看到重名就拦）会有反直觉感，需要让团队升级到 v2.28.2+ 行为。CI 门禁 `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 全绿。
+
 ## v2.28.1 - 2026-08-06
 
 ### Breaking Changes

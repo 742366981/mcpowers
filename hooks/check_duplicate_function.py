@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 # mcpowers PreToolUse (Write|Edit|MultiEdit) 钩子的检测器
-# v2.27.6+：重复函数检测启发式精细化（防过度抽象/二次包装）
+# v2.28.x：重复函数检测简化（核心原则：只有真 bug 才拦）
 #
-# 检测策略（v2.27.6 启发式分级）：
-#   - 命名空间启发式：新文件与命中点都在同一通用命名空间（utils/ helpers/ ...）
-#     但不同目录 → 视为模块自治，降级 warn
-#   - 签名启发式：新签名与命中签名参数列表不同 → 视为同名异义，降级 warn
-#   - 绑定方法启发式：新是 def foo(self, ...) 命中点是模块函数（或反之）
-#     → 视为绑定对象不同，降级 warn
-#   - 单行透传启发式：函数体仅一行 `return <已有函数>(...)` → 最经典二次包装
-#     → 强化阻断（即使触发上述任一降级也仍阻断）
+# 检测策略（v2.28.x 简化）：
+#   - 同文件内重名 → block（Python 后者覆盖前者，是真 bug）
+#   - 单行透传 wrapper（函数体仅一行 return <call>(...)）→ block（gold standard 二次包装信号）
+#   - 跨文件同名（其他情况）→ 默认放行（Python import 是模块级作用域，跨文件同名不冲突）
+#   - 豁免：CONVENTION_NAMES (main/hook_main) + DUNDER_NAMES (Python 协议方法) + 单下划线私有名
 # 退出码：
-#   0 = 无命中（block/warn 均无），或仅命中 warn → 放行（warn 仅 stderr 写提示）
+#   0 = 无命中 block 候选，放行
 #   2 = 命中 block 候选 → stderr 写警告，触发 Claude Code confirm UI
 #   1 = 解析失败，放行
 #
@@ -31,10 +28,11 @@ from pathlib import Path
 DEF_KEYWORDS = r'(?:def|function|func|fn)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\('
 ASYNC_DEF_RE = re.compile(r'(?m)^\s*(?:async\s+)?' + DEF_KEYWORDS)
 
-# v2.27.5+ 入口命名惯例。v2.27.6+ 进一步为 hook 自身的 hook_main() 约定提供豁免。
+# v2.27.5+ 入口命名惯例豁免：main() / hook_main() 是模块入口惯例，
+# 不视为「可复用普通函数」，hook 不应误拦。
 CONVENTION_NAMES = frozenset({'main', 'hook_main'})
 
-# v2.28.0+ Python dunder 协议方法豁免：__init__ / __new__ / __repr__ 等是 Python
+# v2.28.x Python dunder 协议方法豁免：__init__ / __new__ / __repr__ 等是 Python
 # 语言级协议，不是「可复用普通函数」。任何自定义类都必须重新实现这些 dunder，
 # 重复检测不应覆盖它们（否则所有自定义 Exception / dataclass 都会被误判 block）。
 DUNDER_NAMES = frozenset({
@@ -77,17 +75,14 @@ DUNDER_NAMES = frozenset({
     '__path__', '__version__', '__author__', '__copyright__', '__license__',
 })
 
-NAMESPACE_SEGMENTS = frozenset({
-    'utils', 'helpers', 'common', 'lib', 'libs', 'sdk',
-    'adapters', 'parsers', 'serializers', 'handlers',
-    'models', 'views', 'controllers', 'services',
-    'repositories', 'factories', 'mixins', 'extensions',
-    'plugins', 'tools', 'shared', 'internal',
-})
-SELF_NAMES = frozenset({'self', 'cls', '_self', '_cls', 'this', 'myself'})
-
 
 def extract_function_names(source):
+    """提取源码中所有顶层函数 / 方法定义的名字集合。
+
+    仅匹配以 def/function/func/fn 关键字开头的定义行（含 async def）。
+    跳过以单下划线开头的私有名（除非是 dunder）——私有函数名重名通常属于
+    内部封装，hook 不应误拦。
+    """
     if not source:
         return set()
     names = set()
@@ -99,59 +94,34 @@ def extract_function_names(source):
     return names
 
 
-def classify_namespace(rel_path):
-    parts = rel_path.replace('\\', '/').split('/')
-    for p in parts[:-1]:
-        if p in NAMESPACE_SEGMENTS:
-            return p
-    return None
+def count_in_source(source, name):
+    """统计源码中 `def name(` 出现的次数。
 
-
-def is_cross_namespace(rel_new, rel_hit):
-    ns_new = classify_namespace(rel_new)
-    ns_hit = classify_namespace(rel_hit)
-    if ns_new is None or ns_hit is None:
-        return False
-    return ns_new != ns_hit
-
-
-def extract_signature(source, name):
+    用于同文件内重名检测：count >= 2 说明同一文件对同一函数名多次定义，
+    Python 解释器只会保留最后一个，前面的定义被静默覆盖——这是真 bug，必须 block。
+    """
     if not source:
-        return None
-    m = re.search(
-        r'(?:async\s+)?(?:def|function|func|fn)\s+'
-        + re.escape(name) + r'\s*\(([^)]*)\)',
-        source,
+        return 0
+    regex = re.compile(
+        r'(?:async\s+)?(?:def|function|func|fn)\s+' + re.escape(name) + r'\s*\('
     )
-    return m.group(1).strip() if m else None
-
-
-def normalize_params(params):
-    if not params:
-        return ()
-    parts = []
-    for raw in params.split(','):
-        p = raw.strip()
-        if not p:
-            continue
-        if '=' in p:
-            p = p.split('=', 1)[0].strip()
-        if ':' in p:
-            p = p.split(':', 1)[0].strip()
-        p = p.lstrip('*').strip()
-        if p:
-            parts.append(p)
-    return tuple(parts)
-
-
-def is_bound_method(params):
-    norm = normalize_params(params)
-    if not norm:
-        return False
-    return norm[0] in SELF_NAMES
+    return len(regex.findall(source))
 
 
 def is_one_line_wrapper(source, name):
+    """判断新函数是否为单行透传 wrapper（gold standard 二次包装信号）。
+
+    特征：函数体只有 1 行有效代码（不算 docstring / 空行 / 注释），
+    且该行是 `return <其他函数名>(...)` 或 `<其他函数名>(...)`。
+
+    命中规则：
+      - 函数体有效代码行 ≤ 2 行
+      - 没有 if / for / while / with / try / assert / yield / raise / global / nonlocal / lambda
+      - 没有非 return 赋值
+      - 唯一有效行匹配 `return <call>(...)` 或 `<call>(...)`
+
+    命中 = 二次包装，无论文件位置（跨文件 / 同文件 / 任意命名空间）一律 block。
+    """
     if not source:
         return False
     lines = source.splitlines()
@@ -202,6 +172,10 @@ def is_one_line_wrapper(source, name):
 
 
 def find_repo_root(file_path):
+    """从给定文件路径向上查找最近的 .git 目录，返回仓库根。
+
+    若文件不在任何 git 仓库内，返回 None，hook 自动放行。
+    """
     cur = file_path if file_path.is_absolute() else (Path.cwd() / file_path).resolve()
     cur = cur.parent
     while True:
@@ -214,6 +188,11 @@ def find_repo_root(file_path):
 
 
 def is_protected_path(rel_path):
+    """判断给定仓库内相对路径是否为受保护资产（hook 自身 + 注入物）。
+
+    受保护资产由 mcpowers 自身维护，hook 不应对其做重复函数检测
+    （避免在修改规范 / SKILL 时触发自身误判）。
+    """
     protected_prefixes = (
         'skills/mcpowers-shared/',
         'skills/mcpowers/SKILL.md',
@@ -228,10 +207,19 @@ def is_protected_path(rel_path):
 
 
 def code_file_exts():
+    """返回 hook 扫描的源代码文件扩展名集合。
+
+    仅扫描会被 AI 实际写入的业务代码类型，避免误扫 .md / .txt / .yaml 等文档。
+    """
     return {'.py', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.go', '.java', '.kt', '.swift', '.rb', '.rs'}
 
 
 def git_grep_duplicate(repo_root, rel_path, name):
+    """在整个仓库范围内（排除新文件自身）查找同名函数定义。
+
+    返回 [(rel_path, line_no, signature), ...] 最多 5 条命中。
+    用于跨文件同名扫描——v2.28.x 起仅作为「单行透传 wrapper」block 时的辅助信息。
+    """
     code_exts = code_file_exts()
     skip_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build', '.next', '.nuxt'}
     matches = []
@@ -268,78 +256,51 @@ def git_grep_duplicate(repo_root, rel_path, name):
     return matches
 
 
-def decide_severity(rel_new, new_sig, is_wrapper, hits):
-    if is_wrapper:
-        return ('block', [])
-
-    reasons = []
-    for rel_hit, _ln, _sig in hits:
-        if is_cross_namespace(rel_new, rel_hit):
-            reasons.append('命名空间')
-            break
-
-    if new_sig is not None and hits:
-        new_norm = normalize_params(new_sig)
-        new_bound = is_bound_method(new_sig)
-        for rel_hit, _ln, sig_line in hits:
-            m = re.search(r'\(([^)]*)\)', sig_line)
-            hit_sig = m.group(1) if m else None
-            if hit_sig is None:
-                continue
-            hit_norm = normalize_params(hit_sig)
-            hit_bound = is_bound_method(hit_sig)
-            if new_norm != hit_norm:
-                reasons.append('签名')
-                break
-            if new_bound != hit_bound:
-                reasons.append('绑定方法')
-                break
-
-    if reasons:
-        return ('warn', reasons)
-    return ('block', [])
-
-
 def format_block_message(rel_path, duplicates):
+    """构造触发 confirm UI 的 stderr 消息。
+
+    duplicates 是 [(name, hits, reason), ...] 三元组：
+      - reason = '同文件重名'：hits 为空，提示同一文件内多次定义
+      - reason = '单行透传'：hits 为跨文件命中列表（最多 5 条），展示给用户参考
+    """
     block = [
-        '[mcpowers 铁律 · v2.27.6 重复检测分级] 检测到新增函数与仓库已有定义冲突（建议复用）：',
+        '[mcpowers 铁律 · v2.28.x 重复检测简化] 检测到新增函数与已有定义冲突（建议复用 / 修复）：',
         '',
         f'   路径: {rel_path}',
         '   影响范围:',
     ]
-    for name, hits, _sev, _reason in duplicates:
-        block.append(f'   ❌ [阻断] 函数 `{name}` 已被定义于：')
-        for rel, ln, sig in hits:
-            block.append(f'     {rel}:{ln}: {sig}')
+    for name, hits, reason in duplicates:
+        if reason == '同文件重名':
+            block.append(f'   ❌ [阻断 · 同文件重名] 函数 `{name}` 在同一文件内多次定义（Python 后者覆盖前者，必为 bug）：')
+        elif reason == '单行透传':
+            block.append(f'   ❌ [阻断 · 单行透传] 函数 `{name}` 函数体仅一行 `return <已有函数>(...)`，是经典二次包装：')
+        else:  # pragma: no cover —— 防御性兜底
+            block.append(f'   ❌ [阻断 · {reason}] 函数 `{name}`：')
+        if hits:
+            for rel, ln, sig in hits:
+                block.append(f'     {rel}:{ln}: {sig}')
         block.append('')
 
     block.extend([
-        '[说明] 本检查对齐 `代码规范.md §6.1.1 复用优先于二次抽象`：',
-        '   - 命中通常意味着：SDK / 通用模块已有等价实现，不必再写',
-        '   - 例外场景（如双版本兼容、duck type 故意同名）→ 请在 Claude Code confirm UI 中选择是否继续',
+        '[说明] 本检查对齐 `代码规范.md §6.1.1`：',
+        '   - 同文件重名 → 真 bug（后者覆盖前者），必须修复',
+        '   - 单行透传 wrapper → 真二次包装，建议直接调用底层或用装饰器（@retry / @lru_cache）',
+        '   - 跨文件同名（非单行透传）→ 已默认放行（Python import 是模块级作用域）',
+        '   - 例外场景（如 Python 故意重载、刻意重命名包装）→ 请在 Claude Code confirm UI 中选择是否继续',
         '',
-        '请在 Claude Code confirm UI 中确认是否继续；取消则改为复用已有实现。',
+        '请在 Claude Code confirm UI 中确认是否继续；取消则改为复用 / 合并。',
     ])
     return '\n'.join(block) + '\n'
 
 
-def format_warn_message(rel_path, duplicates_warn):
-    lines = [
-        '[mcpowers 提示 · v2.27.6 启发式降级] 命中函数同名但启发式判定为合法重名（已自动放行）：',
-        '',
-        f'   路径: {rel_path}',
-    ]
-    for name, hits, _sev, reasons in duplicates_warn:
-        reason_str = '·'.join(reasons) if reasons else '启发式'
-        lines.append(f'   ⚠ [降级 · 合法重名·{reason_str}] 函数 `{name}`：')
-        for rel, ln, sig in hits:
-            lines.append(f'     {rel}:{ln}: {sig}')
-        lines.append('')
-    lines.append('（已自动放行。如需强制复用/重命名，请手动调整。）')
-    return '\n'.join(lines) + '\n'
-
-
 def hook_main():
+    """hook 主入口。
+
+    读取 stdin 的 Claude Code JSON 工具调用，按 3 档规则判定是否 block：
+      1. 同文件内重名 → block
+      2. 跨文件同名 + 函数体单行透传 → block（gold standard）
+      3. 其他跨文件同名 → 默认放行（不计入 duplicates）
+    """
     raw = sys.stdin.read()
     try:
         data = json.loads(raw)
@@ -379,27 +340,27 @@ def hook_main():
     for name in sorted(new_names):
         if name in CONVENTION_NAMES or name in DUNDER_NAMES:
             continue
-        hits = git_grep_duplicate(repo_root, rel_path, name)
-        if not hits:
+        # 1. 同文件内重名检测（真 bug，必拦）
+        same_file_count = count_in_source(new_str, name)
+        if same_file_count >= 2:
+            duplicates.append((name, [], '同文件重名'))
             continue
-        new_sig = extract_signature(new_str, name)
-        is_wrapper = is_one_line_wrapper(new_str, name)
-        severity, reasons = decide_severity(rel_path, new_sig, is_wrapper, hits)
-        duplicates.append((name, hits, severity, reasons))
+        # 2. 跨文件扫描（辅助信息，仅供单行透传判定使用）
+        cross_hits = git_grep_duplicate(repo_root, rel_path, name)
+        if not cross_hits:
+            continue
+        # 3. 单行透传 wrapper 检测（gold standard 二次包装，必拦）
+        if is_one_line_wrapper(new_str, name):
+            duplicates.append((name, cross_hits, '单行透传'))
+            continue
+        # 4. 跨文件同名但不是单行透传 → 默认放行
+        #    （Python import 是模块级作用域，跨文件同名不冲突）
 
     if not duplicates:
         return 0
 
-    blocks = [d for d in duplicates if d[2] == 'block']
-    warns = [d for d in duplicates if d[2] == 'warn']
-
-    if blocks:
-        sys.stderr.write(format_block_message(rel_path, blocks))
-        return 2
-    if warns:
-        sys.stderr.write(format_warn_message(rel_path, warns))
-        return 0
-    return 0
+    sys.stderr.write(format_block_message(rel_path, duplicates))
+    return 2
 
 
 if __name__ == '__main__':

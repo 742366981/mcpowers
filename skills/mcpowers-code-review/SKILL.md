@@ -103,14 +103,14 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R7** | ❌ **业务代码绕过 `utils/loggings.py` 单独写清理/轮转逻辑**：自己写 `for f in glob('*.log.*'): os.system(f'gzip {f}')` | 与框架清理函数双跑；窗口语义模糊；详见 `日志规范.md §7.3` |
 | **R8** | ❌ **Python 函数/方法/类/条件块内部出现 `import` 或 `from … import`**（局部 import）：包括 `if TYPE_CHECKING` 放在函数内、`try/except ImportError` 写在函数体里 | 违反代码规范 §Python import 位置规范；物理门禁 `pre-write-check-import.sh` 会阻断；只有循环依赖或真正可选依赖且写明原因并由用户确认才可放行 |
 | **R9** | ❌ **未声明 stability / last_breaking_change 就改规范 frontmatter**（v2.27.4+）：新增 / 删除 / 重命名规范章节必须同步声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；破坏性变更还必须在 CHANGELOG Breaking Changes 段列出 | 违反代码规范 §CHANGELOG 强制破坏声明段；用户升级时无法判断兼容性；AI 引用规范时无法判断是否需主动提示风险 |
-| **R10** | ❌ **二次包装 vs 合法重名未区分**（v2.27.5 及之前 hook 行为）：仅按函数名命中就阻断，把 4 类典型合法重名（①同命名空间不同目录 `utils/a.py::format_response` vs `utils/b.py::format_response` ②同名异义签名 `parse(s)` vs `parse(s, strict=True)` ③绑定对象不同 `def parse(self, s)` vs `def parse(s)` ④单行透传真二次包装 `def run(x): return other.process(x)`）混为一谈 → 误报/漏报 | v2.27.6+ 必须走启发式分级：单行透传强化阻断；其余三类降级 warn 不弹 UI。审查时若看到 R10 旧行为（不分类全走 exit 2），CR 阻塞要求升级到 v2.27.6 |
+| **R10** | ❌ **重复检测 hook 未区分「真重复」与「合法重名」**（v2.28.2+ 已修复）：v2.27.5 之前 hook 仅按函数名命中就 block，v2.27.6~v2.28.1 走 4 类启发式分级（命名空间 / 签名 / 绑定方法 / 单行透传）——**两者都用启发式打补丁，源头是「跨文件同名默认视为重复」**。v2.28.2+ 回归极简：跨文件同名默认放行（Python import 是模块级作用域），仅「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类 block | 审查时若看到 R10 旧行为（跨文件同名默认 block，或 4 类启发式降级），CR 阻塞要求升级 hook 到 v2.28.2+ |
 
 **审查动作清单**（每个 PR 必跑）：
 
 1. **diff 内每个新 `def` 都过一遍**：用本仓库内置搜索命令找到仓库内同名 def，对照 PRD 看是否重复引入
 2. **新增 wrapper 类/管理器** 必须有明确职责（参数映射 / 批量调用 / 异常归一三选一），其他情况直接调底层
 3. **新增文件超过 100 行 且 ≥ 50% 是「call through」** → Critical，向作者追问「为什么这一层要存在」
-4. **同名函数跨文件出现 ≥ 2 次** → 提 `mcpowers-extract` 抽离公共模块
+4. **同名函数跨文件出现 ≥ 2 次** → 看是否真有共性：若只是业务模块各自实现（hook 默认放行），放过；若属真重复（多个 utils/a.py + utils/b.py 重复同一逻辑），提 `mcpowers-extract` 抽离公共模块
 5. **Python 文件完整扫描 + diff 扫描局部 import**：以全文件 AST 视角检查 `FunctionDef` / `AsyncFunctionDef` / `ClassDef` 体内是否新增 `import` / `from … import`；diff 中任意缩进 import 行（`+` 行）均视为新增违规；只有循环依赖或真正可选依赖且写明原因才可放行
 6. **v2.27.4+ 规范 stability 自检**：diff 涉及 `skills/mcpowers-shared/docs/技术规范/*.md` 任何文件时，检查 frontmatter 是否声明 `stability` + `last_breaking_change`；破坏性变更是否在 PR 描述里列出 CHANGELOG Breaking Changes 条目
 
@@ -144,19 +144,20 @@ rg --type py -n '^( +|\t+)(import|from\s+[^ ]+\s+import)' .
 
 > 命令 1 命中 → Critical 阻塞，必须改为模块级导入；命令 2 仅作为全文件盘点依据，不直接阻塞但应纳入修复计划。
 
-## v2.27.6+ 启发式分级 Quick-Check（review 必跑）
+## v2.28.2+ 单行透传 Quick-Check（review 必跑）
 
-> 对齐 `代码规范.md §6.1.1` v2.27.6 补充段。审查者收到 PR 后必须执行的单行透传扫描命令（gold standard——单行透传是真二次包装，必须阻断）：
+> 对齐 `代码规范.md §6.1.1` v2.28.2 补充段。v2.28.2+ hook 已简化：跨文件同名默认放行，只有「同文件重名」+「单行透传 wrapper」两类 block。**hook 自动处理这 2 类，review 主要是兜底扫描**——单行透传 wrapper 是 hook 唯一仍在拦截的跨文件二次包装信号（gold standard）。
 
 ```bash
 # 单行透传扫描：函数体仅一行 `return <已有函数>(...)` 的二次包装
+# （hook 已自动拦截，但 review 仍要扫一遍兜底——防止 hook 配置丢失 / 受保护路径漏过）
 git diff main...HEAD -U0 | rg -U "(?:async\s+)?(?:def|function|func|fn)\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\("
 # 或全文件视角（审查时优先用 diff 视角）
 rg --type py -U "def\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\(" .
 ```
 
 > 命令命中 → Critical 阻塞——这是最经典的二次包装，无论同/不同命名空间都必须复用底层。
-> 同命名空间跨段 / 同名异义 / 绑定对象不同 三类合法重名由 hook 自动降级，**不阻塞**；审查者只需把"单行透传"作为 R10 的强判定信号。
+> **跨文件同名（非单行透传）已不再由 hook / review 强制拦截**——属业务模块各自实现，是否抽离由作者按需提 `mcpowers-extract`（见上方审查动作清单第 4 条）。
 
 
 ## 审查后

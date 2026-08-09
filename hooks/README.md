@@ -9,7 +9,7 @@ mcpowers 通过 Claude Code 的 hooks 机制实现**铁律的硬约束**——LL
 | `SessionStart` | 每次 Claude Code 启动 | 注入路由器铁律摘要，AI 每轮对话开始就知道 mcpowers 流程 |
 | `PreToolUse (Bash)` | 每次执行 Bash 命令前 | 阻断 `rm -rf /`、`git push --force main` 等危险操作 |
 | `PreToolUse (Write)` | 每次 Write 文件前 | 保护核心资产（`skills/mcpowers/`、`skills/mcpowers-shared/`、`hooks/`、`.claude-plugin/`），需用户确认；接口变更时额外提示同步 API 文档 |
-| `PreToolUse (Write/Edit/MultiEdit)`（重复函数检测） | 每次新增 `def` / `function` 前 | v2.26.0+ 防过度抽象——与仓库已有同名定义冲突时弹 confirm UI |
+| `PreToolUse (Write/Edit/MultiEdit)`（重复函数检测） | 每次新增 `def` / `function` 前 | v2.28.2+ 防过度抽象——只有「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类弹 confirm UI；跨文件同名默认放行 |
 | `PreToolUse (Write/Edit/MultiEdit)`（Python import 位置检测） | 每次 Python 文件写入前 | v2.27.0+ 防局部 import——AST 检测函数/方法/类/条件块/装饰器内部的 import，命中则弹 confirm UI |
 | `PostToolUse (Write/Edit/MultiEdit)` | 每次修改后 | 改完即 commit 提醒（仅在已暂存且工作区干净时触发） |
 

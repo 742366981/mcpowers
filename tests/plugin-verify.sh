@@ -271,7 +271,8 @@ if [ -n "$PY_BIN" ]; then
 fi
 rm -rf "$TMP_DUPLICATE" 2>/dev/null || true
 
-# pre-write-check-duplicate v2.27.6 启发式分级行为断言
+# pre-write-check-duplicate v2.28.2 极简判定行为断言
+# 3 档判定：①同文件重名 → block ②跨文件同名 + 单行透传 → block ③其他跨文件同名 → 放行
 # 临时子仓：建一个独立 git 仓库、灌入 fixtures、再模拟 hook 检测
 if [ -n "$PY_BIN" ]; then
     TMP_HEUR="$REPO_DIR/tests/.tmp_heur_check"
@@ -280,7 +281,7 @@ if [ -n "$PY_BIN" ]; then
     cd "$TMP_HEUR"
     git init -q .
     git config user.email "verify@x" && git config user.name "verify"
-    # fixture1: utils/a.py::format_response + utils/b.py::format_response（基线）
+    # fixture1: utils/a.py::format_response + utils/b.py::format_response（跨文件同名基线）
     cat > src/utils/a.py <<'PYFIX'
 def format_response(data):
     return {"ok": True, "data": data}
@@ -296,63 +297,64 @@ PYFIX
         TMP_HEUR_WIN="$TMP_HEUR"
     fi
 
-    # case_a: 同一 utils 命名空间内第三个同名（应触发 [降级 · 命名空间]，exit 0）
-    PAYLOAD_A='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/c.py","content":"def format_response(item):\n    return {\"wrapped\": item}\n"}}'
+    # case_a: 跨文件同名（非单行透传）→ 默认放行，exit 0
+    PAYLOAD_A='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/c.py","content":"def format_response(item):\n    item = item.strip()\n    return {\"wrapped\": item}\n"}}'
     set +e
     STDERR_A=$(echo "$PAYLOAD_A" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
     RC_A=$?
     set -e
-    assert_eq "v2.27.6 case_a 命名空间内同名 → exit 0" "$RC_A" "0"
-    if echo "$STDERR_A" | grep -q "降级.*合法重名"; then
-        echo "  ✓ case_a stderr 含 [降级 · 合法重名]"
-        PASS=$((PASS + 1))
-    else
-        echo "  ✗ case_a stderr 缺 [降级 · 合法重名] 标签"
+    assert_eq "v2.28.2 case_a 跨文件同名（非单行透传）→ exit 0" "$RC_A" "0"
+    if echo "$STDERR_A" | grep -q "阻断"; then
+        echo "  ✗ case_a stderr 不应含 [阻断]"
         FAIL=$((FAIL + 1))
+    else
+        echo "  ✓ case_a 默认放行（无 [阻断]）"
+        PASS=$((PASS + 1))
     fi
 
-    # case_b: 签名差异（同 utils，但参数完全不同）→ 触发 [降级 · 签名]，exit 0
+    # case_b: 跨文件同名 + 签名差异 → 默认放行，exit 0
     PAYLOAD_B='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/d.py","content":"def format_response(text, strict, encoding):\n    return text if strict else encoding\n"}}'
     set +e
     STDERR_B=$(echo "$PAYLOAD_B" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
     RC_B=$?
     set -e
-    assert_eq "v2.27.6 case_b 签名差异 → exit 0" "$RC_B" "0"
-    if echo "$STDERR_B" | grep -q "降级.*合法重名"; then
-        echo "  ✓ case_b stderr 含 [降级 · 合法重名]"
-        PASS=$((PASS + 1))
-    else
-        echo "  ✗ case_b stderr 缺 [降级 · 合法重名] 标签"
-        FAIL=$((FAIL + 1))
-    fi
+    assert_eq "v2.28.2 case_b 跨文件同名 + 签名差异 → exit 0" "$RC_B" "0"
 
-    # case_c: 绑定方法混搭（class Formatter::def format_response(self, data)）→ 触发 [降级 · 绑定方法]，exit 0
+    # case_c: 跨文件同名 + 类内绑定方法 → 默认放行，exit 0
     PAYLOAD_C='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/utils/e.py","content":"class Formatter:\n    def format_response(self, data):\n        return data\n"}}'
     set +e
     STDERR_C=$(echo "$PAYLOAD_C" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
     RC_C=$?
     set -e
-    assert_eq "v2.27.6 case_c 绑定方法混搭 → exit 0" "$RC_C" "0"
-    if echo "$STDERR_C" | grep -q "降级.*合法重名"; then
-        echo "  ✓ case_c stderr 含 [降级 · 合法重名]"
-        PASS=$((PASS + 1))
-    else
-        echo "  ✗ case_c stderr 缺 [降级 · 合法重名] 标签"
-        FAIL=$((FAIL + 1))
-    fi
+    assert_eq "v2.28.2 case_c 跨文件同名 + 绑定方法 → exit 0" "$RC_C" "0"
 
-    # case_d: 单行透传（def format_response(text): return other.format_response(text)）→ 强化 [阻断]，exit 2
+    # case_d: 单行透传（gold standard 二次包装）→ 强化阻断，exit 2
     PAYLOAD_D='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/wrapper.py","content":"def format_response(text):\n    return some_other.format_response(text)\n"}}'
     set +e
     STDERR_D=$(echo "$PAYLOAD_D" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
     RC_D=$?
     set -e
-    assert_eq "v2.27.6 case_d 单行透传 → exit 2" "$RC_D" "2"
-    if echo "$STDERR_D" | grep -q "\[阻断\]"; then
-        echo "  ✓ case_d stderr 含 [阻断]"
+    assert_eq "v2.28.2 case_d 单行透传 → exit 2" "$RC_D" "2"
+    if echo "$STDERR_D" | grep -q "单行透传"; then
+        echo "  ✓ case_d stderr 含 [单行透传]"
         PASS=$((PASS + 1))
     else
-        echo "  ✗ case_d stderr 缺 [阻断] 标签"
+        echo "  ✗ case_d stderr 缺 [单行透传] 标签"
+        FAIL=$((FAIL + 1))
+    fi
+
+    # case_e: 同文件内重名 → 真 bug（Python 后者覆盖前者），exit 2
+    PAYLOAD_E='{"tool_input":{"file_path":"'$TMP_HEUR_WIN'/src/same_file.py","content":"def parse(data):\n    return json.loads(data)\n\ndef parse(data):\n    return json.loads(data) * 2\n"}}'
+    set +e
+    STDERR_E=$(echo "$PAYLOAD_E" | bash "$REPO_DIR/hooks/pre-write-check-duplicate.sh" 2>&1 >/dev/null)
+    RC_E=$?
+    set -e
+    assert_eq "v2.28.2 case_e 同文件内重名 → exit 2" "$RC_E" "2"
+    if echo "$STDERR_E" | grep -q "同文件重名"; then
+        echo "  ✓ case_e stderr 含 [同文件重名]"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ case_e stderr 缺 [同文件重名] 标签"
         FAIL=$((FAIL + 1))
     fi
 

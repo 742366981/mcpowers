@@ -245,6 +245,26 @@ rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {module_dir}/
 
 ---
 
+## 与 sdk-design 的边界精确对比（v2.28.3+ 新增）
+
+> **何时升级到 SDK**：当一个 min-module 开始封装**特定领域能力**（业务 API / 第三方服务 / 协议 / 数据库驱动）时，不是再加 min-module，而是用 `mcpowers-sdk-design` 升级产出 SDK。
+
+| 维度 | min-module（自身） | sdk-design（升级产物） |
+|:-----|:-------------------|:-----------------------|
+| **定位** | 纯技术能力（HTTP 客户端、加解密、重试器、日志框架、连接池等） | 特定领域能力封装（业务 API / 第三方服务 / 协议 / 数据库驱动） |
+| **自包含四件套** | ✅ 自己实现 | ✅ 自己实现（**不继承** min-module） |
+| **绝对零业务审计**（§0） | ✅ 必须 | ✅ 必须 |
+| **禁读环境变量** | ✅ 必须 | ✅ 必须 |
+| **defaults.ini + 覆盖合并** | ❌（可选硬编码常量） | ✅（必含，凭据全 `CHANGE_ME`） |
+| **构造时健康检查硬拒绝** | ❌ | ✅ |
+| **上游错误 vs 客户端错误分层重试** | ❌ | ✅（上游指数退避；客户端立即抛，**不重试**） |
+| **资源泄漏防护**（`with` 块 / `close()`） | ❌（按需） | ✅（必含） |
+| **可依赖已存在的 min-module** | ❌（自身就是） | ✅（`from x import ...` 公开 API 调用） |
+
+**详细 12 维度差异矩阵 + 复用机制（允许 import 公开 API、禁止 源码拷贝 / `_private_func` / `cp -r` 整个目录）** 详见 [`mcpowers-sdk-design/SKILL.md`](mcpowers-sdk-design/SKILL.md) §「与 min-module 的边界精确对比」。本段不复制内容（CLAUDE.md 单一权威源门禁）。
+
+---
+
 ## 关联技能
 
 - **上游**：`mcpowers-brainstorm`（边界不清时澄清）

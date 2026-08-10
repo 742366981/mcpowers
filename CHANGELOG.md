@@ -9,6 +9,17 @@
 
 - 待发布
 
+## v2.28.3 - 2026-08-10
+
+### Breaking Changes
+
+- 无。纯 SKILL.md 内部文档优化 + 元数据同步，不改变任何技能行为、Hook 检测、CI 门禁、规范。
+
+- **调整**：[`skills/mcpowers-sdk-design/SKILL.md`](skills/mcpowers-sdk-design/SKILL.md) 在「§0 绝对零业务审计」之后、「核心定义」之前插入「与 min-module 的边界精确对比」段——含 3 个子段：①一句话定位表（min-module vs sdk-design 各一句）②12 维度差异矩阵（基础铁律 4 项继承 + SDK 升级点 8 项 + 典型产物对照）③复用机制对照表（5 行允许/禁止清单：允许 `from x import` 公开 API + SDK 自重写四件套；禁止 拷贝 `_internal_helper` / `_private_func` / `cp -r` 整个目录）。位置选择理由：新读者读 SKILL.md 时先建差异化认知，再读硬性约束清单，避免"读着读着把 SDK 当成 min-module"。
+- **调整**：[`skills/mcpowers-min-module/SKILL.md`](skills/mcpowers-min-module/SKILL.md) 在「关联技能」之前插入「与 sdk-design 的边界精确对比」反向对偶段——含一句话「何时升级到 SDK」判定指引 + 9 维度反向对比表 + 一行相对路径指向 sdk-design SKILL.md 的详细段（不复制内容，遵循 CLAUDE.md 单一权威源门禁）。
+- **调整**：[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) `version` 2.28.2 → 2.28.3（patch bump，纯 SKILL.md 文档优化）；[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) 顶层 `version` + `plugins[0].version` 同步 bump。
+- **风险**：0 行为变更对外；纯 SKILL.md 文档强化 + 元数据同步；不动 description / frontmatter / 技能清单 / 路由 / 规范 / Hook；`mcpowers-spec-index` 不变；CI 门禁 `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 全绿。
+
 ## v2.28.2 - 2026-08-09
 
 ### Breaking Changes

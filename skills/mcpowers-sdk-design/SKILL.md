@@ -68,6 +68,63 @@ rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {sdk_dir}/
 
 ---
 
+## 与 min-module 的边界精确对比（v2.28.3+ 新增）
+
+> **新读者必读**：先把 SDK 和 min-module 的差异锚定，再读后续规则。
+> SKILL.md 内自带闭环，不依赖 CLAUDE.md / README.md 入口说明。
+
+### 一句话定位
+
+| 技能 | 一句话 |
+|:-----|:-------|
+| `mcpowers-min-module` | 把**纯技术能力**沉淀为「跨项目可搬运、自包含、绝对零业务」的最小工具模块（`Retry` / `Loggings` / `Validators` 等） |
+| `mcpowers-sdk-design` | 在最小模块基础上**叠加领域能力封装 + 健壮性纪律**，产出可独立分发的 SDK |
+
+### 详细差异矩阵
+
+| 维度 | min-module | sdk-design（升级点） |
+|:-----|:-----------|:---------------------|
+| **定位** | 纯技术能力（HTTP 客户端、加解密、重试器、日志框架、连接池等） | 特定领域能力封装（业务 API / 第三方服务 / 协议封装 / 数据库驱动） |
+| **自包含四件套**（日志 / 异常 / 配置 / 验证） | ✅ 必须（自己实现） | ✅ 必须（**自己实现，不继承自 min-module**） |
+| **绝对零业务审计**（§0） | ✅ 必须 | ✅ 必须 |
+| **可独立 import / 复制即用** | ✅ 必须 | ✅ 必须 |
+| **禁读环境变量** | ✅ 必须 | ✅ 必须 |
+| **可依赖已存在的 min-module** | ❌（自身就是 min-module） | ✅（`from min_module import ...` 公开 API 调用，详见下表） |
+| **defaults.ini + 覆盖合并** | ❌（可选硬编码常量） | ✅（必含，凭据字段全 `CHANGE_ME`） |
+| **构造时健康检查硬拒绝** | ❌ | ✅（不懒加载，`ConfigError` 立即抛） |
+| **上游错误 vs 客户端错误分层重试** | ❌ | ✅（上游指数退避；客户端立即抛，**不重试**） |
+| **资源泄漏防护**（`with` 块 / `close()`） | ❌（按需） | ✅（session / connection / handle 全覆盖） |
+| **双模式互斥**（sync/async） | ❌ | ✅（强烈建议；简单 SDK 可不启用） |
+| **通讯层中立** | ⚠️ 仅含 IO 时要求 | ✅（每个 SDK 必选 HTTP / gRPC / WS / CLI / DB / 第三方库） |
+| **领域能力清单产出** | ❌（纯技术能力） | ✅（必产出：能力 / 通讯层 / 输入 / 输出 / 错误模式） |
+| **典型产物举例** | `loggings.py` / `validators.py` / `retry.py` / `connection_pool.py` | `<抽象领域>_sdk/` / `client.py` + `config.py` + `exceptions.py` + `verify.py` |
+
+### 复用机制（SDK 如何使用 min-module）
+
+SDK 与 min-module 的关系 = **「第三方库调用」**，不是"源码集成"。
+
+| 行为 | 是否允许 | 说明 |
+|:-----|:---------|:-----|
+| `from min_module import Retry, Loggings; Retry().execute(...)` | ✅ | Python 标准 import + 公开 API 调用 |
+| SDK 自己重写四件套（不抄 min-module） | ✅ | 因为 SDK 是独立分发包，不能假设调用方已装 min-module |
+| 把 min-module 的 `def _internal_helper` 拷贝进 SDK | ❌ | 违反 DRY + 失去独立性 + 同步维护成本 |
+| `from min_module import _private_func` | ❌ | 违反单下划线私有名约定 |
+| 把 min-module 整个目录 `cp -r` 进 SDK | ❌ | 违反"自包含"原则 + 跨项目搬运时 SDK 会带一大堆无关文件 |
+
+**为什么 SDK 必须自己重写四件套？**
+- SDK 是独立可分发包，不能假设调用方已装 min-module
+- 调用方只装 SDK 不装 min-module 时，SDK 必须能跑
+- 这与"SDK 可以 import min-module"**不矛盾**——两者并存的两种情况：
+  - (a) SDK 自己实现四件套 + `import min_module` 的特定公开 API（如 `Retry`）
+  - (b) SDK 完全自包含（不 import 任何 min-module）——`from min_module import ...` 一句都不写
+
+**复用判断决策**（SDK 端 Step 3「混合复用判断」已定义，此处不重复）：
+- 用户声明「我用了 X」 → 直接 `import`
+- AI 扫描命中候选 → 一次 `AskUserQuestion` 集中询问
+- 都没命中 → SDK 自包含（不询问）
+
+---
+
 ## 核心定义
 
 | 要求 | 说明 |

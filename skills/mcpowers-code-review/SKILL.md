@@ -104,6 +104,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R8** | ❌ **Python 函数/方法/类/条件块内部出现 `import` 或 `from … import`**（局部 import）：包括 `if TYPE_CHECKING` 放在函数内、`try/except ImportError` 写在函数体里 | 违反代码规范 §Python import 位置规范；物理门禁 `pre-write-check-import.sh` 会阻断；只有循环依赖或真正可选依赖且写明原因并由用户确认才可放行 |
 | **R9** | ❌ **未声明 stability / last_breaking_change 就改规范 frontmatter**（v2.27.4+）：新增 / 删除 / 重命名规范章节必须同步声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；破坏性变更还必须在 CHANGELOG Breaking Changes 段列出 | 违反代码规范 §CHANGELOG 强制破坏声明段；用户升级时无法判断兼容性；AI 引用规范时无法判断是否需主动提示风险 |
 | **R10** | ❌ **重复检测 hook 未区分「真重复」与「合法重名」**（v2.28.2+ 已修复）：v2.27.5 之前 hook 仅按函数名命中就 block，v2.27.6~v2.28.1 走 4 类启发式分级（命名空间 / 签名 / 绑定方法 / 单行透传）——**两者都用启发式打补丁，源头是「跨文件同名默认视为重复」**。v2.28.2+ 回归极简：跨文件同名默认放行（Python import 是模块级作用域），仅「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类 block | 审查时若看到 R10 旧行为（跨文件同名默认 block，或 4 类启发式降级），CR 阻塞要求升级 hook 到 v2.28.2+ |
+| **R11** | ❌ **控制台日志级别未紧凑打印 / StreamHandler 未显式指定 stdout**（v2.28.4+）：`CONSOLE_FORMAT` 含 `%(levelname)-8s` 等宽度填充 → 终端输出 `[INFO   ]` 带多余空格；或 `logging.StreamHandler()` 不传 `stream` → 默认走 stderr → PyCharm / IntelliJ 给所有日志整体染红。两者违反 `日志规范.md §7.5` | 控制台 formatter 必须用 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）；StreamHandler 必须显式 `stream=sys.stdout`；CR 看到 `[INFO   ]` 或 PyCharm 染红即阻塞，要求改回 `%(levelname)s` + `stream=sys.stdout` |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -158,6 +159,22 @@ rg --type py -U "def\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\(" .
 
 > 命令命中 → Critical 阻塞——这是最经典的二次包装，无论同/不同命名空间都必须复用底层。
 > **跨文件同名（非单行透传）已不再由 hook / review 强制拦截**——属业务模块各自实现，是否抽离由作者按需提 `mcpowers-extract`（见上方审查动作清单第 4 条）。
+
+## v2.28.4+ 控制台日志级别紧凑 + stdout Quick-Check（review 必跑）
+
+> 对齐 `日志规范.md §7.5` + `Flask后端规范.md §6.1` 控制台实现层。审查者收到 PR 后必须执行的 2 条扫描命令：
+
+```bash
+# 1. diff 内控制台 formatter 是否含 %(levelname)-Ns 宽度填充（命中即违规，应为 %(levelname)s）
+git diff main...HEAD -U0 | rg "%\(levelname\)-[0-9]+s"
+
+# 2. diff 内 StreamHandler() 是否显式传 stream=sys.stdout（未传即违规）
+git diff main...HEAD -U0 | rg "StreamHandler\(\s*\)" | rg -v "stream="
+```
+
+> 命令 1 命中 → Critical 阻塞——formatter 字符串里 `%(levelname)-Ns` 宽度填充会输出 `[INFO   ]` 带填充空格；要求改回 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）。（注：`colorlog.ColoredFormatter(reset=True)` 只控制 ANSI 颜色重置，**不**控制 levelname 宽度——宽度由 format 字符串决定。）
+>
+> 命令 2 命中 → Critical 阻塞——Python `logging.StreamHandler()` 默认 `sys.stderr`，PyCharm / IntelliJ 会把 stderr 整体染红，即使日志级别是 INFO / DEBUG；必须显式 `stream=sys.stdout`。
 
 
 ## 审查后

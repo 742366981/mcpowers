@@ -4,9 +4,9 @@ type: tech-spec
 applies_to: [Flask后端]
 priority: required
 version: 1.1
-last_updated: 2026-08-05
+last_updated: 2026-08-10
 stability: evolving
-last_breaking_change: v2.22.0
+last_breaking_change: v2.28.4
 ---
 
 # Flask后端项目规范
@@ -709,10 +709,10 @@ def init_request_log(app):
 
 ## 6. 日志规范（强制）
 
-> **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则、轮转与免压缩窗口 → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关；v2.26.0 新增 §7.3 免压缩窗口）。
+> **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则、轮转与免压缩窗口、级别紧凑打印、控制台走 stdout → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关；v2.26.0 新增 §7.3 免压缩窗口；v2.28.4 新增 §7.5 级别紧凑 + 控制台 stdout）。
 >
 > **本节只保留 3 件事**：
-> 1. `utils/loggings.py` 封装类的实现（含免压缩窗口实现）
+> 1. `utils/loggings.py` 封装类的实现（含免压缩窗口实现 + §7.5 级别紧凑 + stdout）
 > 2. 全局请求日志中间件 `utils/request_log.py` 的实现（§5.2）
 > 3. 免压缩窗口与清理函数的配置/调用方式
 >
@@ -757,6 +757,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import threading
 from datetime import datetime
 
@@ -802,6 +803,8 @@ SENSITIVE_FIELDS = {
 
 MAX_FIELD_SIZE = 2048           # 日志规范 §4.1：单字段 > 2KB 截断
 MAX_FILE_BYTES = 200 * 1024 * 1024   # 日志规范 §7.2：单文件 ≤ 200MB
+# 日志规范 §7.5.1（v2.28.4+）：级别字段必须紧凑，禁止 %(levelname)-8s 等宽度填充
+# colorlog.ColoredFormatter 默认会改写 %(levelname)s 为 %(levelname)-8s，需手动覆盖 reset=True
 CONSOLE_FORMAT = '%(asctime)s [%(levelname)s] [%(log_type)s] %(name)s - %(message)s'
 LOG_COLORS_CONFIG = {'DEBUG': 'cyan', 'INFO': 'green', 'WARNING': 'yellow',
                      'ERROR': 'red', 'CRITICAL': 'bold_red'}
@@ -944,10 +947,12 @@ def get_logger(log_type):
             # 2) ERROR+ 聚合流（多路复制，原 type 流不断裂）
             logger.addHandler(_file_handler('error.log', logging.ERROR, json_formatter))
             # 3) 控制台：开发彩色文本 / 线上 JSON，由环境变量切换
-            console = logging.StreamHandler()
+            # 日志规范 §7.5.2（v2.28.4+）：显式 stream=sys.stdout，避免 PyCharm 给 stderr 染红
+            console = logging.StreamHandler(stream=sys.stdout)
             console.setLevel(LOG_LEVEL)
+            # 日志规范 §7.5.1（v2.28.4+）：reset=True 禁止 colorlog 默认把 %(levelname)s 改写为 %(levelname)-8s
             console.setFormatter(json_formatter if LOG_CONSOLE_JSON else colorlog.ColoredFormatter(
-                f'%(log_color)s{CONSOLE_FORMAT}', log_colors=LOG_COLORS_CONFIG))
+                f'%(log_color)s{CONSOLE_FORMAT}', log_colors=LOG_COLORS_CONFIG, reset=True))
             logger.addHandler(console)
 
         _LOGGER_CACHE[log_type] = logger

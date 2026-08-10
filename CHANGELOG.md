@@ -9,6 +9,20 @@
 
 - 待发布
 
+## v2.28.4 - 2026-08-10
+
+### Breaking Changes
+
+- 无。`日志规范.md` 新增 §7.5「级别紧凑打印 + 控制台输出流」2 条铁律（仅约束以前默认行为不正确的实现，**不改变任何已符合预期实现的用户项目**）；`Flask后端规范.md §6.1` `utils/loggings.py` 实现层同步对齐新铁律（compact 级别 + stdout）。对早已实现 `stream=sys.stdout` 的项目 0 行为变更；对依赖 colorlog 默认 padding（输出 `[INFO   ]`）的项目从下次部署起输出 `[INFO]`，CR 看新 diff 时按 R11 兜底。
+
+- **新增**：[`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §7.5「级别紧凑打印 + 控制台输出流（v2.28.4+ 强制）」——含 2 条铁律：①**级别字段必须紧凑**（formatter 用 `%(levelname)s` 或 `%(levelname).1s`，禁止 `%(levelname)-8s` / `%(levelname)-5s` 等宽度填充；colorlog 默认会把 `%(levelname)s` 改写为 `%(levelname)-8s`，需 `reset=True` 抑制）；②**控制台 handler 必须显式 `stream=sys.stdout`**（禁止 `logging.StreamHandler()` 默认 stderr —— PyCharm / IntelliJ 会把 stderr 整体染红，即使日志级别是 INFO / DEBUG）；§7.4 控制台 vs 文件的格式差异 表加 1 行说明；§10 反模式黑名单 加 #12（控制台 formatter 宽度填充）和 #13（StreamHandler 默认 stderr）两条 Critical；§12 自检清单加 2 条（级别紧凑 + stdout）。
+- **调整**：[`Flask后端规范.md §6.1`](skills/mcpowers-shared/docs/技术规范/Flask后端规范.md) `utils/loggings.py` 实现层对齐 §7.5——①`import sys` 加到 import 区；②`CONSOLE_FORMAT = '%(asctime)s [%(levelname)s] [%(log_type)s] %(name)s - %(message)s'` 注释加 §7.5.1 引用（本身已无宽度填充，配合 `reset=True` 才能不被 colorlog 改写）；③`console = logging.StreamHandler()` → `console = logging.StreamHandler(stream=sys.stdout)`；④`colorlog.ColoredFormatter(...)` 加 `reset=True` 抑制默认 padding；§6 顶部描述同步加 v2.28.4 + §7.5 引用；frontmatter `last_updated: 2026-08-05` → `2026-08-10`、`last_breaking_change: v2.22.0` → `v2.28.4`。
+- **调整**：[`爬虫规范.md §12`](skills/mcpowers-shared/docs/技术规范/爬虫规范.md) 加 1 行 v2.28.4+ 引用「控制台输出 → 见 `日志规范.md §7.5`」——爬虫脚本常在 PyCharm / VSCode 跑任务，依赖 Flask §6.1 的 `get_logger` 控制台 handler 已显式 `stream=sys.stdout` + `reset=True` 级别紧凑；爬虫项目禁止自行实现控制台 handler。
+- **调整**：[`mcpowers-spec-index/SKILL.md`](skills/mcpowers-shared/mcpowers-spec-index/SKILL.md) 查表行「任何写日志 / 排查日志 / 设计日志体系」补 v2.28.4+ §7.5 描述；规范树注释 + 加载指引同步。
+- **新增**：[`mcpowers-code-review/SKILL.md`](skills/mcpowers-code-review/SKILL.md) R11 反模式条目（v2.28.4+ 控制台日志级别未紧凑打印 / StreamHandler 未显式指定 stdout——`日志规范.md §7.5`）+ 新 Quick-Check 段「v2.28.4+ 控制台日志级别紧凑 + stdout Quick-Check」含 2 条扫描命令（`%(levelname)-Ns` 宽度填充 + `StreamHandler()` 未传 stream）。
+- **调整**：[`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) `version` `2.28.3` → `2.28.4`（patch bump，纯日志实现层约束加固）；[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) 顶层 `version` + `plugins[0].version` 同步 bump。
+- **风险**：仅日志控制台输出的**格式细节**变更（输出长度变化 + 流方向变化）——级别从 `[INFO   ]`（8 字符）→ `[INFO]`（6 字符），stdout 流从应用控制可见改为显式；**stderr 现在不再被应用控制**，若有项目需要把 ERROR+ 同时输出到 stderr，由 §6.1 的「ERROR+ 聚合流 `error.log`」+ 配置文件 `LOG_CONSOLE_JSON=False`（走 stdout 文件输出）兜底，不要用 stderr 双跑。CI 门禁 `bash scripts/check-readme-sync.sh` + `bash tests/plugin-verify.sh` 全绿。
+
 ## v2.28.3 - 2026-08-10
 
 ### Breaking Changes

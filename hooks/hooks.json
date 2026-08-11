@@ -43,6 +43,10 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-spec-frontmatter.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-doc-sync.sh\""
           }
         ]
       },
@@ -60,6 +64,10 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-spec-frontmatter.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-doc-sync.sh\""
           }
         ]
       }

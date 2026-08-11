@@ -9,6 +9,28 @@
 
 - 待发布
 
+## v2.29.0 - 2026-08-11
+
+### Breaking Changes
+
+- **废弃**：`mcpowers-doc-sync-install` 技能（`skills/mcpowers-doc-sync-install/SKILL.md` + 整个目录）+ 5 个 `scripts/templates/project-doc-sync-*` 模板 + 整个 `scripts/templates/` 目录已删除。可路由技能 33 → 32（24 场景 + 8 方法）；路由器 SKILL.md L1 description、强制分流表、§3.2 方法层清单、§2.4 多意图裁决段 4 处已同步移除 `doc-sync-install`。**用户手动清理**：已装项目（v2.9.0 ~ v2.28.4 期间使用过 `mcpowers-doc-sync-install` 的）需手动删除 `scripts/check-doc-sync.sh` + `.doc-sync-rules.yml` + `.git/hooks/pre-commit` 里 doc-sync 段，mcpowers v2.29.0+ 不再生成这些文件。
+
+### 新增
+
+- **物理门禁**：[`hooks/pre-write-check-doc-sync.sh`](hooks/pre-write-check-doc-sync.sh)（v2.29.0+ 强制）：PreToolUse(Write|Edit|MultiEdit) hook；快速过滤可能影响 doc 同步的文件路径（README / `app/*.py` / `src/router/*.ts` / `scripts/*.sh` / `.env.example` / `requirements.txt` / `package.json`）→ 调 [`skills/mcpowers-shared/scripts/doc-sync-check.sh`](skills/mcpowers-shared/scripts/doc-sync-check.sh)（v2.29.0+ 新增）→ 失败 exit 2 触发 Claude Code confirm UI。和现有 `pre-write-check-duplicate.sh` / `pre-write-check-import.sh` / `pre-write-check-spec-frontmatter.sh` 同档次物理门禁。**不向用户项目注入任何文件**，装 mcpowers 即自动支持。
+- **集中 helper**：[`skills/mcpowers-shared/scripts/doc-sync-check.sh`](skills/mcpowers-shared/scripts/doc-sync-check.sh)（v2.29.0+ 新增）：三类检查 `path_in_doc`（README 中 `scripts/*.sh` / `bin/*.py` 路径必须真实存在）+ `route_in_doc`（`@app.route` / `createRouter` 路径必须出现在 `docs/api.md` / `docs/API文档/API文档.md` / 视图 docstring）+ `env_in_doc`（`.env.example` 中所有 KEY 必须出现在配置文档）。可被 hook 自动调用，也可在对话里手动跑 `bash ${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/scripts/doc-sync-check.sh`。
+- **hooks.json 注册**：[`hooks/hooks.json`](hooks/hooks.json) 在 PreToolUse(Write) 与 PreToolUse(Edit|MultiEdit) 两个 matcher 下各加一行调 `pre-write-check-doc-sync.sh`。事件组计数仍为 4（SessionStart / PreToolUse-Bash / PreToolUse-Write+Edit+MultiEdit / PostToolUse）；脚本数 8 → 9。
+
+### 调整
+
+- **[`skills/mcpowers/SKILL.md`](skills/mcpowers/SKILL.md)**：L1 description `doc-sync-install` 移除；强制分流表第 59 行删；§2.4 多意图裁决段第 114 行（`install-basics-skills` vs `doc-sync-install`）删；§3.2 方法层清单删；§4 末尾可路由技能数 33 → 32。
+- **[`skills/mcpowers-init/SKILL.md`](skills/mcpowers-init/SKILL.md)**：移除 5 处 `mcpowers-doc-sync-install` 引用（编排表 / 阶段 C 选项 / "目标"段 / cp 命令 / 收尾清单）。init 阶段不再自动装 doc-sync——纪律由 mcpowers hook 全局接管。
+- **4 个场景技能自检清单**：[`mcpowers-feat`](skills/mcpowers-feat/SKILL.md) / [`mcpowers-bugfix`](skills/mcpowers-bugfix/SKILL.md) / [`mcpowers-refactor`](skills/mcpowers-refactor/SKILL.md) / [`mcpowers-requirement-change`](skills/mcpowers-requirement-change/SKILL.md) 自检清单里「如项目已装 .doc-sync-rules 纪律，已跑 `bash scripts/check-doc-sync.sh` 验证」行删除——hook 已自动物理检查，AI 不再需要手动跑脚本。
+- **[`skills/mcpowers-shared/docs/技术规范/代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)** 第 185 行 `项目级纪律 v{major}.{minor}.{patch}（由 mcpowers-doc-sync-install 注入）` 注释删除；保留"禁硬编码版本号"通用规则。
+- **[`CLAUDE.md`](CLAUDE.md)**：§核心结构表 + §触发条件 + §设计维度 总数 33 → 32；hooks/ 行由「4 事件组 / 8 脚本」扩到「4 事件组 / 9 脚本」+ 加 v2.29.0+ doc-sync 物理门禁说明；注入物版本号写死禁令段里的 `.doc-sync-rules.yml` / `.doc-sync-check.sh` 模板示例移除。
+- **[`README.md`](README.md)**：计数 + 目录树 + 触发映射表 + 平台支持矩阵 6 处同步；hooks 行扩到 9 脚本 + v2.29.0+ doc-sync 物理门禁说明。
+- **版本号 bump**：`plugin.json` / `marketplace.json` 顶层 + `plugins[0]` `version` 2.28.4 → 2.29.0（minor bump：删除技能 + 新增物理门禁 = 能力增减而非接口破坏）；顶层 description「25 场景 + 8 方法」→「24 场景 + 8 方法」；`plugins[0].description`「33 个技能」→「32 个技能」。
+
 ## v2.28.4 - 2026-08-10
 
 ### Breaking Changes

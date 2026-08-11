@@ -94,7 +94,6 @@ description: "重构 / 代码重构 / 整理代码 / 拆分代码 / 重写 → �
 - [ ] 接口签名未改（如需改接口则走 mcpowers-requirement-change 而非 refactor）
 - [ ] **文档与代码同步（v2.9.0+ 必检）**
   - [ ] 如重构涉及接口签名/路由/数据结构，已同步更新对应文档
-  - [ ] 如项目已装 .doc-sync-rules 纪律，已跑 `bash scripts/check-doc-sync.sh` 验证
 - [ ] 代码和文档已同 commit
 
 ---

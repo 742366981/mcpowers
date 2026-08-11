@@ -8,9 +8,9 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 |:-----|:-----|
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
-| `skills/mcpowers-*` | **33 个可路由技能**（场景层 25 + 方法层 8，扁平化） |
+| `skills/mcpowers-*` | **32 个可路由技能**（场景层 24 + 方法层 8，扁平化） |
 | `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除） |
-| `hooks/` | Claude Code hooks 资产（4 个事件组 / 8 个脚本 + `hooks.json`；v2.28.2+ 含 `pre-write-check-duplicate.sh` 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 + 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder 协议方法 + 单下划线私有名）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明） |
+| `hooks/` | Claude Code hooks 资产（4 个事件组 / 9 个脚本 + `hooks.json`；v2.28.2+ 含 `pre-write-check-duplicate.sh` 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 + 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder 协议方法 + 单下划线私有名）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明；**v2.29.0+ 含 `pre-write-check-doc-sync.sh` doc-sync 物理门禁（path/route/env 三类检查）——替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，不向用户项目注入任何文件，装 mcpowers 即自动支持**） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
 
@@ -46,7 +46,6 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 - **混合App逆向/uni-app/React Native/Cordova/Capacitor/WebView/JSBridge/Hermes** → `mcpowers-reverse-hybrid`
 - **小程序逆向/小游戏/微信小程序/支付宝小程序/抖音小程序/百度小程序/wxapkg** → `mcpowers-reverse-miniprogram`
 - **抽离公共模块/抽离通用能力/提取可复用组件/拆出独立库/爬虫逆向层剥离/抽成公共库/做成可调用脚本/模块化调用** → `mcpowers-extract`
-- **装项目级文档同步纪律/给现有项目加 doc-sync/一键安装校验+hook/安装 .doc-sync-rules** → `mcpowers-doc-sync-install`
 - **commit/提交** → `mcpowers-git-commit`
 - **worktree/分支隔离** → `mcpowers-git-worktree`
 - **回滚/撤销** → `mcpowers-git-rollback`
@@ -73,8 +72,6 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 **v2.28.2 补充：重复检测行为简化**——上述 3 档判定的设计动机：v2.27.6 之前 hook 默认按函数名一刀切 block，v2.27.6~v2.28.1 走 4 类启发式分级（命名空间跨段 / 签名差异 / 绑定方法 / 单行透传），但**两者都用启发式打补丁，源头是「跨文件同名默认视为重复」**——跨文件同名是合法常态（业务模块各自的 `parse(data)` 等），v2.28.2 砍掉 3 类启发式降级，回归「只有真 bug 才拦」的极简原则；新增「同文件内重名」检测（`count_in_source` 扫新内容内同名 def ≥ 2 即 block）修复原 hook 显式跳过新文件自身的反向 bug。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) §6.1.1 v2.28.2 补充段。审查门禁：`mcpowers-code-review` R10 描述从「v2.27.6 启发式分级」改为「v2.28.2+ hook 已简化」+ Quick-Check 段从「v2.27.6+ 启发式分级」改为「v2.28.2+ 单行透传」。
 
 **日志免压缩窗口（v2.26.0+ 强制基线）**：日志文件轮转后**不立即** gzip——保留最近 N 天的轮转文件为明文（默认 7 天，`keep_recent_uncompressed_days = 7`，可配 `0` 表示立即压缩）；超过窗口的轮转文件才压缩为 `.gz`；超过保留期的 `.gz` 文件清理。详见 [`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §7.2 + §7.3「轮转 → 清理 → 压缩时序」4 阶段；栈级落地见 `Flask后端规范.md §6.3` 的 `compress_old_logs` / `purge_old_logs` 双函数（爬虫项目复用同一对函数，详见 `爬虫规范.md §12.3`）。
-
-**mcpowers 注入路径稳定性（v2.27.1+ 全栈适用铁律）**：mcpowers 注入到用户项目的内容（CLAUDE.md 段、`utils/loggings.py`、`.doc-sync-rules.yml`、`.git/hooks/pre-commit`、模板等）**禁止**含物理路径字面值——`~/.claude/plugins/cache/mcpowers/mcpowers/{version}/...`（升级即失效）、`~/.claude/plugins/marketplaces/mcpowers/...`（本地开发模式才是这条，与 GitHub 模式混用会解析错）、`~/.claude/skills/mcpowers-shared/...`（v2.0+ 已废弃）、自定义占位符如 `<mcpowers>`。AI 引用规范**只写抽象路径**（如 `mcpowers-shared/docs/技术规范/Flask后端规范.md §6.3`）；AI 在 Claude Code 会话里跑 bash 需要物理路径时用 `${CLAUDE_PLUGIN_ROOT}/...`（Claude Code 框架在调用工具前自动展开的字符串占位符，**不是 shell / Python 进程环境变量**；AI 在源文件运行时**读不到**它）；**不**提议"软链 mcpowers-shared/docs 到项目 docs/"。**安装方式决定物理路径**：① 本地开发模式（`/plugin marketplace add <本地仓库路径>`）→ `${CLAUDE_PLUGIN_ROOT}` = `~/.claude/plugins/marketplaces/mcpowers`（**不带版本号**）；② GitHub 插件市场模式（`marketplace add https://...` + install）→ `${CLAUDE_PLUGIN_ROOT}` = `~/.claude/plugins/cache/mcpowers/mcpowers/{version}/`（**带版本号**）。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md) 「最高铁律 · mcpowers 注入路径稳定性」段。
 
 **Python import 顶层（v2.27.0+ 全栈适用铁律）**：Python 文件的 `import` / `from ... import ...` 必须位于模块级导入区，按标准库、第三方、本项目模块分组；函数、方法、类体、条件块、装饰器内部禁止局部 import。局部 import 仅在循环依赖或真正可选依赖时可例外，且必须写明原因并由用户确认；禁止以"延迟加载 / 按需使用 / 性能优化"作为默认理由。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「Python import 位置规范」段。物理兜底：`hooks/pre-write-check-import.sh`（含 `check_python_import_placement.py`）在 `PreToolUse(Write|Edit|MultiEdit)` 时 AST 检测新增的局部 import，命中则弹 Claude Code confirm UI（exit 2）；Write 视为覆盖、Edit/MultiEdit 仅 diff 新增违规。规范层落地：`mcpowers-feat` / `mcpowers-tdd` / `mcpowers-code-review` 已在自检清单与审查维度加 import 位置检查，`mcpowers-code-review` 增 R8 反模式条目与「v2.27.0+ Python import 位置扫描 Quick-Check」grep 两条。
 
@@ -122,7 +119,6 @@ git@github.com:742366981/mcpowers.git
 - 检查 CLAUDE.md 或 README.md 是否在同一 PR 中变化（**未变化则 PR 红 X**，从"AI 自觉"升级为"合并前硬阻止"）
 
 本地开发可选装 pre-commit hook（参考 README 末尾的 `.git/hooks/pre-commit` 示例）。
-
 
 ## Skill Description 编写规范（强制）
 
@@ -223,7 +219,7 @@ for f in sorted(os.listdir('skills')):
 
 ## 设计维度
 
-- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（33 个可路由技能），按意图关键词精准分流
+- **精准路由**：单入口路由器（`skills/mcpowers/`）+ 扁平化技能目录（32 个可路由技能），按意图关键词精准分流
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断

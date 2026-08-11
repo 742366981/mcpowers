@@ -209,4 +209,3 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
 - [ ] 代码和文档已同 commit
 - [ ] **文档与代码同步（v2.9.0+ 必检）**
   - [ ] 如本次改动涉及对外接口/路由/数据库表/环境变量/部署脚本，已同步更新对应文档（docs/api.md / README.md / CHANGELOG.md 等）
-  - [ ] 如项目已装 .doc-sync-rules 纪律，已跑 `bash scripts/check-doc-sync.sh` 验证

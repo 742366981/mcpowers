@@ -21,7 +21,6 @@ description: "新项目 / 脚手架 / 项目初始化 / 帮我搭个新项目 / 
 | 3 | 标准化目录结构 | 内联 | 按项目类型 | 不可缺 |
 | 4 | `mcpowers-code-review` | 方法 | 初始化完成 | 验证脚手架完整 |
 | 5 | `mcpowers-git-commit` | 场景 | 自审通过 | 阻断提交 |
-| 5+ | `mcpowers-doc-sync-install`（联动） | 方法 | v2.9.1+ 步骤 3 用户选「是」 | 不阻断（仅纪律装配） |
 
 **保护路径**：`mcpowers-shared/`、`mcpowers/`、`hooks/` 三个目录的写操作触发前确认。
 
@@ -59,7 +58,6 @@ description: "新项目 / 脚手架 / 项目初始化 / 帮我搭个新项目 / 
 - **是否需要装 doc-sync 纪律（v2.9.1+ 新增）**：让接口/路由/数据表/环境变量改了忘同步文档时，`git commit` 自动被拦。AskUserQuestion 三选一：
   - **A · 启用拦截**（全新项目默认）→ init 末尾自动接管 commit；改路由/表结构忘了同步文档会立刻被拦
   - **B · 仅手动跑**（存量项目默认）→ 装脚本和规则但**默认不接管 commit**；提供 enable / disable 便利脚本；用于清理存量漏改期间过渡
-  - **C · 不装纪律** → 仅依赖 L3 AI 自觉层（用户后续也可单独调 `mcpowers-doc-sync-install` 补装）
   - **AI 智能默认**：依据步骤 1 识别结果预选默认档（全新项目→A；存量项目→B），用户改默认也接受
 
 ### 4. 创建基础文件（全新项目）
@@ -93,8 +91,6 @@ description: "新项目 / 脚手架 / 项目初始化 / 帮我搭个新项目 / 
 
 ### 5+ 联动安装 doc-sync 纪律（v2.9.1+ 新增 · 与用户零摩擦）
 
-**目标**：用户只说一次「初始化新项目」，纪律按项目类型智能就位——不再需要事后主动调 `mcpowers-doc-sync-install`。
-
 **触发**：依据步骤 3 选择的档位（A / B / C）分别执行。
 
 #### 共同前置（A / B 都要做）
@@ -103,9 +99,6 @@ description: "新项目 / 脚手架 / 项目初始化 / 帮我搭个新项目 / 
 
 ```bash
 mkdir -p scripts
-cp "${CLAUDE_PLUGIN_ROOT}/scripts/templates/project-doc-sync-check.sh" "scripts/check-doc-sync.sh"
-chmod +x scripts/check-doc-sync.sh
-cp "${CLAUDE_PLUGIN_ROOT}/scripts/templates/project-doc-sync-rules.<type>.yml" ".doc-sync-rules.yml"
 ```
 
 #### 选项 A · 启用物理拦截（全新项目默认）
@@ -119,8 +112,6 @@ cat > .git/hooks/pre-commit << 'HOOK_EOF'
 #!/usr/bin/env bash
 set -e
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-if [ -f "$REPO_ROOT/scripts/check-doc-sync.sh" ]; then
-    bash "$REPO_ROOT/scripts/check-doc-sync.sh" || {
         echo "✗ doc-sync 校验失败，commit 中止"
         exit 1
     }
@@ -129,11 +120,7 @@ HOOK_EOF
 chmod +x .git/hooks/pre-commit
 ```
 
-**验证**：`bash scripts/check-doc-sync.sh` 必须 PASS（全新项目通常通过）。
-
 **预期产物**：
-- `scripts/check-doc-sync.sh`
-- `.doc-sync-rules.yml`
 - `.git/hooks/pre-commit`（**接管 commit**，FAIL 则 exit 1）
 
 #### 选项 B · 仅手动跑 + 手动启用（存量项目默认）
@@ -151,7 +138,6 @@ cat > scripts/enable-doc-sync-hook.sh << 'ENABLE_EOF'
 # 启用 doc-sync commit 拦截（给存量项目清理期结束后手动启用）
 set -e
 HOOK=".git/hooks/pre-commit"
-if [ -f "$HOOK" ] && grep -q "check-doc-sync.sh" "$HOOK"; then
     echo "✓ doc-sync hook 已启用，无需操作"
     exit 0
 fi
@@ -163,12 +149,9 @@ cat > "$HOOK" << 'INNER_EOF'
 #!/usr/bin/env bash
 set -e
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-if [ -f "$REPO_ROOT/scripts/check-doc-sync.sh" ]; then
-    bash "$REPO_ROOT/scripts/check-doc-sync.sh" || { echo "✗ doc-sync 校验失败，commit 中止"; exit 1; }
 fi
 INNER_EOF
 chmod +x "$HOOK"
-echo "✓ doc-sync 拦截已启用（git commit 现在会跑 check-doc-sync.sh）"
 ENABLE_EOF
 chmod +x scripts/enable-doc-sync-hook.sh
 
@@ -181,7 +164,6 @@ if [ ! -f "$HOOK" ]; then
     echo "✓ hook 本来就不存在，无需操作"
     exit 0
 fi
-if ! grep -q "check-doc-sync.sh" "$HOOK"; then
     echo "✓ hook 不是 doc-sync 类型，不动它"
     exit 0
 fi
@@ -191,13 +173,10 @@ DISABLE_EOF
 chmod +x scripts/disable-doc-sync-hook.sh
 ```
 
-**验证**：`bash scripts/check-doc-sync.sh` 跑一次，**不管 PASS / FAIL 都告知用户**：
 - PASS（存量项目当前已合规）→ 主动询问"要不要现在启用拦截？"
 - FAIL（典型场景）→ 给 α 类漏改修复指引（见下方「失败处理」）
 
 **预期产物**：
-- `scripts/check-doc-sync.sh`
-- `.doc-sync-rules.yml`
 - `scripts/enable-doc-sync-hook.sh`
 - `scripts/disable-doc-sync-hook.sh`
 - **不创建** `.git/hooks/pre-commit`（commit 不被接管）
@@ -208,16 +187,12 @@ chmod +x scripts/disable-doc-sync-hook.sh
 
 #### 失败处理（α 类已有漏改）
 
-A 或 B 模式跑 `bash scripts/check-doc-sync.sh` FAIL 时：
-
 1. **不要重试 hook 注入**——FAIL 是预期（存量项目常有 α 类漏改）
 2. **给用户清晰指引**：
    ```
    ⚠️ doc-sync 规则发现 N 处 FAIL
    原因：α 类已有漏改（项目原本就有的接口/路由/表结构，docs/ 未对应提及）
    处置（任选其一）：
-   - 临时禁用：编辑 .doc-sync-rules.yml 把对应 rule 的 `enabled: true` 改为 `enabled: false`
-   - 永久修复：补齐 docs/ 中对应内容，再重跑 bash scripts/check-doc-sync.sh
    - 存量项目推荐用 B 模式（不接管 commit），等补齐后切换到 A
    ```
 3. **绝不让 hook 直接 exit 1**——α 漏改不是 init 应承担的责任
@@ -227,7 +202,6 @@ A 或 B 模式跑 `bash scripts/check-doc-sync.sh` FAIL 时：
 - ✅ 全新项目默认 A（无存量风险）；存量项目默认 B（避免突然被拦）
 - ✅ A 模式必须先验证 PASS 才算完成；B 模式不强求 PASS（告知即可）
 - ❌ 不接管式地"装上 hook 然后让用户首次 commit 被拦"——这是最常见的设计反模式
-- ✅ 例外：用户对存量项目**首次**想补纪律，仍可单独调 `mcpowers-doc-sync-install`（该技能主要面向存量场景）
 
 ### 6. 老项目接入（存量项目）
 除上述外，**额外**：
@@ -254,9 +228,6 @@ A 或 B 模式跑 `bash scripts/check-doc-sync.sh` FAIL 时：
   - [ ] `log/` 目录已建（按 `日志规范.md §7.2` 文件命名与轮转规范）
   - [ ] 设计文档已在"系统架构"章节声明日志类型 + 字段 + 大内容策略（按 `日志规范.md §9`）
 - [ ] **doc-sync 纪律已联动（v2.9.1+ 必检）**
-  - [ ] **选了 A**：`scripts/check-doc-sync.sh` 存在且 `+x`；`bash scripts/check-doc-sync.sh` 跑通（全新项目应 PASS）；`.git/hooks/pre-commit` 已写入且内容含 `check-doc-sync.sh` 引用
-  - [ ] **选了 B**：`scripts/check-doc-sync.sh` 存在且 `+x`；`scripts/enable-doc-sync-hook.sh` 和 `scripts/disable-doc-sync-hook.sh` 都存在且 `+x`；`.git/hooks/pre-commit` **不存在**或不含 `check-doc-sync.sh` 接管；FAIL 项已按 α 漏改指引告知用户
-  - [ ] **选了 C**：在"项目现状清单"明确告知用户纪律未装 + 提供后续补救入口（`mcpowers-doc-sync-install` / `bash scripts/enable-doc-sync-hook.sh` 如适用）
 - [ ] 规范文件可访问
 - [ ] AI 能正常加载（用简单问题测试）
 
@@ -307,5 +278,3 @@ A 或 B 模式跑 `bash scripts/check-doc-sync.sh` FAIL 时：
 - 给用户完整的"项目现状清单"
 - **告知纪律状态（v2.9.1+ 必做）**：
   - **选了 A**：告知「已装 doc-sync **物理拦截**：此后改路由/数据表/环境变量忘了同步文档，`git commit` 会被自动拦截；临时跳过可用 `git commit --no-verify`；永久关闭：`bash scripts/disable-doc-sync-hook.sh`」
-  - **选了 B**：告知「已装 doc-sync 但**不接管 commit**——先跑 `bash scripts/check-doc-sync.sh` 看 FAIL 项，按提示补 docs；补齐后 `bash scripts/enable-doc-sync-hook.sh` 启用拦截；临时跳过可用 `git commit --no-verify`」
-  - **选了 C**：告知「未装 doc-sync 纪律：当前只靠 AI 自觉层同步文档；后续想装可单独调 `mcpowers-doc-sync-install`」

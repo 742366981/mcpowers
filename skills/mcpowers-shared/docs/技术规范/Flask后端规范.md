@@ -4,9 +4,9 @@ type: tech-spec
 applies_to: [Flask后端]
 priority: required
 version: 1.1
-last_updated: 2026-08-10
+last_updated: 2026-08-11
 stability: evolving
-last_breaking_change: v2.28.4
+last_breaking_change: v2.29.1
 ---
 
 # Flask后端项目规范
@@ -709,10 +709,10 @@ def init_request_log(app):
 
 ## 6. 日志规范（强制）
 
-> **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则、轮转与免压缩窗口、级别紧凑打印、控制台走 stdout → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关；v2.26.0 新增 §7.3 免压缩窗口；v2.28.4 新增 §7.5 级别紧凑 + 控制台 stdout）。
+> **本节为 Flask 实现层**。完整的日志类型分类、字段 schema、大内容处理、脱敏规则、轮转与免压缩窗口、级别紧凑打印、控制台走 stdout、默认无颜色 → 见 `日志规范.md`（v2.6.0 起顶层规范，栈无关；v2.26.0 新增 §7.3 免压缩窗口；v2.28.4 新增 §7.5 级别紧凑 + 控制台 stdout；v2.29.2 升级 §7.6 默认无颜色为总章铁律——任何环境一律默认关 + min-module/sdk 内置日志也必须硬编码默认走 plain）。
 >
 > **本节只保留 3 件事**：
-> 1. `utils/loggings.py` 封装类的实现（含免压缩窗口实现 + §7.5 级别紧凑 + stdout）
+> 1. `utils/loggings.py` 封装类的实现（含免压缩窗口实现 + §7.5 级别紧凑 + stdout + §7.6 默认无颜色三态）
 > 2. 全局请求日志中间件 `utils/request_log.py` 的实现（§5.2）
 > 3. 免压缩窗口与清理函数的配置/调用方式
 >
@@ -781,6 +781,9 @@ except ImportError:
 # 注：本文件属框架层，按 §4.1 约定可使用 fallback；业务代码禁止传 fallback
 LOG_LEVEL = config.get('log', 'level', fallback='INFO').upper()
 LOG_CONSOLE_JSON = config.getboolean('log', 'console_json', fallback=False)
+# 日志规范 §7.6（v2.29.2+）：颜色开关任何环境（dev / test / staging / prod）一律默认关
+# 仅当运维显式在 config.ini [log] console_color=True 才走 colorlog.ColoredFormatter
+LOG_CONSOLE_COLOR = config.getboolean('log', 'console_color', fallback=False)
 LOG_LARGE_ENABLED = config.getboolean('log', 'large_enabled', fallback=False)
 # 日志规范 §7.3（v2.26.0+）：免压缩窗口，生产默认 7 天；显式改 0 = 关闭免压缩（轮转即压缩）
 LOG_KEEP_UNCOMPRESSED = config.getint('log', 'keep_recent_uncompressed_days', fallback=7)
@@ -946,13 +949,19 @@ def get_logger(log_type):
             logger.addHandler(_file_handler(f'{log_type}.log', LOG_LEVEL, json_formatter))
             # 2) ERROR+ 聚合流（多路复制，原 type 流不断裂）
             logger.addHandler(_file_handler('error.log', logging.ERROR, json_formatter))
-            # 3) 控制台：开发彩色文本 / 线上 JSON，由环境变量切换
+            # 3) 控制台：默认无颜色 plain formatter / JSON / 彩色文本三态（v2.29.1+）
             # 日志规范 §7.5.2（v2.28.4+）：显式 stream=sys.stdout，避免 PyCharm 给 stderr 染红
             console = logging.StreamHandler(stream=sys.stdout)
             console.setLevel(LOG_LEVEL)
+            # 日志规范 §7.6（v2.29.2+）：默认无颜色 plain Formatter（任何环境一律默认关）；仅 LOG_CONSOLE_COLOR=True 才走 colorlog
             # 日志规范 §7.5.1（v2.28.4+）：reset=True 禁止 colorlog 默认把 %(levelname)s 改写为 %(levelname)-8s
-            console.setFormatter(json_formatter if LOG_CONSOLE_JSON else colorlog.ColoredFormatter(
-                f'%(log_color)s{CONSOLE_FORMAT}', log_colors=LOG_COLORS_CONFIG, reset=True))
+            if LOG_CONSOLE_JSON:
+                console.setFormatter(json_formatter)
+            elif LOG_CONSOLE_COLOR:
+                console.setFormatter(colorlog.ColoredFormatter(
+                    f'%(log_color)s{CONSOLE_FORMAT}', log_colors=LOG_COLORS_CONFIG, reset=True))
+            else:
+                console.setFormatter(logging.Formatter(CONSOLE_FORMAT))
             logger.addHandler(console)
 
         _LOGGER_CACHE[log_type] = logger

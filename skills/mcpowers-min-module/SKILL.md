@@ -142,13 +142,43 @@ rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {module_dir}/
 - 如发现禁止的 import → 替换为标准库等价实现或参数注入
 - 确认**没有**任何形式的环境变量读取
 
-### 4. 自包含日志系统设计
+### 4. 自包含日志系统设计（v2.29.2+ 强化·零配置即合规）
+
+> **v2.29.2 核心新增**：min-module 自带的日志工厂**内部硬编码默认值**就必须是 plain formatter + stdout + 紧凑级别 + 无颜色 + INFO 级别——**调用方零配置即符合 §7.6**，无需传 ini / config / 任何开关。
+>
+> **不假设调用方会传配置**。min-module 是「复制即用」资产，调用方可能根本不知道有这个配置开关；如果硬编码默认走 colorlog，调用方拿到日志就带 ANSI——污染复制粘贴 / 管道 / 文件。
+
 - 模块内部实现轻量日志类（**禁止依赖外部业务日志模块**）
-- 日志默认行为：DEBUG 级别 + stderr 输出 + 毫秒时间戳 + 8 字符等宽级别名
-- 首次调用日志工厂时自动安装默认 Handler，调用方零配置
+- 日志默认行为（**v2.29.2+ 默认无颜色铁律——任何环境 dev/test/prod 一律默认关**，详见 `日志规范.md §7.6`）：
+  - **级别**：INFO（`DEBUG` 可由调用方主动传参覆盖）
+  - **输出流**：stdout（**禁止**默认 stderr——PyCharm / IntelliJ 会把 stderr 整体染红，详见 `日志规范.md §7.5.2`）
+  - **时间戳**：毫秒精度 ISO8601 或本地时间（按语言生态选择，但**禁止**无时间戳）
+  - **级别字段**：**紧凑**（Python `%(levelname)s` 禁用 `%(levelname)-Ns` 宽度填充；JS/Go/Rust 对应"无对齐字符填充"）
+  - **颜色**：**默认关闭，任何环境统一**——除非调用方**显式**构造时传 `console_color=True`，**禁止**默认开启；硬编码默认值就是 `logging.Formatter(...)` 不是 `colorlog.ColoredFormatter(...)`（详见 `日志规范.md §7.6.4`）
+- **首次调用日志工厂时自动安装默认 Handler，调用方零配置**（硬编码默认即合规）
+- **可选**：构造参数 `console_color: bool = False`（默认 False）让主动要颜色的调用方按需开启；不传 = 默认无颜色
+- **禁止**：读环境变量判断是否开颜色（`os.environ.get('LOG_COLOR')` 等违反 v2.25.0+ 全栈禁令 + §7.6）
 - 幂等安装：多次调用不重复装 Handler
 - 不污染 root logger：`propagate=False`
 - 必含字段：`ts` / `level` / `logger_name` / `msg`；可选上下文：`trace_id` / `request_id`
+
+**Python 内置日志工厂参考实现**（详见 `日志规范.md §7.6.4`）：
+
+```python
+def get_sdk_logger(name: str) -> logging.Logger:
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler(stream=sys.stdout)         # §7.5.2 显式 stdout
+        handler.setFormatter(logging.Formatter(                    # §7.6.4 v2.29.2+ 默认 plain
+            '%(asctime)s [%(levelname)s] %(name)s - %(message)s')) # §7.5.1 紧凑级别
+        handler.setLevel(logging.INFO)                             # §7.6 默认 INFO
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False                                   # 不污染 root
+    return logger
+```
+
+> **JS/Go/Rust/Java**：默认走 `winston.format.simple()` / `slog.NewTextHandler(os.Stdout)` / `tracing-subscriber::fmt` 默认 / `java.util.logging.Formatter`——**不挂**任何 colorize / ANSI formatter，除非调用方显式传参。
 
 ### 5. 自包含异常体系设计
 - 定义模块专属异常类（继承该语言标准异常基类）：
@@ -213,6 +243,10 @@ rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {module_dir}/
 - ❌ 产物散落工作区不按 `{module_name}/` 归档
 - ❌ 无验证脚本
 - ❌ 验证脚本用命令行参数传参（违反 KISS，必须硬编码 mock 数据）
+- ❌ **模块内置日志默认走 `colorlog.ColoredFormatter(...)` / `winston.format.colorize()` / `logrus ForceColors: true` 等开颜色**——违反 `日志规范.md §7.6`（v2.29.2+）；必须硬编码默认走 plain formatter，调用方显式传 `console_color=True` 才开
+- ❌ **模块内置日志默认 `DEBUG` 级别**——违反 `日志规范.md §7.6` 默认 INFO
+- ❌ **`logging.StreamHandler()` 不传 `stream=sys.stdout`**（默认 stderr）——违反 `日志规范.md §7.5.2` PyCharm 染红
+- ❌ **CONSOLE_FORMAT 含 `%(levelname)-Ns` 宽度填充**（输出 `[INFO   ]`）——违反 `日志规范.md §7.5.1`
 
 ---
 
@@ -235,7 +269,7 @@ rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {module_dir}/
 
 - [ ] 模块候选清单已产出（技术能力 vs 业务逻辑分类）
 - [ ] 外部依赖边界确认（仅标准库 + 直接相关第三方库）
-- [ ] 自包含日志系统已实现（日志工厂 + 默认 DEBUG+stderr + 必含字段）
+- [ ] 自包含日志系统已实现（日志工厂 + **v2.29.2+ 硬编码默认 = INFO+stdout+紧凑级别+plain Formatter（无颜色）+ 必含字段**；调用方零配置即合规；详见 `日志规范.md §7.5 §7.6 §7.6.4`）
 - [ ] 自包含异常体系已实现（基类 + ≥3 子类 + `error_code` 字段）
 - [ ] 配置自包含已实现（`defaults.ini` 或硬编码常量，运行时从模块内部路径加载）
 - [ ] 验证脚本可独立运行（硬编码 mock 数据 + `assert` 自检）

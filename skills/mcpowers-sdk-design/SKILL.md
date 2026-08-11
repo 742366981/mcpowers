@@ -322,6 +322,7 @@ SDK 与 min-module 的关系 = **「第三方库调用」**，不是"源码集�
 - ❌ 资源泄漏（session / connection / file handle 未用 `with` 块）
 - ❌ 预设 SDK 必须是 HTTP 形态（违反通讯层中立）
 - ❌ 每个能力重复询问用户「复用 X 吗？」——必须按铁律 2 走混合复用判断
+- ❌ **SDK 内置日志默认走 `colorlog.ColoredFormatter(...)` / `winston.format.colorize()` / `logrus ForceColors: true` 等开颜色**——违反 `日志规范.md §7.6`（v2.29.2+）；必须硬编码默认走 plain formatter，调用方显式传 `console_color=True` 才开
 
 ---
 
@@ -346,7 +347,7 @@ SDK 与 min-module 的关系 = **「第三方库调用」**，不是"源码集�
 - [ ] 通讯层选型已确认（HTTP / gRPC / WebSocket / CLI / DB / 第三方库）
 - [ ] 混合复用判断已执行（声明优先 / 扫描命中 / 自包含兜底）
 - [ ] 外部依赖边界确认（仅标准库 + 直接相关第三方库，按通讯层选型）
-- [ ] 自包含日志系统已实现
+- [ ] 自包含日志系统已实现（**v2.29.2+ 硬编码默认 = INFO+stdout+紧凑级别+plain Formatter（无颜色）**；调用方零配置即合规；详见 `日志规范.md §7.6 §7.6.4`；**禁止**模块内置硬编码走 `colorlog.ColoredFormatter` / `winston.format.colorize()` / `logrus ForceColors: true`）
 - [ ] 自包含异常体系已实现（≥6 子类 + `error_code`）
 - [ ] `defaults.ini` 全部 `CHANGE_ME` 占位符
 - [ ] 构造时健康检查硬拒绝（`validate()` 失败立即抛 `ConfigError`）

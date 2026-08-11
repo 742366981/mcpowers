@@ -105,6 +105,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R9** | ❌ **未声明 stability / last_breaking_change 就改规范 frontmatter**（v2.27.4+）：新增 / 删除 / 重命名规范章节必须同步声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；破坏性变更还必须在 CHANGELOG Breaking Changes 段列出 | 违反代码规范 §CHANGELOG 强制破坏声明段；用户升级时无法判断兼容性；AI 引用规范时无法判断是否需主动提示风险 |
 | **R10** | ❌ **重复检测 hook 未区分「真重复」与「合法重名」**（v2.28.2+ 已修复）：v2.27.5 之前 hook 仅按函数名命中就 block，v2.27.6~v2.28.1 走 4 类启发式分级（命名空间 / 签名 / 绑定方法 / 单行透传）——**两者都用启发式打补丁，源头是「跨文件同名默认视为重复」**。v2.28.2+ 回归极简：跨文件同名默认放行（Python import 是模块级作用域），仅「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类 block | 审查时若看到 R10 旧行为（跨文件同名默认 block，或 4 类启发式降级），CR 阻塞要求升级 hook 到 v2.28.2+ |
 | **R11** | ❌ **控制台日志级别未紧凑打印 / StreamHandler 未显式指定 stdout**（v2.28.4+）：`CONSOLE_FORMAT` 含 `%(levelname)-8s` 等宽度填充 → 终端输出 `[INFO   ]` 带多余空格；或 `logging.StreamHandler()` 不传 `stream` → 默认走 stderr → PyCharm / IntelliJ 给所有日志整体染红。两者违反 `日志规范.md §7.5` | 控制台 formatter 必须用 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）；StreamHandler 必须显式 `stream=sys.stdout`；CR 看到 `[INFO   ]` 或 PyCharm 染红即阻塞，要求改回 `%(levelname)s` + `stream=sys.stdout` |
+| **R12** | ❌ **控制台 formatter 默认走 colorlog / winston.format.colorize() / logrus ForceColors: true 等开颜色**（v2.29.2+ 跨语言总章铁律·零配置即合规）：模块 / 框架默认行为让 95% 用户不感知就拿到 ANSI 转义序列，污染复制粘贴（`\x1b[32m...` 混入 Markdown / issue 评论）+ 管道（`grep` / `tee` 关键字匹配穿插转义字符）+ 文件重定向（Loki / ELK 把 ANSI 当异常染色）+ 日志聚合平台（Sentry / DataDog 把 ANSI 字符串归类为 error）。**任何环境（dev / test / prod）一律默认关**；**min-module / sdk-design 内置日志工厂也必须硬编码走 plain**——不允许「等调用方传配置再关」。违反 `日志规范.md §7.6` | 默认 formatter 必须用 plain 实现（Python `logging.Formatter` / JS `winston.format.simple()` / Go `slog.NewTextHandler` / Java `java.util.logging.Formatter`）；用户主动配置才开启颜色（Python `LOG_CONSOLE_COLOR=True` / JS `colorize: true` 显式传参）；CR 看到默认分支直接挂 `colorlog.ColoredFormatter` / `ForceColors: true` / `winston.format.colorize()` 即阻塞；min-module / sdk 内置日志硬编码走 colorlog 也阻塞（v2.29.2+ 新增） |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -175,6 +176,38 @@ git diff main...HEAD -U0 | rg "StreamHandler\(\s*\)" | rg -v "stream="
 > 命令 1 命中 → Critical 阻塞——formatter 字符串里 `%(levelname)-Ns` 宽度填充会输出 `[INFO   ]` 带填充空格；要求改回 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）。（注：`colorlog.ColoredFormatter(reset=True)` 只控制 ANSI 颜色重置，**不**控制 levelname 宽度——宽度由 format 字符串决定。）
 >
 > 命令 2 命中 → Critical 阻塞——Python `logging.StreamHandler()` 默认 `sys.stderr`，PyCharm / IntelliJ 会把 stderr 整体染红，即使日志级别是 INFO / DEBUG；必须显式 `stream=sys.stdout`。
+
+## v2.29.2+ 默认无颜色 Quick-Check（review 必跑·跨语言总章铁律）
+
+> 对齐 `日志规范.md §7.6` v2.29.2 总章铁律。**任何环境（dev / test / prod）一律默认关**；**min-module / sdk-design 内置日志工厂硬编码默认即合规**。审查者收到 PR 后必须执行的 4 条扫描命令：
+
+```bash
+# 1. Python 项目级控制台 formatter 三态保护（缺 LOG_CONSOLE_COLOR 开关即违规）
+git diff main...HEAD -U0 | rg "setFormatter\([^)]*ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR"
+
+# 2. JS / TS / Go / Rust diff 内默认开启颜色参数（命中即违规）
+git diff main...HEAD -U0 | rg "colorize\s*:\s*true|ForceColors\s*:\s*true|with_ansi\s*\(\s*true\s*\)"
+
+# 3. 项目级配置文件默认值检测（命中即违规——任何环境默认 False）
+git diff main...HEAD -U0 | rg "console_color.*=.*True|console_color.*=.*true"
+
+# 4. 模块内置日志硬编码默认值扫描（v2.29.2+ 新增）
+#    min-module / sdk-design 的日志工厂即便在硬编码里出现 ColoredFormatter 也视为违规
+git diff main...HEAD -U0 | rg "ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR|if .*console_color"
+```
+
+> 命令 1 命中 → Critical 阻塞——`colorlog.ColoredFormatter` **必须**受 `LOG_CONSOLE_COLOR` 配置开关保护，且默认 `False`；CR 看到控制台 formatter 默认挂 `ColoredFormatter` 即阻塞，要求改为 `if LOG_CONSOLE_COLOR: colorlog.ColoredFormatter(...) else: logging.Formatter(CONSOLE_FORMAT)` 三态。
+>
+> 命令 2 命中 → Critical 阻塞——`winston.format.colorize()` / `logrus.TextFormatter{ForceColors: true}` / `tracing_subscriber::fmt().with_ansi(true)` 都是默认开颜色；CR 看到任一即阻塞，要求调用方**主动传参**才生效。
+>
+> 命令 3 命中 → Critical 阻塞——`console_color` 默认值**必须**是 `False` / `false`；任何环境（dev / test / prod）一律 False；CR 看到 `True` / `true` 即阻塞，要求改为 `False` 并在配置文件示例里加注释「仅调用方主动开启」。
+>
+> 命令 4 命中 → Critical 阻塞（**v2.29.2+ 新增**）——模块内置日志（min-module / sdk-design）的 `get_logger` / `get_sdk_logger` 工厂即便在硬编码默认值里出现 `ColoredFormatter`，**也视为违规**：必须硬编码走 `logging.Formatter(...)` plain 实现，**不允许**「等调用方传配置再关」（详见 `日志规范.md §7.6.4`）。
+>
+> **跨语言判定标准（v2.29.2+ 总章铁律）**：
+> - **项目级**：模块对外暴露的「日志工厂 / 配置默认值」里，任何会让 95% 用户不感知就拿到 ANSI 转义的写法 = 违规。
+> - **模块内置**：min-module / sdk-design 自带日志工厂，**硬编码默认值**就必须是 plain formatter。开发者要颜色 → 主动传参。**不允许**模块「我代码里硬编码默认走 colorlog，等调用方传参关」。
+> - **颜色开关任何环境默认关**——dev / test / prod 一律 False，没有「dev 环境例外」。
 
 
 ## 审查后

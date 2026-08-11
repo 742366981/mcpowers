@@ -9,6 +9,57 @@
 
 - 待发布
 
+## v2.29.2 - 2026-08-11
+
+### Breaking Changes
+
+无（向后兼容：新增铁律仅约束新增代码默认行为，已有配置 `LOG_CONSOLE_COLOR=True` 不受影响；min-module / sdk-design 内置日志默认值升级为 plain formatter 仅影响 v2.29.2+ 之后产出的库）
+
+### 新增
+
+- **日志规范 §7.6 升级为跨语言总章铁律（v2.29.2+）**：把「控制台默认无颜色」从 v2.29.1 的「项目级 + 配置开关」升级为 v2.29.2 的「项目级 + 模块内置 + 任何环境」三合一总章铁律：(1) **任何环境（dev / test / staging / prod）一律默认关**——颜色开关不区分部署阶段，开发环境不会因为「dev 就该有颜色」而默认开；(2) **min-module / sdk-design 内置日志工厂硬编码默认即合规**——不假设调用方会传配置，开箱即无颜色；(3) **配置默认值全环境 `False`**——只有外部项目配置文件（如 Flask `config.ini [log]`）里 `console_color` 才允许暴露给运维；默认值仍是 `False`。
+- **新增 `日志规范.md §7.6.4`「min-module / sdk-design 内置日志默认值」段**：给出 Python 参考实现（硬编码 `logging.Formatter` + `sys.stdout` + INFO 级别）+ 跨语言反例（JS / Go / Rust / Java），明确「模块内置硬编码走 colorlog」= 违规。
+- **新增 `日志规范.md §7.6.5`「全栈反例清单」段**：9 条 Critical 反模式（Python 模块内置 colorlog / 默认 DEBUG / 默认 stderr / 宽度填充级别 / Go ForceColors / JS colorize / Rust with_ansi(true) / Java ConsoleHandler ANSI / 模块读环境变量判断颜色）。
+
+### 修复
+
+- 修复 min-module §4 日志默认行为描述：从 v2.29.1「INFO+stdout+紧凑+无颜色」升级为 v2.29.2「硬编码默认即合规 + 零配置即符合 §7.6」，并新增 Python 内置日志工厂参考实现段。
+- 修复 min-module §11 自检清单：同步 v2.29.2 描述。
+- 修复 sdk-design §11 自检清单 + 反模式章节：与 min-module §4 保持一致。
+
+### 调整
+
+- `日志规范.md` frontmatter：`version 2.7.1 → 2.7.2`；`last_breaking_change: v2.26.0 → v2.29.2`；`description` 强化 v2.29.2「任何环境一律默认关 + 模块内置即合规」语义。
+- `Flask后端规范.md §6.1`：LOG_CONSOLE_COLOR 注释强化「v2.29.2+ 颜色开关任何环境一律默认关」；控制台 formatter 三态注释同步；§6 顶部引用句升级。
+- `爬虫规范.md §12`：控制台输出引用句升级，明确「禁止读环境变量判断颜色开关」。
+- `mcpowers-code-review/SKILL.md`：R12 反模式条目强化 v2.29.2「零配置即合规」表述；Quick-Check 段标题从 `v2.29.1+` 改为 `v2.29.2+` 并新增第 4 条命令（**模块内置日志硬编码默认值扫描**——即便在硬编码常量里出现 ColoredFormatter 也视为违规）。
+- `CLAUDE.md`：v2.29.1 段升级为 v2.29.2，描述「任何环境一律默认关 + min-module/sdk 内置即合规 + 4 条 Quick-Check 命令」。
+- `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`：version bump `2.29.1 → 2.29.2`（3 处同步）。
+
+## v2.29.1 - 2026-08-11
+
+### Breaking Changes
+
+- 无。`mcpowers-min-module/SKILL.md §4` 默认行为描述修复 + 新增 `日志规范.md §7.6`「默认无颜色」铁律 + `Flask后端规范.md §6.1` `utils/loggings.py` 模板默认走 plain formatter（新增 `LOG_CONSOLE_COLOR = False` 配置项）。**向后兼容**：旧项目升级时仅需在 `config.ini` `[log]` 段加 `console_color = True` 即可恢复旧行为（彩色文本 + colorlog 默认 padding 后 `reset=True` 抑制 + `[INFO]` 紧凑级别 + `stream=sys.stdout`）。
+
+### 新增
+
+- **跨语言铁律**：[`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §7.6「默认无颜色（v2.29.1+ 强制）」⭐——除非用户主动配置，控制台 formatter **默认**走 plain formatter（无 ANSI 转义序列）。含 5 语言对照表（Python `logging.Formatter` / JS `winston.format.simple()` / Go `slog.NewTextHandler` / Rust `tracing-subscriber::fmt` 默认 / Java `java.util.logging.Formatter`）+ 4 类默认开颜色污染场景（复制粘贴 / 管道 / 文件重定向 / 日志聚合平台染红）+ Python 参考实现（含 `LOG_CONSOLE_COLOR` 配置项 + 三态分支 `LOG_CONSOLE_JSON=True` → JSON / `LOG_CONSOLE_COLOR=True` → 彩色文本 / 全 False → 纯文本）+ 反例清单（默认 `colorlog.ColoredFormatter` / `logrus ForceColors: true` / `winston.format.colorize()`）。
+- **反模式条目**：[`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §10 黑名单增 #14（默认走 colorlog / `winston.format.colorize()` / `logrus ForceColors: true` 等开颜色）。
+
+### 修复
+
+- **[`skills/mcpowers-min-module/SKILL.md`](skills/mcpowers-min-module/SKILL.md) §4 自包含日志系统设计**：原描述「日志默认行为：DEBUG 级别 + stderr 输出 + 毫秒时间戳 + 8 字符等宽级别名」同时违反 v2.28.4 两条铁律（`stderr` 默认走 + `%(levelname)-8s` 宽度填充）——改为「INFO 级别 + stdout 输出 + 毫秒时间戳 + **紧凑级别**（无宽度填充）+ **默认无颜色**（仅 `LOG_CONSOLE_COLOR=True` 才开）」，并加 `日志规范.md §7.5 §7.6` 引用。§4 完成后自检清单行同步：原「默认 DEBUG+stderr」改为「默认 INFO+stdout+紧凑级别+无颜色」。
+
+### 调整
+
+- **[`Flask后端规范.md`](skills/mcpowers-shared/docs/技术规范/Flask后端规范.md) §6.1 `utils/loggings.py` 模板**：①加 `LOG_CONSOLE_COLOR = config.getboolean('log', 'console_color', fallback=False)` 配置项（v2.29.1+ 默认 `False`）；②控制台 formatter 改为三态分支：`LOG_CONSOLE_JSON=True` → `json_formatter` / `LOG_CONSOLE_COLOR=True` → `colorlog.ColoredFormatter(reset=True)` / 全 False → `logging.Formatter(CONSOLE_FORMAT)` plain 模式（原 `else` 分支无条件走 `colorlog.ColoredFormatter` 已不返）；③§6 顶部描述加 v2.29.1 + §7.6 引用；④frontmatter `last_updated: 2026-08-10` → `2026-08-11`、`last_breaking_change: v2.28.4` → `v2.29.1`。
+- **[`爬虫规范.md`](skills/mcpowers-shared/docs/技术规范/爬虫规范.md) §12**：控制台输出行加 v2.29.1+ §7.6 引用——爬虫项目复用 Flask `get_logger` 三态控制台 formatter，默认无颜色（仅 `LOG_CONSOLE_COLOR=True` 才走 `colorlog.ColoredFormatter`）。
+- **[`日志规范.md`](skills/mcpowers-shared/docs/技术规范/日志规范.md) §7.4 控制台 vs 文件的格式差异表**：开发环境颜色列从「开启（DEBUG=cyan / INFO=green / WARNING=yellow / ERROR=red）」改为「**默认关闭**（v2.29.1+）——仅当用户在配置 `LOG_CONSOLE_COLOR=True` 时才开」；§7.4 末尾「格式切换由配置文件控制」单 `LOG_CONSOLE_JSON` 改 `LOG_CONSOLE_JSON + LOG_CONSOLE_COLOR`。
+- **[`mcpowers-code-review/SKILL.md`](skills/mcpowers-code-review/SKILL.md)** R1-R12 反模式表增 **R12**「控制台 formatter 默认走 colorlog / winston.format.colorize() / logrus ForceColors: true 等开颜色」（v2.29.1+）；新 Quick-Check 段「v2.29.1+ 默认无颜色 Quick-Check」含 3 条扫描命令（Python `setFormatter(...ColoredFormatter)` 缺配置开关 / JS-Go-Rust 默认颜色参数 / `console_color` 默认值 `True`）。
+- **[`CLAUDE.md`](CLAUDE.md)**：v2.28.4+ 铁律段后加 v2.29.1+「控制台默认无颜色」段（含 4 类污染场景 + 跨语言对照 + `LOG_CONSOLE_COLOR` 配置项 + 审查门禁 R12 + Quick-Check 3 命令）。
+- **版本号 bump**：`plugin.json` / `marketplace.json` 顶层 + `plugins[0]` `version` 2.29.0 → 2.29.1（patch bump：纯加新铁律 + 修历史违规 + 模板默认行为变更 + 新增 R12 审查维度，**无破坏性变更**，向后兼容）。
+
 ## v2.29.0 - 2026-08-11
 
 ### Breaking Changes

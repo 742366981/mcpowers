@@ -3,7 +3,7 @@ title: Flask后端规范
 type: tech-spec
 applies_to: [Flask后端]
 priority: required
-version: 1.1
+version: 1.2
 last_updated: 2026-08-11
 stability: evolving
 last_breaking_change: v2.29.1
@@ -594,18 +594,10 @@ origins = *
 supports_credentials = true
 
 [swagger]
-# Swagger 文档保护账号（dev 环境可在配置文件中硬编码，test/prod 通过 docker-compose environment 注入）
+# Swagger 文档保护账号
 user = admin
 password = admin123
 ```
-
-> ⚠️ **敏感信息注入策略（强制）**
->
-> `secret_key`、数据库密码、第三方 API key 等敏感字段的部署策略：
->
-> - **dev**：直接写 `config_dev.ini`（便于本地开发）
-> - **test / prod**：**禁止**进 git，必须通过 `docker-compose.{env}.yml` 的 `environment:` 段注入到 `config_test.ini` / `config_prod.ini` 的占位符（如 `${SECRET_KEY}`），容器启动时 `envsubst` 替换
-> - 业务代码读取方式不变：**仍走 `config.get('app', 'secret_key')`**；按通用规则 ([`代码规范.md`](代码规范.md)) 业务代码**禁止**读环境变量——这里的 `docker-compose environment:` 注入发生在容器编排层，不进入 mcpowers 代码运行时
 
 > ⚠️ **配置加载器实现要求**
 >
@@ -2316,7 +2308,7 @@ services:
 #### 21.7.3 docker-compose.prod.yml（完整版）
 
 > ⚠️ **生产环境慎用容器化 DB**：本节仅给出模板。
-> **生产环境推荐**：MySQL 用云数据库 RDS，Redis 用云 Redis；compose 中删除 mysql/redis services，app 改为 `depends_on` 云服务（环境变量配置连接信息）。
+> **生产环境推荐**：MySQL 用云数据库 RDS，Redis 用云 Redis；compose 中删除 mysql/redis services，app 直连云服务。
 
 #### 21.7.4 一键启动（推荐方式）
 

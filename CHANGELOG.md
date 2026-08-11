@@ -9,6 +9,28 @@
 
 - 待发布
 
+## v2.29.3 - 2026-08-11
+
+### Breaking Changes
+
+无（向后兼容：仅删除从未在 compose 模板中落地的注入策略描述，`Config.get()` 读 ini 的既有机制完全不变；已按旧描述搭了 envsubst 的项目继续可用，但新代码不应再这么写）
+
+### 修复
+
+- **修复「禁止使用环境变量」最高铁律与 Flask 栈级落地自相矛盾（4 处）**：铁律禁 Shell 从外部环境读 `${XXX}`，但 `Flask后端规范.md §4.2` 却要求 test/prod 用 `docker-compose environment:` 注入 `${SECRET_KEY}` 占位符 + 容器启动时 `envsubst` 替换进 ini——该链路终点是 `Config.get()`，**已进入代码运行时**，不满足白名单例外「不进入 mcpowers 代码运行时」的成立前提，AI 读栈级规范时会照着生成 envsubst 方案从而架空铁律（hook 只扫 `.py`，扫不到 entrypoint 里的 envsubst）。
+- `Flask后端规范.md`：删除 §4.2「敏感信息注入策略（强制）」整段（该策略在 §21.2 / §21.3 / §21.4 / §21.7 的 compose 模板中从未落地，模板 `environment:` 只有 `TZ`，属悬空死文字）；§4.2 `[swagger]` 注释去掉「test/prod 通过 docker-compose environment 注入」；§21.7.3 生产环境推荐去掉「（环境变量配置连接信息）」。
+- `代码规范.md`：铁律 ✅ 正确示例第 66 行去掉尾注「dev 直写、prod 由 docker-compose environment: 注入 ini」——该注释位于铁律正文自身的正例区，等于铁律在教人用 environment 注入。
+
+### 调整
+
+- `CLAUDE.md`：环境变量铁律段补充 v2.29.3 边界澄清——`environment:` 例外仅限值不回流到代码的场景（`TZ`、MySQL 官方镜像 `MYSQL_ROOT_PASSWORD`）；禁止 `envsubst` 把环境变量替换进 ini / yaml 占位符；敏感字段各环境一律直接写在项目自己的 `config_{env}.ini` 里。
+- `Flask后端规范.md` frontmatter：`version 1.1 → 1.2`；`代码规范.md` frontmatter：`version 1.5 → 1.6`、`last_updated 2026-08-05 → 2026-08-11`（两者 `last_breaking_change` 均不变，本次非破坏性变更）。
+- `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`：version bump `2.29.2 → 2.29.3`（3 处同步）。
+
+### 风险
+
+- 无新增机制：本次为纯删除 + 措辞修正，不引入配置文件挂载、`.gitignore` 约定等任何新方案；`config_{env}.ini` 仍是项目内文件，由 `Config` 单例直接读取。
+
 ## v2.29.2 - 2026-08-11
 
 ### Breaking Changes

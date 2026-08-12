@@ -106,6 +106,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R10** | ❌ **重复检测 hook 未区分「真重复」与「合法重名」**（v2.28.2+ 已修复）：v2.27.5 之前 hook 仅按函数名命中就 block，v2.27.6~v2.28.1 走 4 类启发式分级（命名空间 / 签名 / 绑定方法 / 单行透传）——**两者都用启发式打补丁，源头是「跨文件同名默认视为重复」**。v2.28.2+ 回归极简：跨文件同名默认放行（Python import 是模块级作用域），仅「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类 block | 审查时若看到 R10 旧行为（跨文件同名默认 block，或 4 类启发式降级），CR 阻塞要求升级 hook 到 v2.28.2+ |
 | **R11** | ❌ **控制台日志级别未紧凑打印 / StreamHandler 未显式指定 stdout**（v2.28.4+）：`CONSOLE_FORMAT` 含 `%(levelname)-8s` 等宽度填充 → 终端输出 `[INFO   ]` 带多余空格；或 `logging.StreamHandler()` 不传 `stream` → 默认走 stderr → PyCharm / IntelliJ 给所有日志整体染红。两者违反 `日志规范.md §7.5` | 控制台 formatter 必须用 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）；StreamHandler 必须显式 `stream=sys.stdout`；CR 看到 `[INFO   ]` 或 PyCharm 染红即阻塞，要求改回 `%(levelname)s` + `stream=sys.stdout` |
 | **R12** | ❌ **控制台 formatter 默认走 colorlog / winston.format.colorize() / logrus ForceColors: true 等开颜色**（v2.29.2+ 跨语言总章铁律·零配置即合规）：模块 / 框架默认行为让 95% 用户不感知就拿到 ANSI 转义序列，污染复制粘贴（`\x1b[32m...` 混入 Markdown / issue 评论）+ 管道（`grep` / `tee` 关键字匹配穿插转义字符）+ 文件重定向（Loki / ELK 把 ANSI 当异常染色）+ 日志聚合平台（Sentry / DataDog 把 ANSI 字符串归类为 error）。**任何环境（dev / test / prod）一律默认关**；**min-module / sdk-design 内置日志工厂也必须硬编码走 plain**——不允许「等调用方传配置再关」。违反 `日志规范.md §7.6` | 默认 formatter 必须用 plain 实现（Python `logging.Formatter` / JS `winston.format.simple()` / Go `slog.NewTextHandler` / Java `java.util.logging.Formatter`）；用户主动配置才开启颜色（Python `LOG_CONSOLE_COLOR=True` / JS `colorize: true` 显式传参）；CR 看到默认分支直接挂 `colorlog.ColoredFormatter` / `ForceColors: true` / `winston.format.colorize()` 即阻塞；min-module / sdk 内置日志硬编码走 colorlog 也阻塞（v2.29.2+ 新增） |
+| **R13** | ❌ **Swagger 接口 5 字段契约不完整**（v2.31.0+ 全栈适用铁律）：写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）时漏 `tags` / `summary` / `description` / `parameters` / `responses` 任一顶层字段，或 `parameters[]` 缺 `description`+`example`、或 `responses[]` 只列 200 无错误码、或只列 200 缺 `schema`+`examples`。违反 `接口契约规范.md §1` + `Swagger字段契约.md §1` | 5 字段必须齐全（按规范 §1.A/B/C）；parameters 子字段必须含 description+example；responses 必须含 200 + ≥ 1 个错误码 + 每个含 schema+examples；项目根 `.swagger-required-fields.yml` 自定义字段也必须满足；CR 看到缺任一字段即阻塞，要求补全后重跑 lint |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -209,6 +210,43 @@ git diff main...HEAD -U0 | rg "ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR
 > - **模块内置**：min-module / sdk-design 自带日志工厂，**硬编码默认值**就必须是 plain formatter。开发者要颜色 → 主动传参。**不允许**模块「我代码里硬编码默认走 colorlog，等调用方传参关」。
 > - **颜色开关任何环境默认关**——dev / test / prod 一律 False，没有「dev 环境例外」。
 
+## v2.31.0+ Swagger 5 字段契约 Quick-Check（review 必跑）
+
+> 对齐 `接口契约规范.md §1` + `Swagger字段契约.md §1` v2.31.0+ 全栈适用铁律。审查者收到 PR 后必须执行的 3 条扫描命令：
+
+```bash
+# 1. 接口文件顶层 5 字段齐全性扫描(命中 YAML 顶层键)
+#    期望:tags/summary/description/parameters/responses 五者全在
+git diff main...HEAD -U0 -- '*.py' '*.ts' '*.js' '*.java' '*.go' \
+  | rg -B1 "@(bp|app|router)\.(get|post|put|delete|route)" \
+  | rg "^\s*(tags|summary|description|parameters|responses):" \
+  | rg -v "tags:|summary:|description:|parameters:|responses:" \
+  | sort -u
+
+# 2. parameters 子字段 description+example 配对扫描
+#    期望:每个参数块 description: 与 example: 必须同时存在
+git diff main...HEAD -U0 \
+  | rg -A6 '^\s+-\s+in:\s+(query|body|path|formData|header)' \
+  | rg -v 'description:|example:|in:|- name:'
+
+# 3. responses 错误码齐全性扫描(只列 200 即违规)
+#    期望:responses 块状态码数 >= 2,含 200 + ≥ 1 个错误码(401/403/422/500 等)
+git diff main...HEAD -U0 \
+  | rg -A20 '^\s*responses:' \
+  | rg "^\s+\d{3}:" \
+  | awk -F: '{print $1}' | sort -u
+```
+
+> 命令 1 命中(接口 docstring 不含五者之一) → Critical 阻塞——CR 看到缺 `tags:` / `summary:` / `description:` / `parameters:` / `responses:` 任一即阻塞,要求补全后重跑 `bash scripts/swagger-contract-check.sh --file-path=<view>` 确认 exit 0。
+>
+> 命令 2 命中(parameters 块缺 description 或 example) → Critical 阻塞——`interface契约规范 §1.B` 强制每个参数必须含 `description` + `example`,前端调试时只看 example 即可传参,缺任一即视为不完整接口。
+>
+> 命令 3 命中(responses 只列 200) → Critical 阻塞——`interface契约规范 §1.C` 强制含 200 + ≥ 1 个错误码;只列 200 = 后端错误时前端无 contract 可对接,CR 看到即阻塞,要求补 401/403/422/500 中至少 1 个错误码 + 每个含 `schema:` + `examples:`。
+>
+> **跨栈判定标准(v2.31.0+ 全栈铁律)**:
+> - **5 字段缺任一 = 接口视为不完整**,禁止合并 commit
+> - **项目根 `.swagger-required-fields.yml` 自定义字段**也必须满足(用户主动扩展的必填字段,如 `deprecated` / `x-permission`)
+> - **未装 swagger 的项目零摩擦放行**——detector 探测 `flasgger/apispec/fastapi/springdoc/openapi-typescript` 任一关键字才校验,纯业务项目直接跳过
 
 ## 审查后
 

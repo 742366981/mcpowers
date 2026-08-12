@@ -9,6 +9,40 @@
 
 - 待发布
 
+## v2.31.0 - 2026-08-12
+
+### Breaking Changes
+
+- 无(新增铁律,不破坏既有接口/规范)
+
+### 新增
+
+- **Swagger 接口契约硬门禁(v2.31.0+ 全栈适用铁律)**：写接口文件时 PreToolUse 阶段物理拦截 5 字段契约不合规的写法,避免 commit 时一次性报 20+ 错误导致返工。`hooks/pre-write-confirm-api-hint.sh` 由 v2.4.0 的「软提醒(exit 0)」升级为「真硬门禁(exit 2 + Claude Code confirm UI)」。详见 `CLAUDE.md` 「写 Swagger 接口必须按 5 字段契约」铁律段 + `mcpowers-shared/docs/技术规范/Swagger字段契约.md` + `mcpowers-shared/docs/技术规范/接口契约规范.md §1`。
+- **项目自定义必填字段清单机制**：项目根放 `.swagger-required-fields.yml` 可声明项目特有的必填 swagger 字段(如 `deprecated` / `x-permission`);未声明时自动落 mcpowers 默认 5 字段契约清单。YAML 解析失败 → 软警告 + fallback 默认,不阻断开发。详见 `Swagger字段契约.md §2`。
+- **新增 Swagger 资产**(集中 helper 模式,不向用户项目注入文件):
+  - `skills/mcpowers-shared/scripts/swagger-stack-detect.sh` —— 探测项目是否真用了 swagger(flasgger/apispec/fastapi/springdoc 等),未装 → 直接放行,零摩擦
+  - `skills/mcpowers-shared/scripts/swagger-required-fields.sh` —— 加载字段清单(项目优先 + mcpowers 默认 fallback)
+  - `skills/mcpowers-shared/scripts/swagger-lint-helper.py` —— 单文件 lint,import 复用 `lint_api_docstrings.py` 的 `parse_python_docstring` + `lint_docstring` 函数
+  - `skills/mcpowers-shared/scripts/swagger-contract-check.sh` —— 集中 helper,被 wrapper hook 调用
+  - `skills/mcpowers-shared/docs/技术规范/Swagger字段契约.md` + `docs/API契约/默认Swagger必填字段.yml` —— 字段清单机制权威源 + mcpowers 默认清单
+- **零新增 hook 槽位**：wrapper hook 复用既有 `pre-write-confirm-api-hint.sh` 路径(仅内部行为从软提醒改硬门禁),`hooks/hooks.json` 零改动。
+- **新增审查门禁**：`mcpowers-code-review` 增 R13 反模式条目(swagger 接口 5 字段不完整)+ Quick-Check 段含 3 条扫描命令。
+
+### 修复
+
+- **修复 `check_api_docs_sync.sh` 硬编码路径纪律漏网**：line 100 提示文本的 `python tools/export_docs.py` 改为 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/tools/export_docs.py`,符合 v2.29.0 「不向用户项目注入任何文件」纪律(原硬编码假设项目里有 tools/export_docs.py,与 v2.29.0 wrapper→helper 集中模式冲突)。
+
+### 调整
+
+- **规范体系从 31 → 32 份**:`Swagger字段契约.md` 是新增第 32 份规范(stability: evolving),`mcpowers-spec-index/SKILL.md` 「做什么 → 读哪个规范」表同步更新。
+- **`mcpowers-feat` 自检清单强化**：v2.31.0+ 写 Swagger 接口必须按 5 字段契约,`skills/mcpowers-feat/SKILL.md` 自检清单项加版本标注。
+
+### 风险
+
+- **lint 性能成本**：每次 Write hook 跑 6 → 7 个脚本(本版本新增 swagger-stack-detect + swagger-required-fields + swagger-lint-helper),Python 解释器启动开销 ~500ms,Write 总成本 ~1.7s。在可接受范围,未做 daemon 模式优化(YAGNI);若用户投诉再优化。
+- **confirm UI 是软门禁**：用户一键放行时仍能写不合规的接口文件——这是 Claude Code hooks 固有限制,不是 mcpowers 能解决的。真正硬门禁在用户项目的 CI;铁律价值是「让 AI 在写完那一刻意识到漏写」,不是「强制阻止提交」。
+- **非 Python 栈(JS/TS router)暂不校验**:`swagger-lint-helper.py` 只支持 Python(Flasgger docstring 解析),JS/TS 路由文件命中快速过滤后直接放行(YAGNI,不补全栈模板)。FastAPI / Spring Boot 等其他栈留给项目自定义 `.swagger-required-fields.yml` 走「必填字段名」层校验。
+
 ## v2.30.0 - 2026-08-12
 
 ### Breaking Changes

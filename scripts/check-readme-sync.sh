@@ -24,7 +24,7 @@
 #  18. 根文档结构门禁（v2.21.1 新增：禁止 CLAUDE.md 出现"### 历史教训（v" / README.md 出现"### vX.Y.Z"）
 #  19. 根文档尺寸门禁（v2.21.1 新增：CLAUDE.md ≤ 350 行 / 35,000 字符，README.md ≤ 650 行 / 50,000 字符）
 #  20. 单一权威源门禁（v2.21.1 新增：关键短语在 CLAUDE.md / README.md 出现即告警，应在规范权威源维护）
-#  21. 规范 frontmatter 双字段门禁（v2.27.4 新增：31 规范必须声明 stability + last_breaking_change）
+#  21. 规范 frontmatter 双字段门禁（v2.27.4 新增：全部规范必须声明 stability + last_breaking_change，动态计数）
 #
 # v2.27.4：新增 section 21
 # v2.21.1：新增 section 18/19/20
@@ -90,9 +90,11 @@ fi
 
 # ============== 2. 规范清单同步 ==============
 echo "[2/13] 校验 README ↔ docs/ 规范同步"
+# v2.31.0:保留 *规范.md 匹配(代表「以『规范』结尾的命名约定」)
+# 不命名变体(如 Swagger字段契约.md)由 §22 单独检查存在性
 README_SPECS=$(grep -oE '[A-Za-z一-龥]+规范\.md' "$README" 2>/dev/null | sort -u || true)
 # v2.0：mcpowers-shared 移到 skills/mcpowers-shared/
-ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
+ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
 
 MISSING_SPEC=0
 for s in $ACTUAL_SPECS; do
@@ -110,9 +112,10 @@ fi
 
 # ============== 3. 规范 frontmatter 完整性 ==============
 # 只检查 技术规范/ 子目录（24 个核心规范范围，AI操作规范和产品设计规范不在范围）
-echo "[3/13] 校验 24 个核心规范 frontmatter 完整性"
+# v2.31.0:实际是 32 个规范,但其中 31 个以「规范.md」结尾,Swagger字段契约.md 用 §22 单独检查
+echo "[3/13] 校验 32 个核心规范 frontmatter 完整性"
 # v2.0：路径更新
-SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null)
+SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -maxdepth 1 -name "*.md" -type f 2>/dev/null)
 MISSING_FM=0
 # 用 while + read 避免路径空格被 word splitting
 while IFS= read -r f; do
@@ -219,7 +222,7 @@ fi
 #   技能数排除 mcpowers-shared（规范库）
 echo "[7/13] 校验 README/CLAUDE.md 中声明的技能/规范/Hook 脚本数与实际一致"
 ACTUAL_SKILL_N=$(echo "$ACTUAL_SKILLS" | grep -v '^mcpowers-shared$' | grep -c '^mcpowers' || true)
-ACTUAL_SPEC_N=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
+ACTUAL_SPEC_N=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
 ACTUAL_HOOK_N=$(find "$REPO_DIR/hooks" -maxdepth 1 -name "*.sh" -type f 2>/dev/null | wc -l | tr -d ' ')
 
 # 提取文档中所有"总技能数/规范数/Hook 脚本数"声明
@@ -1042,7 +1045,7 @@ fi
 #   - stability: stable|evolving|deprecated
 #   - last_breaking_change: v{major}.{minor}.{patch}
 # 这是 v2.27.4「规范稳定性分级」铁律的 CI 兜底层（与 pre-write-check-spec-frontmatter.sh 物理 Hook 互补）
-echo "[21/21] 校验 31 规范都有 stability: + last_breaking_change: 字段（v2.27.4+）..."
+echo "[21/21] 校验全部规范都有 stability: + last_breaking_change: 字段（v2.27.4+）..."
 
 SPEC_DIR="skills/mcpowers-shared/docs/技术规范"
 SPEC_TOTAL=$(find "$SPEC_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l)
@@ -1066,10 +1069,44 @@ if [ "$SPEC_BREAKING" -ne "$SPEC_TOTAL" ]; then
 fi
 
 if [ "$FRONTMATTER_FAIL" -eq 0 ]; then
-    echo "  ✓ 31 规范 frontmatter 双字段完整（stability + last_breaking_change 全部标注）"
+    echo "  ✓ $SPEC_TOTAL 规范 frontmatter 双字段完整（stability + last_breaking_change 全部标注）"
 else
     echo "  修复：在每个规范文件 frontmatter 补 'stability: stable|evolving|deprecated' + 'last_breaking_change: v{major}.{minor}.{patch}'"
     FAIL=$((FAIL + FRONTMATTER_FAIL))
+fi
+
+# ============== §22 Swagger 5 字段契约铁律存在性(v2.31.0+) ==============
+SWAGGER_FAIL=0
+# CLAUDE.md 必须含 v2.31.0+ Swagger 铁律段
+if [ ! -f "CLAUDE.md" ] || ! grep -q "写 Swagger 接口必须按 5 字段契约（v2.31.0+" "CLAUDE.md"; then
+    echo "  ✗ CLAUDE.md 缺 v2.31.0+ Swagger 5 字段契约铁律段"
+    SWAGGER_FAIL=$((SWAGGER_FAIL + 1))
+fi
+# Swagger字段契约.md 必须存在
+if [ ! -f "skills/mcpowers-shared/docs/技术规范/Swagger字段契约.md" ]; then
+    echo "  ✗ skills/mcpowers-shared/docs/技术规范/Swagger字段契约.md 不存在"
+    SWAGGER_FAIL=$((SWAGGER_FAIL + 1))
+fi
+# 默认Swagger必填字段.yml 必须存在
+if [ ! -f "skills/mcpowers-shared/docs/API契约/默认Swagger必填字段.yml" ]; then
+    echo "  ✗ skills/mcpowers-shared/docs/API契约/默认Swagger必填字段.yml 不存在"
+    SWAGGER_FAIL=$((SWAGGER_FAIL + 1))
+fi
+# swagger-contract-check.sh 集中 helper 必须存在
+if [ ! -f "skills/mcpowers-shared/scripts/swagger-contract-check.sh" ]; then
+    echo "  ✗ skills/mcpowers-shared/scripts/swagger-contract-check.sh 不存在"
+    SWAGGER_FAIL=$((SWAGGER_FAIL + 1))
+fi
+# swagger-lint-helper.py 必须存在
+if [ ! -f "skills/mcpowers-shared/scripts/swagger-lint-helper.py" ]; then
+    echo "  X skills/mcpowers-shared/scripts/swagger-lint-helper.py 不存在"
+    SWAGGER_FAIL=$((SWAGGER_FAIL + 1))
+fi
+
+if [ "$SWAGGER_FAIL" -eq 0 ]; then
+    echo "  ✓ v2.31.0+ Swagger 5 字段契约铁律 5 件套完整(CLAUDE.md 铁律段 + Swagger字段契约.md + 默认清单 yml + contract-check.sh + lint-helper.py)"
+else
+    FAIL=$((FAIL + SWAGGER_FAIL))
 fi
 
 # ============== 汇总 ==============

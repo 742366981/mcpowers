@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **32 个可路由技能**（场景层 24 + 方法层 8，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（31 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除） |
+| `skills/mcpowers-shared/` | 规范资产库（32 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除；v2.31.0 新增 `Swagger字段契约.md` 字段清单机制） |
 | `hooks/` | Claude Code hooks 资产（4 个事件组 / 9 个脚本 + `hooks.json`；v2.28.2+ 含 `pre-write-check-duplicate.sh` 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 + 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder 协议方法 + 单下划线私有名）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明；**v2.29.0+ 含 `pre-write-check-doc-sync.sh` doc-sync 物理门禁（path/route/env 三类检查）——替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，不向用户项目注入任何文件，装 mcpowers 即自动支持**） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
@@ -63,6 +63,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **日志分文件基线**：按业务 type 分文件（`biz.log` / `audit.log` / `request.log` / …），**级别是 JSON 的 `level` 字段，不是文件名后缀**；禁止 `xxx_info.log` / `xxx_error.log` 这类按级别切文件（会拆散同一 `request_id` 的链路）；ERROR+ 仅以**聚合流**形式额外落一份 `error.log`。详见 `日志规范.md §7.2` + `Flask后端规范.md §6.0`。
 
+**写 Swagger 接口必须按 5 字段契约（v2.31.0+ 全栈适用铁律）**：任何使用 Swagger / OpenAPI 工具栈的项目（flasgger / apispec / fastapi / springdoc / openapi-typescript 等）写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）时，**PreToolUse 阶段物理门禁**——`tags` + `summary`（≤ 30 字，句末无标点）+ `description`（≤ 100 字简短功能说明）+ `parameters`（每个含 `description` + `example`）+ `responses`（含 200 + 至少 1 个错误码，每个含 `schema` + `examples`）任一缺失视为不完整接口，触发 Claude Code confirm UI（exit 2）。详见 [`接口契约规范.md`](skills/mcpowers-shared/docs/技术规范/接口契约规范.md) §1（5 字段契约权威定义）+ [`Swagger字段契约.md`](skills/mcpowers-shared/docs/技术规范/Swagger字段契约.md)（项目自定义必填字段清单机制，`.swagger-required-fields.yml`）。栈级落地：`hooks/pre-write-confirm-api-hint.sh` 由 v2.4.0 软提醒升级为 v2.31.0 真硬门禁（wrapper→helper 集中模式：`scripts/swagger-contract-check.sh` → `scripts/swagger-stack-detect.sh` → `scripts/swagger-required-fields.sh` → `scripts/swagger-lint-helper.py`，不向用户项目注入任何文件）；Flask/Flasgger 实现层参考 [`swagger_template.md`](skills/mcpowers-shared/docs/API文档/swagger_template.md) 24 类接口模板。审查门禁：`mcpowers-code-review` 增 R13 反模式条目（swagger 接口 5 字段不完整）+ Quick-Check 段含 3 条扫描命令（grep `tags:` 顶层字段名 / `description:` + `example:` 子字段配对 / `responses:` 块含 ≥ 2 个状态码）。
+
 **控制台日志级别紧凑 + stdout（v2.28.4+ 全栈适用铁律）**：控制台 formatter 的级别字段必须紧凑（`%(levelname)s` 或 `%(levelname).1s`，禁止 `%(levelname)-8s` / `%(levelname)-5s` 等宽度填充——宽度由 format 字符串决定，不是 colorlog 参数）；控制台 handler 必须显式 `logging.StreamHandler(stream=sys.stdout)`（禁止 `logging.StreamHandler()` 默认 `sys.stderr`——PyCharm / IntelliJ 会把 stderr 整体染红，即使日志级别是 INFO / DEBUG）。详见 `日志规范.md §7.5`；栈级落地见 `Flask后端规范.md §6.1` `utils/loggings.py` 实现层。审查门禁：`mcpowers-code-review` 增 R11 反模式条目（控制台日志级别未紧凑打印 / StreamHandler 未显式指定 stdout）+ 新 Quick-Check 段「v2.28.4+ 控制台日志级别紧凑 + stdout Quick-Check」含 2 条扫描命令。
 
 **控制台默认无颜色（v2.29.2+ 跨语言全栈总章铁律·任何环境一律默认关·模块内置即合规）**：除非用户在配置 / 调用方**主动**开启，控制台 formatter **默认**走 plain formatter（无 ANSI 转义序列）。**禁止**任何模块——**包括 min-module / sdk-design 的内置日志模块**——默认开启颜色。**任何环境（dev / test / staging / prod）一律默认关**——颜色开关不区分部署阶段，开发环境不会因为「dev 就该有颜色」而默认开；**min-module / sdk-design 内置日志工厂硬编码默认即合规**——不假设调用方会传配置，开箱即无颜色。颜色是「按需着色」哲学，不是「按需去色」哲学。默认开颜色会污染：①复制粘贴（`\x1b[32m...` 混入 Markdown / issue 评论）；②管道（`grep` / `tee` 关键字匹配穿插转义字符）；③文件重定向（Loki / ELK 把 ANSI 当异常染色）；④日志聚合平台（Sentry / DataDog 把含 ANSI 的字符串归类为 error）。详见 `日志规范.md §7.6`（v2.29.2 升级为总章铁律：含 Python / JS / Go / Rust / Java 5 语言对照表 + `§7.6.4` min-module/sdk 内置日志硬编码默认示例 + `§7.6.5` 全栈反例清单）；栈级落地见 `Flask后端规范.md §6.1`（`LOG_CONSOLE_COLOR = False` 配置项 + 控制台 formatter 三态：JSON / colorlog（仅 console_color=True）/ plain（v2.29.2+ 默认））+ `爬虫规范.md §12` 同步引用 + `mcpowers-min-module/SKILL.md §4` + `mcpowers-sdk-design/SKILL.md §11` 自检清单对齐：内置日志工厂硬编码默认 = `INFO + stdout + 紧凑级别 + plain Formatter`，**调用方零配置即合规**。审查门禁：`mcpowers-code-review` 增 R12 反模式条目（默认走 `colorlog.ColoredFormatter` / `winston.format.colorize()` / `logrus ForceColors: true` 等开颜色）+ 新 Quick-Check 段「v2.29.2+ 默认无颜色 Quick-Check」含 **4 条**扫描命令（Python `setFormatter(...ColoredFormatter)` 缺配置开关 / JS-Go-Rust 默认颜色参数 / `console_color` 默认值 `True` / **v2.29.2+ 新增**：模块内置日志硬编码默认值扫描——即便在硬编码常量里出现 ColoredFormatter 也视为违规）。
@@ -81,7 +83,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **运行时版本访问白名单（v2.27.4+ 全栈适用铁律）**：上条禁的是"注入物硬编码版本号"。本条允许的是"AI 运行时访问历史版本"——AI 在 Claude Code 工具调用层 `ls ~/.claude/plugins/cache/mcpowers/mcpowers/` 发现用户已装的旧版本 → `Read` 读该版本规范（version 是运行时发现，**不**是预先硬编码）；项目根存在 `.mcpowers-version: v{major}.{minor}.{patch}` 时 AI 默认读该版本；用户显式指定"按 v{major}.{minor}.{patch} 规范写"时 AI 按指令读历史版本。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §运行时版本访问白名单」。
 
-**规范稳定性分级 + CHANGELOG 强制破坏声明（v2.27.4+ 全栈适用铁律）**：所有 31 份规范 frontmatter 必须声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；AI 读取规范后必读这两个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG / deprecated 不写新代码）。每次 mcpowers 发布的 `CHANGELOG.md` 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的**唯一权威索引**。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §CHANGELOG 强制破坏声明段」；方法层落地：`mcpowers-code-review` 增 R9 stability 审查维度 + 审查动作清单第 6 项。
+**规范稳定性分级 + CHANGELOG 强制破坏声明（v2.27.4+ 全栈适用铁律）**：所有 32 份规范 frontmatter 必须声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；AI 读取规范后必读这两个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG / deprecated 不写新代码）。每次 mcpowers 发布的 `CHANGELOG.md` 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的**唯一权威索引**。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §CHANGELOG 强制破坏声明段」；方法层落地：`mcpowers-code-review` 增 R9 stability 审查维度 + 审查动作清单第 6 项。
 
 **终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
 
@@ -225,6 +227,6 @@ for f in sorted(os.listdir('skills')):
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **资产零损耗**：31 个技术规范原地保留，路径不重组、不重命名
+- **资产零损耗**：32 个技术规范原地保留，路径不重组、不重命名
 - **完全独立**：不依赖任何外部技能，Git 操作由 4 个 `mcpowers-git-*` 技能自包含
 - **零安装脚本**：依赖 Claude Code 插件系统管理安装/卸载/升级，仓库零维护成本

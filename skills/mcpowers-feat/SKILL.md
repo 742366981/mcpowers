@@ -178,11 +178,13 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
 ## 完成后自检清单
 
 - [ ] 规范已按需加载（不是全量）
-- [ ] **接口/函数有完整 docstring（v2.4.0 严要求）**
+- [ ] **接口/函数有完整 docstring（v2.4.0 严要求·v2.31.0+ Swagger 接口契约硬门禁）**
   - [ ] 5 字段齐全：tags + summary（≤ 30 字）+ description（≤ 100 字简短）+ parameters（含 description+example）+ responses（含 schema+examples）
   - [ ] responses 含 200 + 至少 1 个错误码
+  - [ ] 项目根有 `.swagger-required-fields.yml` 时,必填字段含 mcpowers 默认 + 项目自定义
   - [ ] 已对照 `接口契约规范.md` §7 自检清单逐项过
   - [ ] 已对照 `接口契约规范.md` §8 反模式清单确认无误
+  - [ ] **[v2.31.0+]** PreToolUse 硬门禁已自动触发:`hooks/pre-write-confirm-api-hint.sh` → `scripts/swagger-contract-check.sh` → 5 字段不合规 → exit 2 + confirm UI(避免返工)
 - [ ] **接口改动已同步**（如改了 Flask 接口）
   - [ ] docstring 已更新（如改路径/参数/响应）
   - [ ] 已重跑 `python tools/export_docs.py`（导出 swagger_spec.json + API文档.md）

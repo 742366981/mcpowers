@@ -125,7 +125,7 @@ fi
 
 # ============== 5. 规范库 ==============
 echo "[5/7] 断言：mcpowers-shared 规范库完整"
-SPEC_COUNT=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | wc -l | tr -d ' ')
+SPEC_COUNT=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -maxdepth 1 -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
 if [ "$SPEC_COUNT" -ge 28 ]; then
     echo "  ✓ 技术规范数=$SPEC_COUNT (≥28)"
     PASS=$((PASS + 1))

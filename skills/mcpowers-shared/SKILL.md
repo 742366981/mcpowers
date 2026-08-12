@@ -1,6 +1,6 @@
 ---
 name: mcpowers-shared
-description: "规范库入口 / 技术规范按需加载。覆盖 API、数据库、缓存、Git、测试、部署、Flask、Vue、爬虫等 31 个技术规范（含 v2.14.0 爬虫拆分 7 册）；通过 mcpowers-spec-index 查表后定向 Read，避免一次加载全部规范。边界：写功能→mcpowers-feat；只查规范→本技能。"
+description: "规范库入口 / 技术规范按需加载。覆盖 API、数据库、缓存、Git、测试、部署、Flask、Vue、爬虫等 32 个技术规范（含 v2.14.0 爬虫拆分 7 册、v2.31.0 Swagger 字段契约）；通过 mcpowers-spec-index 查表后定向 Read，避免一次加载全部规范。边界：写功能→mcpowers-feat；只查规范→本技能。"
 ---
 
 # mcpowers-shared · 规范库入口

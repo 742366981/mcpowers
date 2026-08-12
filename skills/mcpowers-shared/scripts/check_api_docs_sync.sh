@@ -97,7 +97,7 @@ if [ "$VIOLATIONS" -gt 0 ]; then
     fi
     echo "❌ 共 $VIOLATIONS 项不一致"
     echo "   修复建议："
-    echo "   1. python tools/export_docs.py"
+    echo "   1. python ${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/tools/export_docs.py"
     echo "   2. git add docs/API文档/"
     echo "   3. git commit -m 'docs(api): sync API docs after interface change'"
     exit 1

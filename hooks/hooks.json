@@ -55,6 +55,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-confirm-api-hint.sh\""
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-duplicate.sh\""
           },
           {

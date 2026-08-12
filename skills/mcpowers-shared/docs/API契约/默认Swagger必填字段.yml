@@ -1,0 +1,23 @@
+# mcpowers 默认 Swagger 必填字段清单(v2.31.0+)
+# 来源:接口契约规范.md §1 元数据强制字段
+# 修改本文件 = 全局升级 mcpowers 默认契约,谨慎
+# 详细格式与子字段约束见 Swagger字段契约.md + 接口契约规范.md §1
+
+required_fields:
+  - tags
+  - summary
+  - description
+  - parameters
+  - responses
+
+parameter_subfields:
+  required:
+    - description
+    - example
+
+response_subfields:
+  required:
+    - schema
+    - examples
+
+# 错误码必含至少 1 个(内置于 lint 逻辑,不可配置,见 Swagger字段契约.md §4)

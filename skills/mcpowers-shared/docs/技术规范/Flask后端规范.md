@@ -372,11 +372,8 @@ compress = Compress()
 migrate = Migrate()
 
 
-def create_app(protect_swagger=True):
+def create_app():
     """Flask 应用工厂
-
-    Args:
-        protect_swagger: 是否启用 Swagger Basic Auth 保护（生产环境应传 False）
 
     Returns:
         Flask: 配置完毕的应用实例
@@ -427,7 +424,7 @@ def create_app(protect_swagger=True):
     register_error_handlers(app)  # 本文件内定义，详见第 7.1 节
 
     # === 注册 Swagger 文档 ===
-    register_swagger(app, protect=protect_swagger)  # 本文件内定义，详见第 11.1 节
+    register_swagger(app)  # 本文件内定义，详见第 11.1 节；是否启用由 ENV_TYPE 自动判断
 
     return app
 ```
@@ -594,9 +591,11 @@ origins = *
 supports_credentials = true
 
 [swagger]
-# Swagger 文档保护账号
-user = admin
-password = admin123
+# Swagger 文档保护账号（仅非生产环境的 Basic Auth 凭据）
+# ⚠️ 禁止默认/弱密码：dev/test 部署时必须用强密码替换；缺失或为空将启动崩溃（fail-fast）
+# 推荐生成命令：openssl rand -base64 16
+user = <部署时填入的强密码，禁止 admin/test/123456 等弱密码>
+password = <部署时填入的强密码，禁止 admin/test/123456 等弱密码>
 ```
 
 > ⚠️ **配置加载器实现要求**
@@ -1419,7 +1418,15 @@ def get_internal_ip():
     return socket.gethostbyname(hostname)
 
 
-def register_swagger(app, protect=True):
+def register_swagger(app):
+    """注册 Swagger 文档
+
+    生产环境（ENV_TYPE='prod'）直接 return，不启用 Swagger、不暴露接口信息；
+    非生产环境（dev/test）默认启用 Swagger 并加 HTTP Basic Auth 保护，
+    账号密码从配置文件读取（详见 安全规范.md）。
+    测试模式（app.config['TESTING']=True）通过钩子内部动态判断跳过保护，
+    方便 test_client / export_docs 拉取 spec，对「先 create_app 还是先设 TESTING」无时序要求。
+    """
     if ENV_TYPE == 'prod':
         return  # 生产环境不启用Swagger
 
@@ -1450,19 +1457,26 @@ def register_swagger(app, protect=True):
         "security": [{"Bearer": []}]
     })
 
-    # HTTP Basic Auth保护文档
-    if protect:
-        # 账号密码从配置文件读取，禁止硬编码（详见 安全规范.md）
-        swagger_user = app_conf.get('swagger_user')
-        swagger_pass = app_conf.get('swagger_password')
+    # HTTP Basic Auth保护文档（非生产环境的安全基线：账号密码从配置文件 [swagger] 段读取，禁止硬编码，详见 安全规范.md）
+    # fail-fast：[swagger] 段缺失会抛 NoSectionError；user/password 缺失或为空字符串也会立即崩溃（不允许静默放行 Swagger）
+    swagger_user = app_conf.get('swagger', 'user')
+    swagger_pass = app_conf.get('swagger', 'password')
+    if not swagger_user or not swagger_pass:
+        raise RuntimeError(
+            "Swagger 文档保护凭据缺失或为空：必须在 config_{env}.ini 的 [swagger] 段下配置 user 和 password"
+        )
 
-        @app.before_request
-        def protect_swagger():
-            swagger_paths = ['/apidocs', '/apispec_1.json', '/static/flasgger/']
-            if any(request.path.startswith(p) for p in swagger_paths):
-                auth = request.authorization
-                if not auth or not (auth.username == swagger_user and auth.password == swagger_pass):
-                    return Response('Login Required', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+    @app.before_request
+    def protect_swagger():
+        # 测试模式（TESTING=True）动态跳过，方便 test_client / export_docs 拉 spec
+        # 放在钩子内部而非注册前判断，是为了兼容「create_app() 之后再设 TESTING」的调用顺序
+        if app.config.get('TESTING'):
+            return
+        swagger_paths = ['/apidocs', '/apispec_1.json', '/static/flasgger/']
+        if any(request.path.startswith(p) for p in swagger_paths):
+            auth = request.authorization
+            if not auth or not (auth.username == swagger_user and auth.password == swagger_pass):
+                return Response('Login Required', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
 ```
 
 ### 11.1.4 Header 参数声明示例（v2.4.0 新增，适配 webhook / 签名校验场景）

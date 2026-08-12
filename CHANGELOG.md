@@ -9,6 +9,37 @@
 
 - 待发布
 
+## v2.30.0 - 2026-08-12
+
+### Breaking Changes
+
+- **`create_app(protect_swagger=...)` 形参删除**：`Flask后端规范.md §3.1` 应用工厂不再接受 `protect_swagger` 形参。Swagger 是否启用完全由 `ENV_TYPE` 自动判断（生产环境硬禁用，非生产环境默认启用+Basic Auth）。升级前请检查项目 `apps/__init__.py` 是否传 `protect_swagger=...` 调用——如有，**必须删除**该关键字参数，否则启动抛 `TypeError`。
+- **`register_swagger(app, protect=...)` 形参删除**：`Flask后端规范.md §11.1` 函数签名瘦身为 `register_swagger(app)`。`protect` 形参原本用于「dev/test 环境下是否加 Basic Auth」，新版改为 `app.config['TESTING']` 动态判断（钩子内部 `if app.config.get('TESTING'): return`），对调用方零时序要求。
+- **配置文件示例字段名变更**：`config_{env}.ini` Swagger 凭据字段从旧代码读法（顶层扁平 `swagger_user / swagger_password`，**与配置示例错位导致保护静默失效——本版本修复**）改为 `[swagger] user / password` 段。**升级时如按旧示例配置（`[swagger] user=admin password=admin123`），新版代码能正确读取——但旧示例配置的弱凭据须替换为强密码**；如按旧代码读法配置（顶层 `swagger_user=...`），**启动会抛 `RuntimeError`**（fail-fast，不允许静默放行 Swagger）。
+- **Swagger 凭据默认占位符**：配置文件示例 `[swagger]` 段从 `user = admin / password = admin123` 改为 `<部署时填入的强密码，禁止 admin/test/123456 等弱密码>`。**升级时必须替换占位符为强密码**，否则启动崩溃（fail-fast）。推荐生成命令：`openssl rand -base64 16`。
+
+### 修复
+
+- **修复 Swagger Basic Auth 保护完全失效的安全漏洞**：旧代码 `register_swagger` 内部读 `app_conf.get('swagger_user')`（默认 `[app]` 段），但配置文件示例写在 `[swagger].user`——字段名错位导致 `swagger_user = swagger_pass = None`，Basic Auth 比对条件 `not (None==None and None==None) = False` 永远不触发，**所有请求的 401 拦截形同虚设，任何人访问 Swagger 都通过**。新版改为读 `app_conf.get('swagger', 'user')` 与配置对齐 + 加 `RuntimeError` fail-fast（凭据缺失或为空字符串则启动崩溃），杜绝静默放行。
+- **修复 Swagger 启用决策「默认反模式」**：旧 `create_app(protect_swagger=True)` 默认「启用+加 Basic Auth」，调用方必须在生产环境**主动传 `False`** 才能符合规范「仅非生产环境可用」铁律（违反 Secure by Default）。新版删除该形参，由 `ENV_TYPE` 自动判断——**调用方无需也无法在生产环境手动启用 Swagger**，安全决策下沉到环境配置。
+- **修复 `protect_swagger` 钩子时序耦合**：旧钩子在 `register_swagger` 内部注册，依赖调用方在 `create_app()` **之前**设 `app.config['TESTING']=True`；测试场景 fixture 普遍是「先 `create_app()` 再设 TESTING」→ 钩子已注册，TESTING 已晚。新版改为钩子内部动态判断 TESTING，**对调用方零时序要求**。
+- **修复 Swagger 默认弱凭据反模式**：配置文件示例引导用户写 `admin/admin123`，等于把生态安全基线拉到「教程级」；新版改占位符 + 推荐生成命令，禁止照抄弱密码。
+
+### 调整
+
+- `Flask后端规范.md §3.1`：`create_app()` 不再接受形参；删除「生产环境应传 False」误导性注释。
+- `Flask后端规范.md §11.1`：`register_swagger(app)` 函数签名瘦身为无参；新增 docstring 说明 ENV_TYPE 决策逻辑 + TESTING 动态判断语义。
+- `Flask后端规范.md §4.2`：配置文件示例 `[swagger]` 段从默认弱凭据改为占位符 + 推荐 `openssl rand -base64 16` 生成命令 + ⚠️ 禁止弱密码警告。
+- `Flask后端规范.md §11.1`：Basic Auth 钩子改为从 `[swagger].user/password` 读取凭据，加 fail-fast `RuntimeError` 校验；钩子内部加 `if app.config.get('TESTING'): return` 动态判断。
+- `数据库规范.md §3.2`、`测试规范.md §3.1`、`健康检查规范.md §2.2`：调用方代码从 `create_app(protect_swagger=False)` / `(protect_swagger=True)` 改为 `create_app()`（测试 fixture 的 `TESTING=True` 保留，钩子动态判断生效）。
+- `export_docs.py`：`create_app(protect_swagger=False)` 改为 `create_app()` + 显式 `app.config['TESTING']=True`，让 `register_swagger` 钩子动态跳过 Basic Auth（test_client 拉 `/apispec_1.json` 不被 401 拦掉）。
+- `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`：version bump `2.29.3 → 2.30.0`（3 处同步，接口签名变更走 minor 而非 patch）。
+
+### 风险
+
+- **老项目升级可能直接启动崩溃**：本次改动涉及 3 处用户级破坏——`create_app` 形参删除、`register_swagger` 形参删除、配置文件示例字段名变更 + 默认占位符强制强密码。**升级 mcpowers 到 v2.30.0 前请检查**：①项目 `apps/__init__.py` 是否传 `protect_swagger=...`；②`config_{env}.ini` 是否用旧 `swagger_user/swagger_password` 顶层键（旧代码读法，已无效）；③`[swagger]` 段是否仍写 `admin/admin123` 默认凭据（新版 fail-fast，缺失或弱密码直接崩溃）。任一项命中需先迁移再升级。
+- **无新增机制**：本次为纯接口签名删除 + 字段名统一 + fail-fast 收紧，不引入新配置项、新依赖、新概念；mcpowers 自身运行时无变化（仅规范文档 + 工具脚本示例代码改动）。
+
 ## v2.29.3 - 2026-08-11
 
 ### Breaking Changes

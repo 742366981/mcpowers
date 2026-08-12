@@ -573,7 +573,10 @@ def main():
             print("   请确认项目结构符合 Flask后端规范.md 第 1 章")
             sys.exit(1)
 
-        app = create_app(protect_swagger=False)
+        app = create_app()
+        # 触发 register_swagger 内部的 protect_swagger 钩子动态跳过 Basic Auth
+        # （详见 Flask后端规范.md 第 11.1 节）；否则 test_client 拉 /apispec_1.json 会被 401 拦掉
+        app.config['TESTING'] = True
 
         # 3. 通过 test_client 拉取 swagger spec
         with app.test_client() as client:

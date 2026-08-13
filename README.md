@@ -527,7 +527,7 @@ bash scripts/check-readme-sync.sh && bash tests/plugin-verify.sh
 
 ### 工具脚本使用示例（v4.0.0+ export_docs.py）
 
-`skills/mcpowers-shared/tools/export_docs.py` 用于从 Flask/Flasgger 项目拉取 Swagger 2.0 spec，导出 `openapi.json` + `API文档.md`。v4.0.0 起内置 **5 字段契约硬门禁**（写时 + 导出时双拦截）+ **业务接口响应规范**（HTTP 仅 200，业务错误走 code 字段）+ **可选 `--serve`** 启动 swagger-ui 在线文档。
+`skills/mcpowers-shared/tools/export_docs.py` 用于从 Flask/Flasgger 项目拉取 Swagger 2.0 spec，导出 `openapi.json` + `API文档.md`。v4.0.0 起内置 **5 字段契约硬门禁**（写时 + 导出时双拦截）+ **业务接口响应规范**（HTTP 仅 200，业务错误走 code 字段）+ **可选 `--serve`** 启动 swagger-ui 在线文档。v4.2.0 起新增 **表格排版防护**（`_md_cell_safe()` 4 步走：规范化 / 不可见字符清理 / Markdown 转义 / 危险结构防御）+ **XSS 阻断**（`_scan_xss_risk()` 10 类 XSS 模式命中即 exit 2）+ **`data: array` 响应字段渲染死代码修复**。
 
 ```bash
 # 1. Flask 项目模式（默认）—— 自动向上找 apps/ 子目录，加载 create_app
@@ -555,7 +555,7 @@ python skills/mcpowers-shared/tools/export_docs.py --project /path/to/flask-app
 |:------:|:-----|
 | `0` | 成功 |
 | `1` | 文件 / 解析错误（项目结构不符、spec 加载失败） |
-| `2` | 5 字段契约违反或业务接口响应规范违反 |
+| `2` | 5 字段契约违反 / 业务接口响应规范违反 / API 文档零引用字眼 / XSS 注入风险 |
 
 **输出文件**：
 

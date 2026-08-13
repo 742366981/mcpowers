@@ -47,6 +47,7 @@ import http.server
 import importlib.util
 import json
 import os
+import re
 import sys
 import webbrowser
 from datetime import datetime
@@ -231,6 +232,92 @@ def _get_param_example(param: Any) -> Any:
             if sch_example:
                 return sch_example
     return ''
+
+
+def _md_cell_safe(value: Any) -> str:
+    """Markdown 表格单元格安全规整(4 步走,精简版 v2.1)。
+
+    按顺序执行 4 步,确保单元格值在 Markdown 表格中不破坏语法、不引入危险结构:
+
+      1. **规范化**:None / dict / list → 字符串;前后空白 strip
+      2. **不可见字符清理**:NBSP / EM SPACE 等不间断空白 → 常规空格;
+         ZWSP / BOM / Word Joiner 等零宽字符 → 删除
+      3. **Markdown 转义**:反斜杠 → 双反斜杠;`|` → `\\|`;换行 → `<br>`(GFM 表格内换行标准)
+      4. **危险结构防御**:HTML 标签剥离(白名单 `<br>`);`\\|---` 等分隔行模式 → `—`;
+         内嵌代码块围栏 ` ``` ` → 单 `` ` ``;列表 / 标题前缀 → 空格
+
+    XSS 风险在 spec 级别由 `_scan_xss_risk()` 阻断——本函数不做 strict 模式,
+    命中 XSS 模式的字符串在表格生成时会被 HTML 剥离,自然脱敏。
+
+    Args:
+        value: 任意类型(字符串 / 数字 / 字典 / 列表 / None)
+
+    Returns:
+        处理后的安全字符串;空 dict / None / 空串返回 `''`
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> _md_cell_safe('hello|world')
+        'hello\\\\|world'
+        >>> _md_cell_safe('line1\\nline2')
+        'line1<br>line2'
+        >>> _md_cell_safe(' hello​')
+        'hello'
+        >>> _md_cell_safe({'a': 1})
+        '{"a": 1}'
+        >>> _md_cell_safe('<b>strong</b> text')
+        'strong text'
+        >>> _md_cell_safe('see <br>here')
+        'see <br>here'
+        >>> _md_cell_safe('---|---')
+        '---—'
+        >>> _md_cell_safe('- item').strip()
+        'item'
+        >>> _md_cell_safe(None)
+        ''
+    """
+    # 1. 规范化
+    if value is None:
+        s = ''
+    elif isinstance(value, (dict, list)):
+        s = json.dumps(value, ensure_ascii=False)
+    elif not isinstance(value, str):
+        s = str(value)
+    else:
+        s = value
+
+    # 2. 不可见字符清理
+    # 2a. 不间断空白 → 常规空格(NBSP / EN SPACE / EM SPACE / FIGURE SPACE / THIN SPACE / HAIR SPACE)
+    s = re.sub(r'[      ]', ' ', s)
+    # 2b. 零宽字符 → 删除(ZWSP / ZWNJ / ZWJ / WORD JOINER / BOM)
+    s = re.sub(r'[​‌‍⁠﻿]', '', s)
+
+    # 3. Markdown 转义
+    # 3a. 反斜杠优先转义(避免与 | 转义顺序冲突)
+    s = s.replace('\\', '\\\\')
+    # 3b. | → \\| (Markdown 表格列分隔符)
+    s = s.replace('|', '\\|')
+    # 3c. 换行 → <br>(GFM 表格内换行标准)
+    s = re.sub(r'\r\n|\r|\n', '<br>', s)
+
+    # 4. 危险结构防御
+    # 4a. HTML 标签剥离(白名单 <br> 在前序已合法化;其他都剥)
+    s = re.sub(r'<(?!br\b)[^>]+>', '', s)
+    # 4b. 表格分隔行冒充(`|---` / `|:--:` / `| ===`) → 顺号
+    s = re.sub(r'\\?\|[\s\-:|]{3,}', '—', s)
+    # 4c. 内嵌代码块围栏 → 单 `
+    s = re.sub(r'```(\w+)?', '', s)
+    # 4d. 列表 / 标题前缀(行首或 <br> 后)
+    s = re.sub(r'(^|<br>)[-*]\s+', r'\1', s)
+    s = re.sub(r'(^|<br>)\d+\.\s+', r'\1', s)
+    s = re.sub(r'(^|<br>)#{1,6}\s+', r'\1', s)
+
+    return s.strip()
 
 
 def extract_response_data_fields(resp_props):
@@ -617,6 +704,116 @@ def check_no_reference_words_spec(spec: dict) -> list[tuple[str, str, str, str]]
     return violations
 
 
+# === 严重风险检测(v2.1+ 表格排版防护层:XSS / HTML 注入) ===
+
+# XSS 命中模式:script / iframe / object / embed / style / form / svg / 事件处理器 / javascript 协议 / data html
+_XSS_PATTERNS = (
+    (r'<script\b', 'script 标签'),
+    (r'<iframe\b', 'iframe 标签'),
+    (r'<object\b', 'object 标签'),
+    (r'<embed\b', 'embed 标签'),
+    (r'<style\b', 'style 标签'),
+    (r'<form\b', 'form 标签'),
+    (r'<svg\b', 'svg 标签'),
+    (r'\bon\w+\s*=', '事件处理器属性'),
+    (r'javascript:', 'javascript: 协议'),
+    (r'data:text/html', 'data:text/html 协议'),
+)
+
+
+def _scan_xss_risk(spec: dict) -> list[tuple[str, str, str, str]]:
+    """扫描 spec 全部可见字段的 XSS / HTML 注入风险。
+
+    阻断式检查(命中即 exit 2,与 5 字段契约 + 零引用字眼平级)——
+    防止用户在 summary / description / parameters[].description 里写
+    `<script>alert(1)</script>` 这类注入,通过 `_md_cell_safe()` HTML 剥离
+    时被绕过(若保留 script 内容会让某些渲染器上当)。
+
+    扫描范围:spec 的 `summary` / `description` 顶层字段 +
+    `parameters[].description` + `responses[].description`。
+
+    Args:
+        spec: Swagger 2.0 spec dict
+
+    Returns:
+        violations 列表,每项为 `(path, method, location, snippet)` 四元组:
+          - path: 接口路径(如 `'/users/{id}'`)
+          - method: HTTP 方法大写(如 `'POST'`)
+          - location: 字眼出现位置描述(如 `'description'`)
+          - snippet: 命中模式 + 前后 20 字符的精简片段
+        空 list = 完全合规
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> violations = _scan_xss_risk({'paths': {'/x': {'post': {
+        ...     'description': '<script>alert(1)</script>',
+        ...     'parameters': [], 'responses': {'200': {}}
+        ... }}}})
+        >>> len(violations)
+        1
+        >>> violations[0][1]
+        'POST'
+        >>> violations[0][2]
+        'description (script 标签)'
+        >>> _scan_xss_risk({'paths': {'/x': {'post': {
+        ...     'description': 'normal',
+        ...     'parameters': [], 'responses': {'200': {}}
+        ... }}}})
+        []
+    """
+    violations: list[tuple[str, str, str, str]] = []
+
+    def _scan_value(value: str, location: str, path: str, method: str) -> None:
+        if not isinstance(value, str) or not value:
+            return
+        for pattern, label in _XSS_PATTERNS:
+            m = re.search(pattern, value, re.IGNORECASE)
+            if m:
+                idx = m.start()
+                start = max(0, idx - 20)
+                end = min(len(value), idx + 40)
+                snippet = ('...' if start > 0 else '') + value[start:end] + ('...' if end < len(value) else '')
+                violations.append((path, method, f'{location} ({label})', snippet))
+                return  # 同位置只报首个命中
+
+    for path, methods in spec.get('paths', {}).items():
+        if not isinstance(methods, dict):
+            continue
+        for method, details in methods.items():
+            if method.upper() not in DEFAULT_HTTP_METHODS:
+                continue
+            if not isinstance(details, dict):
+                continue
+
+            _scan_value(details.get('summary', ''), 'summary', path, method.upper())
+            _scan_value(details.get('description', ''), 'description', path, method.upper())
+
+            for idx, param in enumerate(details.get('parameters', []) or []):
+                if not isinstance(param, dict):
+                    continue
+                _scan_value(
+                    param.get('description', ''),
+                    f'parameters[{idx}].description',
+                    path, method.upper(),
+                )
+
+            for code, resp in (details.get('responses', {}) or {}).items():
+                if not isinstance(resp, dict):
+                    continue
+                _scan_value(
+                    resp.get('description', ''),
+                    f'responses[{code}].description',
+                    path, method.upper(),
+                )
+
+    return violations
+
+
 # === JSON -> Markdown 渲染 ===
 
 def json_to_markdown(spec, output_file, login_path=None, template_section=None):
@@ -762,7 +959,7 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
 
             summary = details.get('summary', f'{method} {path}')
             description = details.get('description', '')
-            description = description.replace('<br/>', '').strip() if description else ''
+            description = _md_cell_safe(description) if description else ''
             requires_auth = details.get('security', [])
             is_auth_api = 'login' in path or 'logout' in path or 'verify' in path
             need_auth = bool(requires_auth) or not is_auth_api
@@ -800,10 +997,13 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                         prop_type = prop_info.get('type', 'string')
                         is_required = '是' if prop_name in required else '否'
                         prop_desc = prop_info.get('description', '')
-                        prop_example = prop_info.get('example', '')
+                        prop_example = prop_info.get('example')
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
-                        lines.append(f'| {prop_name} | {prop_type} | {is_required} | {prop_desc} |')
+                        lines.append(
+                            f'| {_md_cell_safe(prop_name)} | {_md_cell_safe(prop_type)} '
+                            f'| {is_required} | {_md_cell_safe(prop_desc)} |'
+                        )
                     lines.append('')
 
                 if query_path_params:
@@ -815,9 +1015,9 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
                         lines.append(
-                            f"| {param.get('name')} | {param.get('in')} | "
-                            f"{param.get('type')} | {'是' if param.get('required') else '否'} | "
-                            f'{prop_desc} |'
+                            f"| {_md_cell_safe(param.get('name'))} | {_md_cell_safe(param.get('in'))} | "
+                            f"{_md_cell_safe(param.get('type'))} | {'是' if param.get('required') else '否'} | "
+                            f'{_md_cell_safe(prop_desc)} |'
                         )
                     lines.append('')
 
@@ -832,8 +1032,8 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
                         lines.append(
-                            f"| {param.get('name')} | {param.get('type', 'string')} | "
-                            f"{'是' if param.get('required') else '否'} | {prop_desc} |"
+                            f"| {_md_cell_safe(param.get('name'))} | {_md_cell_safe(param.get('type', 'string'))} | "
+                            f"{'是' if param.get('required') else '否'} | {_md_cell_safe(prop_desc)} |"
                         )
                     lines.append('')
 
@@ -848,8 +1048,8 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
                         lines.append(
-                            f"| {param.get('name')} | {param.get('type', 'string')} | "
-                            f"{'是' if param.get('required') else '否'} | {prop_desc} |"
+                            f"| {_md_cell_safe(param.get('name'))} | {_md_cell_safe(param.get('type', 'string'))} | "
+                            f"{'是' if param.get('required') else '否'} | {_md_cell_safe(prop_desc)} |"
                         )
                     lines.append('')
 
@@ -895,7 +1095,10 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                             continue
                         prop_type = prop_info.get('type', 'string')
                         prop_desc = prop_info.get('description', '')
-                        lines.append(f'| {prop_name} | {prop_type} | {prop_desc} |')
+                        lines.append(
+                            f'| {_md_cell_safe(prop_name)} | {_md_cell_safe(prop_type)} | '
+                            f'{_md_cell_safe(prop_desc)} |'
+                        )
                     lines.append('')
 
                     is_page, data_props = is_pagination_response(resp_props)
@@ -909,7 +1112,10 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                                 continue
                             prop_type = prop_info.get('type', 'string')
                             prop_desc = prop_info.get('description', '')
-                            lines.append(f'| {prop_name} | {prop_type} | {prop_desc} |')
+                            lines.append(
+                                f'| {_md_cell_safe(prop_name)} | {_md_cell_safe(prop_type)} | '
+                                f'{_md_cell_safe(prop_desc)} |'
+                            )
                         lines.append('')
 
                         if is_page and 'records' in data_props:
@@ -926,25 +1132,32 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                                             continue
                                         rec_type = rec_info.get('type', 'string')
                                         rec_desc = rec_info.get('description', '')
-                                        lines.append(f'| {rec_name} | {rec_type} | {rec_desc} |')
+                                        lines.append(
+                                            f'| {_md_cell_safe(rec_name)} | {_md_cell_safe(rec_type)} | '
+                                            f'{_md_cell_safe(rec_desc)} |'
+                                        )
                                     lines.append('')
 
-                        if not is_page:
-                            data_info = resp_props.get('data')
-                            if isinstance(data_info, dict) and data_info.get('type') == 'array':
-                                items = data_info.get('items', {})
-                                if isinstance(items, dict) and 'properties' in items:
-                                    lines.append('**data 响应参数**:')
-                                    lines.append('')
-                                    lines.append('| 字段 | 类型 | 说明 |')
-                                    lines.append('|:-----|:-----|:-----|')
-                                    for item_name, item_info in items['properties'].items():
-                                        if not isinstance(item_info, dict):
-                                            continue
-                                        item_type = item_info.get('type', 'string')
-                                        item_desc = item_info.get('description', '')
-                                        lines.append(f'| {item_name} | {item_type} | {item_desc} |')
-                                    lines.append('')
+                    # 数组型 data:从 901 行条件外移出来(v2.1+ 修复死代码)
+                    if 'data' in resp_props and not is_page:
+                        data_info = resp_props.get('data')
+                        if isinstance(data_info, dict) and data_info.get('type') == 'array':
+                            items = data_info.get('items', {})
+                            if isinstance(items, dict) and 'properties' in items:
+                                lines.append('**data 数组项字段**:')
+                                lines.append('')
+                                lines.append('| 字段 | 类型 | 说明 |')
+                                lines.append('|:-----|:-----|:-----|')
+                                for item_name, item_info in items['properties'].items():
+                                    if not isinstance(item_info, dict):
+                                        continue
+                                    item_type = item_info.get('type', 'string')
+                                    item_desc = item_info.get('description', '')
+                                    lines.append(
+                                        f'| {_md_cell_safe(item_name)} | {_md_cell_safe(item_type)} | '
+                                        f'{_md_cell_safe(item_desc)} |'
+                                    )
+                                lines.append('')
 
                 # 响应示例
                 lines.append('**响应示例**:')
@@ -1318,6 +1531,24 @@ def main():
         print('指向其他文档的词语。把约束内容直接写在接口 description 里。', file=sys.stderr)
         sys.exit(2)
     print('✅ API 文档零引用字眼检查通过')
+
+    # === 严重风险检测(v2.1+ XSS / HTML 注入阻断) ===
+    xss_violations = _scan_xss_risk(spec)
+    if xss_violations:
+        print(
+            f'❌ XSS / HTML 注入风险阻断({len(xss_violations)} 处):',
+            file=sys.stderr
+        )
+        for path, method, location, snippet in xss_violations:
+            print(
+                f'   {method} {path}  ->  {location}: {snippet}',
+                file=sys.stderr
+            )
+        print('', file=sys.stderr)
+        print('接口文档不应含 XSS / HTML 注入风险(script / iframe / javascript: 等)。', file=sys.stderr)
+        print('如确认无风险,改用对应的安全写法(纯文本 / 链接 / 配图)。', file=sys.stderr)
+        sys.exit(2)
+    print('✅ XSS / HTML 注入风险检查通过')
 
     # === 公共输出逻辑 ===
     os.makedirs(output_dir, exist_ok=True)

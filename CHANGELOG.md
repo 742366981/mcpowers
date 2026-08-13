@@ -7,6 +7,41 @@
 
 ## [Unreleased]
 
+## v4.2.0 - 2026-08-13
+
+> 🎯 **核心定位**:`export_docs.py` 表格排版错乱防护(用户实测发现的真实痛点:7 个表格生成点全部裸拼文本,description / example 含换行 / `|` / 不可见字符即崩表)
+
+### Breaking Changes
+
+- 无。本次为纯渲染逻辑增强,不影响任何 .py docstring 写法、不破坏 v4.0.0 ~ v4.1.0 既有接口/规范/铁律。5 字段契约 + 零引用字眼检查 + 业务接口响应规范 3 类既有硬门禁的命中规则不变。
+- **导出的 `.md` 表格风格会有差异**:单元格值里的 `|` 会被转义为 `\|`,换行会被转为 `<br>`,HTML 标签会被剥离(白名单 `<br>`),零宽字符 / NBSP 被清理——这是**故意**的视觉修复,用户重新生成即可。
+
+### 新增
+
+- **`_md_cell_safe()` 4 步走**(v4.2.0+ 表格单元格安全规整):7 个表格生成点(body / query-path / header / formData / 响应顶层 / data object / records / data 数组项) + 顶层 description 全部走该函数。4 步走:① 规范化(None / dict / list → str)→ ② 不可见字符清理(NBSP / EM SPACE → 空格;ZWSP / BOM → 删)→ ③ Markdown 转义(`\` → `\\`、`|` → `\|`、换行 → `<br>`)→ ④ 危险结构防御(HTML 标签剥离白名单 `<br>`、`|---` 等分隔行冒充 → `—`、代码块围栏 → 单 `` ` ``、列表 / 标题前缀 → 空格)。
+- **`_scan_xss_risk()` 严重风险阻断**(v4.2.0+ spec 级别检查):扫描 `summary` / `description` / `parameters[].description` / `responses[].description` 全部可见字段,命中 10 类 XSS 模式(`<script>` / `<iframe>` / `<object>` / `<embed>` / `<style>` / `<form>` / `<svg>` / `on*= 事件处理器` / `javascript:` / `data:text/html`)即 exit 2 阻断。与 `check_5_field_contract` + `check_no_reference_words_spec` 平级——3 类硬门禁 + 1 类严重风险阻断。
+- **`data: array` 响应字段渲染死代码修复**(v4.2.0+ 顺手):原 `if 'data' in resp_props and data_props:` 条件会因 `extract_response_data_fields` 在 `data: array` 时返回空 dict 而跳过整块,导致 `data: array` 类型接口**完全不显示**字段说明。本次把 `data.items.properties` 渲染从 901 行条件外移出来,标题改为 `**data 数组项字段**:` 区分于 `**data 响应参数**:`。
+
+### 调整
+
+- **`tools/export_docs.py` 表格生成集中改写**:7 个 `lines.append(f'| ... | {prop_desc} |')` 模式全部改为 `lines.append(f'| {_md_cell_safe(prop_name)} | {_md_cell_safe(prop_type)} | {_md_cell_safe(prop_desc)} |')`——这是同类改动,集中在 1 个 commit 内。
+- **`tools/export_docs.py` 顶层 description 处理**:原 `description.replace('<br/>', '').strip()` 升级为 `_md_cell_safe(description)`——与表格走同一函数,手感一致。
+- **`tests/test_export_docs.py` 新增文件**:31 个单元测试覆盖 _md_cell_safe 4 步走 + _scan_xss_risk 5 类 XSS 命中 + 端到端真实场景(Word 拷贝文本 / 多行 description / Markdown 注入)。仅用 stdlib `unittest`,无 pytest 依赖。
+
+### 风险
+
+- **导出的 `.md` diff 变化**:用旧 `export_docs.py` 生成的 `.md` 含有未转义 `|` / 换行 / 不可见字符的表格行,新版重新生成会:
+  - 单元格值的 `|` → `\|`(视觉上不变,语义对齐 GFM)
+  - 单元格值的换行 → `<br>`(GFM 表格内换行,主流渲染器支持)
+  - 单元格值的 HTML 标签(非 `<br>`) → 整段剥离开来的剥离去除
+  - 不可见字符(NBSP / ZWSP / BOM) → 清理
+- **触发 XSS 阻断**:如果用户既往 spec 的 description 含 `<script>` 等注入测试片段,新版会阻断导出;**这是设计意图**——强制清理 spec 源头,不在渲染层做完脱敏。
+- **不影响 JSON 导出**:`openapi.json` 不动,只动 `.md` 输出。
+
+### 迁移指南
+
+无。本次改动向后兼容,重新跑 `python tools/export_docs.py` 即可得到新格式 `.md`。
+
 ## v4.1.0 - 2026-08-13
 
 > 🎯 **核心定位**:完全移除 `.env.example` 生命周期(用户决策 D:配置文件三件套易混淆 → 强制收敛到 `config_{env}.ini`)

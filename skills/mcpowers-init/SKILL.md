@@ -72,7 +72,6 @@ description: "新项目 / 脚手架 / 项目初始化 / 帮我搭个新项目 / 
 | `package.json` | Node 依赖 |
 | `docs/` | 文档目录（按规范结构） |
 | `tests/` | 测试目录 |
-| `.env.example` | 环境变量示例（不提交真值） |
 | **`utils/loggings.py`**（v2.6.0+ 必建） | 日志封装类（按 `日志规范.md §3` + `Flask后端规范.md §6.1`） |
 | **`utils/request_log.py`**（v2.6.0+ Flask 必建） | 全局请求日志中间件（按 `日志规范.md §3.3` request 类型字段 + `Flask后端规范.md §5.2`） |
 | **`log/`**（v2.6.0+ 必建） | 日志输出目录（按 `日志规范.md §7.2` 文件命名与轮转规范） |
@@ -241,7 +240,8 @@ chmod +x scripts/disable-doc-sync-hook.sh
 ├── README.md
 ├── AGENTS.md
 ├── .gitignore
-├── .env.example
+├── config_dev.ini
+├── config_prod.ini
 ├── requirements.txt
 ├── package.json
 ├── docs/

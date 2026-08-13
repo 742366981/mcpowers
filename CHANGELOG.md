@@ -7,6 +7,41 @@
 
 ## [Unreleased]
 
+## v4.1.0 - 2026-08-13
+
+> 🎯 **核心定位**:完全移除 `.env.example` 生命周期(用户决策 D:配置文件三件套易混淆 → 强制收敛到 `config_{env}.ini`)
+
+### Breaking Changes
+
+- **`doc-sync-check.sh` `env_in_doc` 检查类删除**(v4.1.0+):v2.29.0+ 引入的第三类检查 `.env.example KEY 必须在配置文档说明` 完全删除。原因是 mcpowers 禁读环境变量铁律(v2.25.0+)与 `.env.example` 文件本身的存在意义冲突——既然代码不读环境变量,`.env.example` 就没存在价值;且 `.env.example` / `config_{env}.ini` / 代码内写死 三件套并存极易让新人混淆哪个对。**升级影响**:项目根之前建过 `.env.example` 的——`doc-sync` 物理门禁不再检查它(也不报错);如果项目还在用 `.env.example`,按 §迁移指南 直接迁移到 `config_{env}.ini`。
+- **`hooks/pre-write-check-doc-sync.sh` 过滤白名单删除 `.env.example`**:写 `.env.example` 不再触发 doc-sync 检查,hook 直接放行。
+- **`mcpowers-init` 第 5 步「创建环境配置示例」改为「创建配置文档」**:不再创建 `.env.example`,直接生成 `config_dev.ini` / `config_prod.ini` 模板;项目目录树示例同步替换为 ini 文件。
+
+### 新增
+
+- **`config_{env}.ini` 一处收敛的强提示**:v2.29.3 「敏感字段各环境一律直接写在项目自己的 `config_{env}.ini` 里」升级为 v4.1.0「禁止 `.env.example`」——避免三件套并存。
+- **`Swagger字段契约.md` 命名约定类比替换**:原 `.swagger-required-fields.yml` 与 `.env.example` / `.gitignore` 类比 → 改为 `.gitignore` / 各类 dotfile 通用类比。
+
+### 调整
+
+- **`doc-sync-check.sh` 头部注释**:`三类检查` → `两类检查`,顶部加 v4.1.0 删除说明段(不动 `path_in_doc` / `route_in_doc`)。
+- **`mcpowers-init/SKILL.md` 表格第 5 步**:`创建环境配置示例 如 .env.example` → `创建配置文档 敏感字段直接写在 config_{env}.ini,不创建 .env.example(v4.1.0+ 与禁读环境变量铁律对齐)`。
+- **`mcpowers-init/SKILL.md` 项目目录树**:`.env.example` 行删除;补 `config_dev.ini` / `config_prod.ini` 两行示范。
+- **`开发环境规范.md` 表格第 5 步**:与 mcpowers-init 同步。
+
+### 迁移指南
+
+| 现状 | 操作 |
+|:----|:-----|
+| 项目根有 `.env.example`,且配置文档说明齐全 | 保留 `.env.example` 不动——v4.1.0 不强制删除,但建议逐步把 KEY 迁移到 `config_{env}.ini` 后删除 |
+| 项目根有 `.env.example`,但 `Config.get()` 已直接读 `config_{env}.ini` | 直接删除 `.env.example`(纯死文件) |
+| 项目根无 `.env.example` | 无需任何操作——v4.1.0 默认状态就是干净的 |
+
+### 风险
+
+- **删除而非重命名**:`.env.example` 这个文件名彻底从 mcpowers 自身规范/工具/技能/钩子中消失(只留在历史归档 CHANGELOG.md / docs/历史教训.md)。存量项目之前按 mcpowers 模板生成的 `.env.example`——升级后变孤儿文件,建议删除。
+- **不强制迁移**:`.env.example` 是否删除由项目自己决定——mcpowers 不主动扫描项目根,也不报错。但项目内 `Config` 类的 ini 读取必须已正常工作,否则删了 `.env.example` 应用起不来。
+
 ## v4.0.3 - 2026-08-13
 
 > 🎯 **核心定位**:`export_docs.py` parameters[].example 取值兜底,兼容 Flasgger body 参数重写行为(用户实测发现的真实 bug)

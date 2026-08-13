@@ -42,7 +42,7 @@ last_breaking_change: v1.0
 <项目根>/.swagger-required-fields.yml
 ```
 
-> **命名约定**:点开头(`.swagger-required-fields.yml`)——与 `.env.example` / `.gitignore` 风格一致,标识"配置文件而非业务文件",**不应提交业务代码**。
+> **命名约定**:点开头(`.swagger-required-fields.yml`)——与 `.gitignore` / 各类 dotfile 风格一致,标识"配置文件而非业务文件",**不应提交业务代码**。
 
 ### 2.2 文件格式(极简 YAML 子集)
 
@@ -147,7 +147,7 @@ response_subfields:
 - ❌ 把错误码必含规则放进可配置项(违反 §4 末段硬纪律)
 - ❌ 把项目自定义字段命名为 mcpowers 内部字段名(如 `mcpowers_internal`)造成冲突
 - ❌ 用 YAML 锚点(`&` / `*`)等高级特性——grep/awk 解析器不识别
-- ❌ 把字段清单文件放在项目子目录(必须在项目根,沿用 `.env.example` 惯例)
+- ❌ 把字段清单文件放在项目子目录(必须在项目根,沿用 dotfile 配置惯例)
 
 ---
 

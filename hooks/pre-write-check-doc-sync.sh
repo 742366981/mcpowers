@@ -9,7 +9,7 @@
 # 工作流：
 #   1. 从 stdin 读 Claude Code 传入的 JSON，提取 file_path
 #   2. 快速过滤：只对可能影响 doc 同步的文件路径触发
-#      （README.md / app/*.py / src/router/*.ts / scripts/*.sh / .env.example 等）
+#      （README.md / app/*.py / src/router/*.ts / scripts/*.sh / requirements.txt / package.json）
 #   3. 调 ${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/scripts/doc-sync-check.sh
 #   4. helper 失败 → 退出码透传（exit 2 = 触发 Claude Code confirm UI）
 #
@@ -58,7 +58,7 @@ if [ -z "$FILE_PATH" ]; then
 fi
 
 # 3. 快速过滤：只对可能影响 doc 同步的文件触发
-#    命中模式：README / app 路由 / src/router / scripts / .env.example / requirements / package.json
+#    命中模式：README / app 路由 / src/router / scripts / requirements / package.json
 case "$FILE_PATH" in
     *README.md|*readme.md|*README*)
         ;;  # README 修改一定影响 path_in_doc
@@ -70,8 +70,8 @@ case "$FILE_PATH" in
         ;;  # 爬虫 entry
     */scripts/*.sh|*/scripts/*.py|*/bin/*)
         ;;  # 脚本路径
-    */.env.example|*/requirements.txt|*/package.json)
-        ;;  # 配置/依赖
+    */requirements.txt|*/package.json)
+        ;;  # 依赖清单
     *)
         exit 0  # 不涉及 doc-sync → 放行
         ;;

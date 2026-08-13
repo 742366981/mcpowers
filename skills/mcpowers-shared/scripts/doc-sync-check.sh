@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# mcpowers 集中 doc-sync 检查脚本（v2.29.0+ 强制）
+# mcpowers 集中 doc-sync 检查脚本（v2.29.0+ 强制，v4.1.0 缩窄为两类）
 #
-# 三类检查：
+# 两类检查：
 #   path_in_doc    README 中提到的 scripts/*.sh / bin/*.py 路径必须真实存在
 #   route_in_doc   @app.route / createRouter 定义的路径必须出现在 API 文档或视图 docstring
-#   env_in_doc     .env.example 中所有 KEY 必须在配置文档说明
+#
+# v4.1.0 删除 env_in_doc 类检查：mcpowers 禁读环境变量铁律（v2.25.0+）+ .env.example 与
+# config_{env}.ini / 代码内写死三件套并存易混淆,完全移除 .env.example 生命周期（生成模板、
+# hook 过滤、check 函数、init 步骤、Swagger 类比）。
 #
 # 调用方（两个）：
 #   1. hooks/pre-write-check-doc-sync.sh — PreToolUse(Write|Edit|MultiEdit) 物理拦截
@@ -115,33 +118,6 @@ check_route_in_doc() {
 }
 
 # ============================================================
-# 检查 3：env_in_doc
-# 读 .env.example 提取 ^[A-Z_]+= 所有 KEY
-# 验证每个变量名在配置文档说明
-# ============================================================
-check_env_in_doc() {
-    local env_file="$1"
-    local doc="$2"
-    [ -f "$env_file" ] || return 0
-    [ -f "$doc" ] || return 0
-
-    # 提取 KEY=xxx 形式（排除注释行和空行）
-    local keys
-    keys=$(grep -E "^[A-Z_][A-Z0-9_]*=" "$env_file" 2>/dev/null \
-        | cut -d= -f1 | sort -u || true)
-
-    [ -z "$keys" ] && return 0
-
-    while IFS= read -r key; do
-        [ -z "$key" ] && continue
-        if ! grep -qE "\b$key\b" "$doc" 2>/dev/null; then
-            echo "✗ [env_in_doc] 环境变量 $key 未在 $doc 说明"
-            VIOLATIONS=$((VIOLATIONS + 1))
-        fi
-    done <<< "$keys"
-}
-
-# ============================================================
 # 主逻辑：决定跑哪些检查
 # ============================================================
 echo "=== doc-sync 校验（$WORK_DIR） ==="
@@ -166,10 +142,8 @@ if [ -n "$TARGET_FILE" ]; then
             check_route_in_doc "src/api" "docs/api.md"
             check_route_in_doc "crawlers" "docs/API文档/API文档.md"
             ;;
-        *.env.example|requirements.txt|package.json)
-            check_env_in_doc ".env.example" "README.md"
-            check_env_in_doc ".env.example" "docs/配置说明.md"
-            check_env_in_doc ".env.example" "docs/部署.md"
+        requirements.txt|package.json)
+            # v4.1.0 删除 .env.example 分支（依赖清单无需 doc-sync 检查）
             ;;
         *)
             exit 0
@@ -184,9 +158,6 @@ else
     check_route_in_doc "src/router" "docs/API文档/API文档.md"
     check_route_in_doc "src/api" "docs/api.md"
     check_route_in_doc "crawlers" "docs/API文档/API文档.md"
-    check_env_in_doc ".env.example" "README.md"
-    check_env_in_doc ".env.example" "docs/配置说明.md"
-    check_env_in_doc ".env.example" "docs/部署.md"
 fi
 
 echo ""

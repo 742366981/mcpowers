@@ -26,6 +26,7 @@
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -90,45 +91,6 @@ def check_required_field_names(docstring: str, required_fields: list[str]) -> li
     return violations
 
 
-def check_responses_error_codes(docstring: str) -> list[tuple[str, str]]:
-    """检查 responses 块是否含至少 1 个错误码(4xx/5xx)
-
-    字符串扫描避免正则 catastrophic backtracking(原 lint_docstring 的
-    r'responses:\\s*\\n((?:\\s+\\d+:.*\\n)+)' 在长 docstring 上会卡住 2+ 分钟)。
-
-    Returns:
-        list of (level, msg) — level: 'ERROR' / 'WARNING'
-    """
-    violations = []
-
-    # 找到 responses: 顶层块(到下一个顶层字段 --- 之前的 4 空格缩进行)
-    # 简化:扫到 "responses:" 起,直到下一个顶层字段(行首无空格的 `xx:`)或 `---` 止
-    lines = docstring.splitlines()
-    in_responses = False
-    codes: list[str] = []
-    for line in lines:
-        stripped = line.strip()
-        if not in_responses:
-            if stripped.startswith('responses:') or stripped.startswith('responses :'):
-                in_responses = True
-            continue
-        # 顶层字段(无前导空格 + 含 `:`)→ responses 块结束
-        if line and not line.startswith(' ') and ':' in stripped:
-            break
-        # `---` 结束符 → 块结束
-        if stripped == '---':
-            break
-        # 状态码行(4 空格 + 数字 + :)
-        if line.startswith('    ') and stripped.endswith(':') and stripped[:-1].isdigit():
-            codes.append(stripped[:-1])
-
-    if not codes:
-        # 没列出任何状态码 → 必填字段检查已先报错,这里不重复
-        return violations
-
-    if codes == ['200']:
-        violations.append(('ERROR', 'responses 只列 200,必须含至少 1 个错误码(401/403/422/500 等)'))
-    return violations
 
 
 def check_parameter_subfields(docstring: str, param_subfields: list[str]) -> list[tuple[str, str]]:
@@ -190,6 +152,117 @@ def check_parameter_subfields(docstring: str, param_subfields: list[str]) -> lis
     return violations
 
 
+# v4.0.0+ 业务接口响应规范铁律（用户决策 A）：
+# - 业务接口 HTTP 永远 200；业务成功/失败由响应体 `code` 字段判断
+# - 4xx/5xx 仅在框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出
+# - 业务接口 docstring 的 responses 块只允许列 200
+# - 例外：认证接口（login/logout/refresh/verify/register/password）可保留 401/403；
+#        流式/下载接口（download/export/stream/upload/file）可保留 416
+_AUTH_PATH_KEYWORDS = ('login', 'logout', 'refresh', 'verify', 'register', 'password')
+_STREAM_PATH_KEYWORDS = ('download', 'export', 'stream', 'upload', 'file', 'attachment')
+
+
+def check_business_api_responses(docstring: str, route: str = '') -> list[tuple[str, str]]:
+    """检查业务接口的 responses 块是否误列 4xx/5xx（v4.0.0+ 业务接口响应规范铁律）。
+
+    业务接口（一般路由）的 docstring `responses:` 块**只允许列 `200`**——
+    业务成功/失败由响应体 `code` 字段判断（`code: 0` = 成功；`code: 10001` = 业务失败）。
+    错误码（4xx/5xx）由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）自动抛出，
+    不应由业务接口在 docstring 声明。
+
+    例外路径（不参与本检查）：
+      - 认证接口：含 `login` / `logout` / `refresh` / `verify` / `register` / `password` 关键字
+      - 流式接口：含 `download` / `export` / `stream` / `upload` / `file` / `attachment` 关键字
+
+    Args:
+        docstring: 路由函数的 docstring 文本（含 Flasgger YAML 块）
+        route: 路由路径字符串（如 `'/users/{id}'`），用于识别是否为例外路径
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'` / `'WARNING'`
+        空 list = 合规或为例外路径
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # 业务接口误列 401 → ERROR
+        >>> check_business_api_responses(
+        ...     "responses:\\n    200:\\n      description: ok\\n    401:\\n      description: 未登录",
+        ...     "/users"
+        ... )
+        [('ERROR', '业务接口 responses 误列 4xx/5xx (401)...')]
+        >>> # 认证接口保留 401 → 合规（跳过）
+        >>> check_business_api_responses(
+        ...     "responses:\\n    200:\\n      description: ok\\n    401:\\n      description: 未登录",
+        ...     "/auth/login"
+        ... )
+        []
+        >>> # 业务接口只列 200 → 合规
+        >>> check_business_api_responses(
+        ...     "responses:\\n    200:\\n      description: ok",
+        ...     "/users"
+        ... )
+        []
+    """
+    violations = []
+
+    # 1. 识别例外路径（按 / 和 - 切分，段内匹配关键字）
+    #    避免 `profile` 含 `file` / `password_reset` 含 `password` / `exported` 含 `export`
+    #    等子串误判——仅当路径段本身就是关键字才算例外
+    route_lower = (route or '').lower()
+    route_segments = [seg for seg in re.split(r'[/\-_.]', route_lower) if seg]
+    is_exception = any(
+        kw in route_segments for kw in _AUTH_PATH_KEYWORDS + _STREAM_PATH_KEYWORDS
+    )
+    if is_exception:
+        return violations
+
+    # 2. 扫 responses 块（同 check_responses_error_codes 的简化扫描）
+    lines = docstring.splitlines()
+    in_responses = False
+    codes: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not in_responses:
+            if stripped.startswith('responses:') or stripped.startswith('responses :'):
+                in_responses = True
+            continue
+        # 顶层字段结束
+        if line and not line.startswith(' ') and ':' in stripped:
+            break
+        if stripped == '---':
+            break
+        # 状态码行（4 空格 + 数字 + :）
+        if line.startswith('    ') and stripped.endswith(':') and stripped[:-1].isdigit():
+            codes.append(stripped[:-1])
+
+    if not codes:
+        # 没列出任何状态码 → 5 字段契约检查已先报错，这里不重复
+        return violations
+
+    # 3. 业务接口：必须只含 200
+    if '200' not in codes:
+        violations.append((
+            'ERROR',
+            '业务接口 responses 缺 200（v4.0.0+ 铁律：业务接口 HTTP 必须 200）'
+        ))
+
+    bad_codes = [c for c in codes if c != '200' and c[0] in ('4', '5')]
+    if bad_codes:
+        violations.append((
+            'ERROR',
+            f'业务接口 responses 误列 4xx/5xx ({", ".join(sorted(bad_codes))})；'
+            f'按 v4.0.0+ 业务接口响应规范铁律，HTTP 一律 200，业务错误（认证失败等）走响应体 `code` 字段；'
+            f'4xx/5xx 由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出，不由业务接口声明。'
+        ))
+
+    return violations
+
+
 def main():
     parser = argparse.ArgumentParser(description='mcpowers swagger 单文件 lint helper')
     parser.add_argument('--file-path', required=True, help='要 lint 的文件路径(相对项目根或绝对)')
@@ -233,8 +306,8 @@ def main():
             else:
                 warning_count += 1
 
-        # responses 必须含错误码(ERROR:仅 200 → 阻断)
-        for level, msg in check_responses_error_codes(docstring):
+        # parameters 子字段必填项(WARNING 不阻断,仅提醒)
+        for level, msg in check_parameter_subfields(docstring, param_sub):
             full_msg = f'[{route}] {msg}'
             all_violations.append((level, line_no, func, full_msg))
             if level == 'ERROR':
@@ -242,8 +315,9 @@ def main():
             else:
                 warning_count += 1
 
-        # parameters 子字段必填项(WARNING 不阻断,仅提醒)
-        for level, msg in check_parameter_subfields(docstring, param_sub):
+        # v4.0.0+ 业务接口响应规范铁律（替代旧 check_responses_error_codes）
+        # 业务接口 responses 块只列 200；4xx/5xx 由框架层抛出，不由业务接口声明
+        for level, msg in check_business_api_responses(docstring, route):
             full_msg = f'[{route}] {msg}'
             all_violations.append((level, line_no, func, full_msg))
             if level == 'ERROR':

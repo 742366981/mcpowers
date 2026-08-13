@@ -2,8 +2,8 @@
 # 接口文档与代码一致性检查脚本（v2.4.0 新增）
 #
 # 检查项：
-#   1. 接口文件 (.py view / .java controller / .js route) mtime 是否新于导出的 swagger_spec.json
-#   2. swagger_spec.json 和 API文档.md 是否已 git 跟踪
+#   1. 接口文件 (.py view / .java controller / .js route) mtime 是否新于导出的 openapi.json
+#   2. openapi.json 和 API文档.md 是否已 git 跟踪
 #   3. 若 docs/API文档/ 缺失，提示用户先跑 export_docs.py
 #
 # 使用方式：
@@ -32,7 +32,7 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 API_DOCS_DIR="docs/API文档"
-SPEC_FILE="$API_DOCS_DIR/swagger_spec.json"
+SPEC_FILE="$API_DOCS_DIR/openapi.json"
 MD_FILE="$API_DOCS_DIR/API文档.md"
 
 VIOLATIONS=0
@@ -81,7 +81,7 @@ if [ -f "$SPEC_FILE" ]; then
     SPEC_TRACKED=$(git ls-files --error-unmatch "$SPEC_FILE" 2>/dev/null && echo "yes" || echo "no")
     if [ "$SPEC_TRACKED" = "no" ]; then
         echo "⚠️  检查 3 警告：$SPEC_FILE 未被 git 跟踪"
-        echo "   → 运行 git add docs/API文档/swagger_spec.json"
+        echo "   → 运行 git add docs/API文档/openapi.json"
         VIOLATIONS=$((VIOLATIONS + 1))
     else
         echo "✅ 检查 3 通过：spec 文件已 git 跟踪"

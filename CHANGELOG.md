@@ -9,6 +9,53 @@
 
 - 无
 
+## v4.0.0 - 2026-08-13
+
+> 🎯 **核心定位**:工具脚本体系升级 + 业务接口响应规范铁律翻转
+
+### Breaking Changes
+
+- **`tools/export_docs.py` 默认输出文件名变更**:`swagger_spec.json` → `openapi.json`。下游 CI 脚本(`check_api_docs_sync.sh` / `run-api-tests.sh` / `generate-frontend-ts.sh`)已同步升级;旧版 mcpowers 项目升级后 CI 找不到 `openapi.json` 会红——按本仓发布的同步升级即可(本次 mcpowers 仓内 25 处已全部替换)。
+- **`--openapi3` 参数被移除**:v2.4.0 引入的装样分支删除。mcpowers 锁定 Flasgger/Swagger 2.0 生态;OpenAPI 3.0 用户(FastAPI/Node 等)不在本规范内,迁移到 FastAPI/Node 时应使用其原生 OpenAPI 3.0 工具链。
+- **`代码规范.md §7.4`「工具脚本 docstring 5 段骨架」新增(跨语言 + 当前实现 Python)**:函数级 docstring 强制 5 段骨架(Args / Returns / Raises / Side Effects / Example)。本次仓内同步:`hooks/check_duplicate_function.py`(8 函数)+ `hooks/check_python_import_placement.py`(2 公开函数)+ `tools/export_docs.py`(全部 14 个新/重写函数)已升级。
+- **「业务接口响应规范」铁律翻转(用户决策 A)**:
+  - **旧铁律**:业务接口 `responses` 块必须含至少 1 个错误码(401/403/500 等)
+  - **新铁律(v4.0.0+)**:业务接口 `responses` 块**只列 `200`**;HTTP 一律 200,业务成功/失败由响应体 `code` 字段判断(`code: 0` = 成功;`code: 10001` = 业务失败);4xx/5xx 仅由框架层(Flask abort / Webargs / Flask-JWT-Extended 中间件)抛出,不由业务接口声明
+  - **强检测**:`swagger-lint-helper.py check_business_api_responses(docstring, route)` 命中 → exit 2(触发 Claude Code confirm UI)
+  - **迁移要求**:旧项目必须把业务接口 `responses` 块里的 401/403/404/500 删除,只留 200;认证接口(`/auth/login` `/auth/logout` `/auth/refresh` `/auth/verify` `/auth/register` `/auth/password`)与流式接口(`/download` `/export` `/stream` `/upload` `/file` `/attachment` 路径关键字)例外,保留 401/416
+
+### 新增
+
+- **`export_docs.py` 内嵌 5 字段契约硬门禁**:拉 spec 后立即校验 5 字段齐全(`tags` / `summary` / `description` / `parameters` / `responses`) + 必须含 `200`;任一不满足 exit 2 并列出缺失接口。详见 `接口契约规范 §1` + `swagger-lint-helper.py check_required_field_names`。
+- **`export_docs.py` 对齐 API文档模板.md**:动态加载 `docs/API文档/API文档模板.md` 的「## 通用规范」段(基础路径 / 认证方式 / 统一响应说明 / 接口字段规范 / 导入导出字段规范),不再硬编码副本。模板改版 markdown 自动同步。
+- **`export_docs.py` 新增 `--serve` flag**:导出文件后自动启动临时 web 服务(`http.server` + swagger-ui CDN),浏览器立即访问 `http://localhost:8080/` 看交互式文档。配套 `--port` / `--open-browser` flag。
+- **`export_docs.py` 新增 `--no-strict-fields` flag**:跳过 5 字段契约检查(仅一次性紧急用,未来要删;不在 CI 兜底使用)。
+- **`swagger-lint-helper.py check_business_api_responses()` 新增**:检测业务接口是否误列 4xx/5xx;认证 / 流式接口路径关键字白名单(login/logout/refresh/verify/register/password/download/export/stream/upload/file/attachment)。
+- **`代码规范.md §7.4` 跨语言 docstring 5 段骨架对照表**:Python(Google) / Go(Godoc) / JS-TS(JSDoc) / Rust(rustdoc) / Java(Javadoc) 5 语言 5 段位对照——本仓当前实现仅 Python 栈完整落地,其他 4 语言仅参考。
+
+### 修复
+
+- **`export_docs.py` 装样 OpenAPI 3.0 分支清理**:仅认 `spec.swagger == '2.0'`,不满足 exit 2(原 line 532 隐式判断 `args.openapi3 or args.spec.endswith('openapi.json')` 删除)。
+- **`export_docs.py` 5 失守位修复**:①模块 docstring 补完整使用方式 + 退出码约定;②核心函数 5 段 docstring 补全(`find_auth_paths` / `json_to_markdown` / `find_project_root` / `main`);③新增辅助函数 5 段 docstring(`get_error_codes` / `build_example_from_props` / `extract_response_data_fields` / `is_pagination_response` / `load_template_section` / `resolve_template_path` / `load_user_app` / `serve_docs`);④`from apps import create_app` 局部 import 改用 `importlib.util` 动态加载(合规 v2.27.0+ Python import 顶层铁律)。
+- **`hooks/check_duplicate_function.py` 8 函数 docstring 失守修复**:`extract_function_names` / `count_in_source` / `is_one_line_wrapper` / `find_repo_root` / `is_protected_path` / `code_file_exts` / `git_grep_duplicate` / `format_block_message` 全部补 5 段 docstring(Args/Returns/Raises/Side Effects/Example)。
+- **`hooks/check_python_import_placement.py` 公开函数 docstring 失守修复**:`collect_local_imports` + `main()` 补 5 段 docstring(私有 `_helper` 按 §7.4.5 YAGNI 不补)。
+- **`接口契约规范 §1.C` 业务接口响应规范铁律修订**:`§1.C` 末段 + 新增 `§1.C.1` 业务接口响应规范(v4.0.0+ 铁律);`§4.3` 错误码规范加 v4.0.0+ 业务接口响应规范铁律联动段;`§7.1` 通用清单第 8 项从「`responses` 含 200 + 至少 1 个错误码」改为「业务接口只列 200;认证/下载接口例外(详见 §1.C.1)」。
+- **`swagger-lint-helper.py` 旧铁律函数删除**:`check_responses_error_codes` 函数移除(旧铁律:业务接口必须含错误码,与新铁律「业务接口只列 200」直接冲突);由新 `check_business_api_responses` 替代。
+
+### 调整
+
+- **CI 校验不变**:本次不扩展 `check_api_docs_sync.sh` 加 5 字段内容检查(YAGNI + CI 耗时考虑)。5 字段硬门禁的"运行时"层在 `export_docs.py` 主流程,"写时"层在 `pre-write-confirm-api-hint.sh`,CI 只需保证 spec mtime 同步即可。
+- **`mcpowers-code-review` R 系列新增 R14**:业务接口 responses 误列 4xx/5xx 反模式条目(依据用户决策 A §1.C.1 配套)。
+- **跨语言扩展路径明确(YAGNI 本次不补)**:`swagger-lint-helper.py` 当前仅解析 Python docstring 文本;JS/TS router / Go / Rust / Java 的 5 段骨架对照表已在 `代码规范 §7.4.4` 提供,实际解析能力扩展留待后续版本。
+- **`stability` 声明**:`接口契约规范.md` `last_breaking_change: v1.2`(linter 锁定,保留);本仓 v4.0.0 主要升级集中在工具脚本 + 业务接口响应规范铁律,核心接口契约规范本身元规则不变。
+
+### 风险
+
+- **业务接口响应规范破坏性**:旧项目大量业务接口 `responses` 块含 401/403/404/500,升级后会被 `swagger-lint-helper.py check_business_api_responses` 全部 block。迁移策略:①按路径关键字白名单豁免认证/流式接口;②其余业务接口 `responses` 块删除所有 4xx/5xx,只留 200。
+- **默认输出文件名变更**:旧项目 CI 脚本(`check_api_docs_sync.sh` 等)依赖 `swagger_spec.json` 路径——升级后旧脚本找不到 `openapi.json`,CI 全红。必须按本仓发布的同步升级(本次 mcpowers 仓内 25 处已全部替换为 `openapi.json`)。
+- **`--openapi3` 移除**:旧项目如使用 `python tools/export_docs.py --openapi3 ...`,升级后会 argparse 报错。mcpowers 锁定 Flasgger/Swagger 2.0 生态,本就是装样分支,影响面极小。
+- **`代码规范 §7.4` 新章节影响**:函数级 docstring 强制 5 段骨架,旧项目如未升级会被 `mcpowers-code-review` 标 R1-R10 反模式;不阻断编译,但 CI 校验会警告。
+
 ## v3.0.0 - 2026-08-13
 
 ### Breaking Changes

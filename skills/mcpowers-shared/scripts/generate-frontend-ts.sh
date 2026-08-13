@@ -2,7 +2,7 @@
 # 前端 TypeScript 客户端自动生成脚本（v2.4.0 新增）
 #
 # 前置：
-#   - swagger_spec.json 已生成（python tools/export_docs.py）
+#   - openapi.json 已生成（python tools/export_docs.py）
 #   - 项目的 package.json 里有 openapi-typescript-codegen 依赖
 #
 # 使用方式：
@@ -13,7 +13,7 @@
 
 set -e
 
-SPEC_FILE="docs/API文档/swagger_spec.json"
+SPEC_FILE="docs/API文档/openapi.json"
 OUTPUT_DIR="src/api"
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 

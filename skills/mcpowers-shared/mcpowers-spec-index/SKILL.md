@@ -41,7 +41,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **前后端联调 / API 契约 / Swagger 集成**（v2.2.0） | `API契约/集成方案对比.md` + `加密方案对比.md` + `前端对接流程.md` + `API测试自动生成.md` + 复用 `接口契约规范.md`（v2.3.0）+ `API文档/API文档模板.md` + `tools/export_docs.py` |
 | **前端自动生成 TS 类型**（v2.2.0） | `API契约/前端对接流程.md` |
 | **基于 spec 自动生成 API 测试**（v2.2.0） | `API契约/API测试自动生成.md` |
-| **导出 Markdown 接口文档**（已有工具，Flask §11.4） | `tools/export_docs.py`（一键导出 `swagger_spec.json` + `API文档.md`） |
+| **导出 Markdown 接口文档**（已有工具，Flask §11.4） | `tools/export_docs.py`（一键导出 `openapi.json` + `API文档.md`） |
 | **部署 / 上线** | `部署规范.md` + `开发环境规范.md` + **`健康检查规范.md`** |
 | **安全 / SQL注入 / XSS / 限流 / 幂等** | `安全规范.md` |
 | **任何写日志 / 排查日志 / 设计日志体系**（v2.6.0）⭐ | **`日志规范.md`**（栈无关通用层：7 类日志 + JSON 字段 schema + 大内容默认截断 + 脱敏黑名单 + 级别采样 + 输出轮转 + §7.5 级别紧凑打印 + 控制台 stdout 避免 PyCharm 染红 v2.28.4+；任何后端/爬虫项目必读） |

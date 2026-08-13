@@ -32,7 +32,7 @@ description: "前后端联调 / 接口对接 / API文档 / 自动生成接口规
 | docstring 格式 | 强制 4 段（summary / description / parameters / responses） | **直接复用 Flask §11.3**，不新建模板 |
 | 集成方案 | **锁定 Flasgger** | **默认 Flasgger**（与 Flask §11 一致） |
 | 加密方案 | **HTTP Basic Auth + 仅开发环境** | **默认 Basic Auth + 仅开发环境**（与 Flask §11.1 完全一致） |
-| 文档导出 | `tools/export_docs.py` → `swagger_spec.json` + `API文档.md` | **复用**：Step 6 直接调此脚本 |
+| 文档导出 | `tools/export_docs.py` → `openapi.json` + `API文档.md` | **复用**：Step 6 直接调此脚本 |
 | 前端 TS / API 测试 | （Flask §11 未涉及） | **新增**：Step 7 自动生成 TS 客户端 + API 测试 |
 
 **强约束**：
@@ -163,11 +163,11 @@ python tools/export_docs.py
 python tools/export_docs.py --project /path/to/flask-project
 
 # 输出：
-#   docs/API文档/swagger_spec.json   ← 机器可消费（前端/测试工具）
+#   docs/API文档/openapi.json   ← 机器可消费（前端/测试工具）
 #   docs/API文档/API文档.md          ← 人类可读（产品/测试）
 ```
 
-> 💡 **`API文档.md` 给产品经理/测试看，`swagger_spec.json` 给前端/测试工具消费**。
+> 💡 **`API文档.md` 给产品经理/测试看，`openapi.json` 给前端/测试工具消费**。
 > 详见 `mcpowers-shared/tools/export_docs.py` 源码。
 
 ### Step 7：派生下游（前端 TS + API 测试）

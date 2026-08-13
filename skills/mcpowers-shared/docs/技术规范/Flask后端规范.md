@@ -1706,7 +1706,7 @@ def login():
 python tools/export_docs.py
 
 # 输出：
-#   docs/API文档/swagger_spec.json   ← 机器消费
+#   docs/API文档/openapi.json   ← 机器消费
 #   docs/API文档/API文档.md          ← 人类阅读
 ```
 
@@ -1720,13 +1720,13 @@ python tools/export_docs.py
 bash scripts/check_api_docs_sync.sh
 # 检查项：
 #   - 视图函数 docstring 是否齐全
-#   - 导出的 swagger_spec.json 是否比 .py 文件旧（导出滞后）
+#   - 导出的 openapi.json 是否比 .py 文件旧（导出滞后）
 #   - API文档.md 是否已 commit
 ```
 
 #### 11.4.3 导出后必须 commit 的文件
 
-- `docs/API文档/swagger_spec.json`
+- `docs/API文档/openapi.json`
 - `docs/API文档/API文档.md`
 
 #### 11.4.4 现有导出能力（沿用 v2.2.0）
@@ -1735,7 +1735,7 @@ bash scripts/check_api_docs_sync.sh
 # 1. 完成接口开发后，运行 export_docs.py 导出文档
 python tools/export_docs.py
 
-# 2. 自动生成 swagger_spec.json 和 API文档.md（v2.4.0 起支持 formData/header/错误码）
+# 2. 自动生成 openapi.json 和 API文档.md（v2.4.0 起支持 formData/header/错误码）
 ```
 
 #### 11.4.5 下游派生（v2.4.0 新增一键脚本）
@@ -2090,7 +2090,7 @@ python app.py --prod
 | **部署规范** | `部署规范.md` |
 | Swagger文档模板 | `docs/API文档/swagger_template.md` |
 | API文档导出脚本 | `tools/export_docs.py` |
-| 导出后API文档 | `docs/API文档/swagger_spec.json` |
+| 导出后API文档 | `docs/API文档/openapi.json` |
 | 导出后Markdown | `docs/API文档/API文档.md` |
 
 ### B. 标签对照表（强制）

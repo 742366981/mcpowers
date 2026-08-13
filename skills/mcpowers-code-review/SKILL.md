@@ -106,7 +106,8 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R10** | ❌ **重复检测 hook 未区分「真重复」与「合法重名」**（v2.28.2+ 已修复）：v2.27.5 之前 hook 仅按函数名命中就 block，v2.27.6~v2.28.1 走 4 类启发式分级（命名空间 / 签名 / 绑定方法 / 单行透传）——**两者都用启发式打补丁，源头是「跨文件同名默认视为重复」**。v2.28.2+ 回归极简：跨文件同名默认放行（Python import 是模块级作用域），仅「同文件重名（真 bug）」+「单行透传 wrapper（gold standard 二次包装）」两类 block | 审查时若看到 R10 旧行为（跨文件同名默认 block，或 4 类启发式降级），CR 阻塞要求升级 hook 到 v2.28.2+ |
 | **R11** | ❌ **控制台日志级别未紧凑打印 / StreamHandler 未显式指定 stdout**（v2.28.4+）：`CONSOLE_FORMAT` 含 `%(levelname)-8s` 等宽度填充 → 终端输出 `[INFO   ]` 带多余空格；或 `logging.StreamHandler()` 不传 `stream` → 默认走 stderr → PyCharm / IntelliJ 给所有日志整体染红。两者违反 `日志规范.md §7.5` | 控制台 formatter 必须用 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）；StreamHandler 必须显式 `stream=sys.stdout`；CR 看到 `[INFO   ]` 或 PyCharm 染红即阻塞，要求改回 `%(levelname)s` + `stream=sys.stdout` |
 | **R12** | ❌ **控制台 formatter 默认走 colorlog / winston.format.colorize() / logrus ForceColors: true 等开颜色**（v2.29.2+ 跨语言总章铁律·零配置即合规）：模块 / 框架默认行为让 95% 用户不感知就拿到 ANSI 转义序列，污染复制粘贴（`\x1b[32m...` 混入 Markdown / issue 评论）+ 管道（`grep` / `tee` 关键字匹配穿插转义字符）+ 文件重定向（Loki / ELK 把 ANSI 当异常染色）+ 日志聚合平台（Sentry / DataDog 把 ANSI 字符串归类为 error）。**任何环境（dev / test / prod）一律默认关**；**min-module / sdk-design 内置日志工厂也必须硬编码走 plain**——不允许「等调用方传配置再关」。违反 `日志规范.md §7.6` | 默认 formatter 必须用 plain 实现（Python `logging.Formatter` / JS `winston.format.simple()` / Go `slog.NewTextHandler` / Java `java.util.logging.Formatter`）；用户主动配置才开启颜色（Python `LOG_CONSOLE_COLOR=True` / JS `colorize: true` 显式传参）；CR 看到默认分支直接挂 `colorlog.ColoredFormatter` / `ForceColors: true` / `winston.format.colorize()` 即阻塞；min-module / sdk 内置日志硬编码走 colorlog 也阻塞（v2.29.2+ 新增） |
-| **R13** | ❌ **Swagger 接口 5 字段契约不完整**（v2.31.0+ 全栈适用铁律）：写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）时漏 `tags` / `summary` / `description` / `parameters` / `responses` 任一顶层字段，或 `parameters[]` 缺 `description`+`example`、或 `responses[]` 只列 200 无错误码、或只列 200 缺 `schema`+`examples`。违反 `接口契约规范.md §1` + `Swagger字段契约.md §1` | 5 字段必须齐全（按规范 §1.A/B/C）；parameters 子字段必须含 description+example；responses 必须含 200 + ≥ 1 个错误码 + 每个含 schema+examples；项目根 `.swagger-required-fields.yml` 自定义字段也必须满足；CR 看到缺任一字段即阻塞，要求补全后重跑 lint |
+| **R13** | ❌ **Swagger 接口 5 字段契约不完整**（v2.31.0+ 全栈适用铁律）：写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）时漏 `tags` / `summary` / `description` / `parameters` / `responses` 任一顶层字段，或 `parameters[]` 缺 `description`+`example`、或 `responses[]` 缺 `200`、或 `responses[]` 状态码缺 `schema`+`examples`。违反 `接口契约规范.md §1` + `Swagger字段契约.md §1` | 5 字段必须齐全（按规范 §1.A/B/C）；parameters 子字段必须含 description+example；responses 必须含 200 + 每个状态码含 schema+examples（业务接口只列 200；4xx/5xx 误列见 R14）；项目根 `.swagger-required-fields.yml` 自定义字段也必须满足；CR 看到缺任一字段即阻塞，要求补全后重跑 lint |
+| **R14** | ❌ **业务接口 responses 误列 4xx/5xx**（v4.0.0+ 用户决策 A 铁律·业务接口响应规范）：业务接口 docstring 的 `responses:` 块误列 `401` / `403` / `404` / `500` 等 4xx/5xx 状态码——按新铁律，业务接口 HTTP 一律 `200`，业务成功 / 失败由响应体 `code` 字段判断（`code: 0` = 成功；`code: 10001` = 业务失败）；4xx/5xx 仅由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出，不由业务接口声明。违反 `接口契约规范.md §1.C.1` + `swagger-lint-helper.py check_business_api_responses` | 业务接口 responses 块只允许列 `200`；路径含 `login` / `logout` / `refresh` / `verify` / `register` / `password` / `download` / `export` / `stream` / `upload` / `file` / `attachment` 关键字的认证 / 流式 / 下载接口例外（可保留 401/416）；CR 看到业务接口 docstring 误列 `401` / `403` / `404` / `500` 即阻塞，要求删除并只保留 `200`；写时硬门禁已被 `swagger-lint-helper.py check_business_api_responses` 兜底，CR 复核时同步检查 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -229,8 +230,8 @@ git diff master...HEAD -U0 \
   | rg -A6 '^\s+-\s+in:\s+(query|body|path|formData|header)' \
   | rg -v 'description:|example:|in:|- name:'
 
-# 3. responses 错误码齐全性扫描(只列 200 即违规)
-#    期望:responses 块状态码数 >= 2,含 200 + ≥ 1 个错误码(401/403/422/500 等)
+# 3. responses 状态码扫描(v4.0.0+ 业务接口只列 200 是合规;认证/下载接口例外)
+#    期望:业务接口只含 200;认证/下载接口可保留 401/416
 git diff master...HEAD -U0 \
   | rg -A20 '^\s*responses:' \
   | rg "^\s+\d{3}:" \
@@ -241,12 +242,33 @@ git diff master...HEAD -U0 \
 >
 > 命令 2 命中(parameters 块缺 description 或 example) → Critical 阻塞——`interface契约规范 §1.B` 强制每个参数必须含 `description` + `example`,前端调试时只看 example 即可传参,缺任一即视为不完整接口。
 >
-> 命令 3 命中(responses 只列 200) → Critical 阻塞——`interface契约规范 §1.C` 强制含 200 + ≥ 1 个错误码;只列 200 = 后端错误时前端无 contract 可对接,CR 看到即阻塞,要求补 401/403/422/500 中至少 1 个错误码 + 每个含 `schema:` + `examples:`。
+> 命令 3 命中(业务接口响应块含 4xx/5xx 且路径不在认证/下载白名单) → Critical 阻塞——`interface契约规范 §1.C.1 v4.0.0+` 业务接口响应规范铁律,业务接口 HTTP 一律 200,业务错误走 code 字段;CR 看到业务接口误列 401/403/404/500 即阻塞,要求删除并只留 200;详见 R14 Quick-Check + `swagger-lint-helper.py check_business_api_responses`。
 >
 > **跨栈判定标准(v2.31.0+ 全栈铁律)**:
 > - **5 字段缺任一 = 接口视为不完整**,禁止合并 commit
 > - **项目根 `.swagger-required-fields.yml` 自定义字段**也必须满足(用户主动扩展的必填字段,如 `deprecated` / `x-permission`)
 > - **未装 swagger 的项目零摩擦放行**——detector 探测 `flasgger/apispec/fastapi/springdoc/openapi-typescript` 任一关键字才校验,纯业务项目直接跳过
+
+## v4.0.0+ 业务接口响应规范 Quick-Check（review 必跑·用户决策 A）
+
+> 对齐 `接口契约规范.md §1.C.1` + `swagger-lint-helper.py check_business_api_responses` 写时硬门禁。审查者收到 PR 后必须执行的扫描命令：
+
+```bash
+# 业务接口误列 4xx/5xx 扫描（v4.0.0+ 业务接口响应规范铁律）
+# 期望：业务接口（路径不含 login/logout/refresh/verify/register/password
+#                /download/export/stream/upload/file/attachment 关键字）
+#       的 responses 块不应出现 4xx/5xx（401/403/404/416/422/500）
+git diff master...HEAD -U0 \
+  | rg -B1 -A20 'responses:' \
+  | rg "^\s+(4\d{2}|5\d{2}):" \
+  | rg -v "login|logout|refresh|verify|register|password|download|export|stream|upload|file|attachment"
+```
+
+> 命令命中（业务接口 responses 含 4xx/5xx）→ Critical 阻塞——按 v4.0.0+ 业务接口响应规范铁律，业务接口 HTTP 一律 200，业务错误走响应体 `code` 字段；4xx/5xx 仅由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出，不由业务接口在 docstring 声明。CR 看到误列即阻塞，要求删除并只保留 `200`，重跑 `bash scripts/swagger-contract-check.sh --file-path=<view>` 确认 exit 0。
+>
+> **白名单路径关键字**（不参与本检查）：`login` / `logout` / `refresh` / `verify` / `register` / `password`（认证接口）+ `download` / `export` / `stream` / `upload` / `file` / `attachment`（流式/下载接口）—— 这些接口可保留 401/416 等错误码。
+>
+> **写时硬门禁**：`swagger-lint-helper.py check_business_api_responses(docstring, route)` 在 PreToolUse(Write) 阶段拦截（exit 2 → Claude Code confirm UI），CR 复核时同步确认；该函数已替代旧 `check_responses_error_codes`（旧铁律与新铁律冲突，v4.0.0 删除）。
 
 ## 审查后
 

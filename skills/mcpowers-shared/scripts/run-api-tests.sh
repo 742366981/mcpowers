@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # API 测试自动运行脚本（v2.4.0 新增）
 #
-# 基于 swagger_spec.json 自动跑 schemathesis / dredd 进行 API fuzz 测试
+# 基于 openapi.json 自动跑 schemathesis / dredd 进行 API fuzz 测试
 # 检测所有接口的：
 #   - HTTP 状态码符合契约
 #   - 响应 schema 与 docstring 一致
@@ -15,7 +15,7 @@
 
 set -e
 
-SPEC_FILE="docs/API文档/swagger_spec.json"
+SPEC_FILE="docs/API文档/openapi.json"
 BASE_URL="${API_BASE_URL:-http://localhost:5000}"
 TOKEN="${API_TOKEN:-}"
 

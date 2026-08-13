@@ -8,7 +8,7 @@
 
 | 工具 | 用途 | 何时用 |
 |:-----|:-----|:-------|
-| **`tools/export_docs.py`** | 一键导出 `swagger_spec.json` | **Step 6 必跑**（生成 schemathesis/dredd 直接消费的 spec 文件） |
+| **`tools/export_docs.py`** | 一键导出 `openapi.json` | **Step 6 必跑**（生成 schemathesis/dredd 直接消费的 spec 文件） |
 | **`schemathesis`** | Fuzz 测试（property-based） | **Step 7 必跑**（发现 422/500/性能 bug） |
 | **`dredd`** | 契约测试（响应结构/类型校验） | **Step 7 必跑**（验证响应符合 spec） |
 | **`mcpowers-autoTest`** | 自动化测试编排 + 报告 | **Step 7 可选**（汇总报告 + bug 分类） |
@@ -19,8 +19,8 @@
 **典型调用链**：
 ```
 1. 后端开发完接口（docstring 完整）
-2. python tools/export_docs.py          # 已有工具：导出 swagger_spec.json
-3. schemathesis run swagger_spec.json   # 本文件：fuzz 测试
+2. python tools/export_docs.py          # 已有工具：导出 openapi.json
+3. schemathesis run openapi.json   # 本文件：fuzz 测试
 4. dredd                                # 本文件：契约测试
 5. mcpowers-autoTest                    # 可选：汇总报告
 ```

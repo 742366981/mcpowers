@@ -118,9 +118,9 @@ EOF
         cat >&2 <<EOF
 
    建议：
-   1. 如修改了 docstring → 跑 python tools/export_docs.py 重导出 swagger_spec.json + API文档.md
+   1. 如修改了 docstring → 跑 python tools/export_docs.py 重导出 openapi.json + API文档.md
    2. 跑 bash scripts/check_api_docs_sync.sh 检查一致性
-   3. 确认 docs/API文档/swagger_spec.json 与 API文档.md 也加入本次 commit
+   3. 确认 docs/API文档/openapi.json 与 API文档.md 也加入本次 commit
 EOF
     fi
 fi

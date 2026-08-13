@@ -259,7 +259,7 @@ Python 文件的 `import` / `from ... import ...` **必须**位于模块级导�
 | swagger_template.md | Flasgger docstring 编写模板，包含各类型接口示例（**必须**） | `docs/API文档/swagger_template.md` |
 | API文档.md | 完整接口文档（Markdown格式，便于阅读，**必须**） | `docs/API文档/API文档.md` |
 
-> 注：swagger_spec.json 由 `tools/export_docs.py` 从代码 docstring 导出，无需预置
+> 注：openapi.json 由 `tools/export_docs.py` 从代码 docstring 导出，无需预置
 
 **内容深度要求：**
 - 每个接口必须有完整参数说明（含 type、description、example）

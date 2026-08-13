@@ -187,7 +187,7 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
   - [ ] **[v2.31.0+]** PreToolUse 硬门禁已自动触发:`hooks/pre-write-confirm-api-hint.sh` → `scripts/swagger-contract-check.sh` → 5 字段不合规 → exit 2 + confirm UI(避免返工)
 - [ ] **接口改动已同步**（如改了 Flask 接口）
   - [ ] docstring 已更新（如改路径/参数/响应）
-  - [ ] 已重跑 `python tools/export_docs.py`（导出 swagger_spec.json + API文档.md）
+  - [ ] 已重跑 `python tools/export_docs.py`（导出 openapi.json + API文档.md）
   - [ ] 前端 TS 客户端已通知（如有协作前端）
 - [ ] 测试覆盖核心逻辑
 - [ ] 自审通过（无 Critical 问题）

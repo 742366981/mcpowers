@@ -7,7 +7,35 @@
 
 ## [Unreleased]
 
-- 待发布
+- 无
+
+## v3.0.0 - 2026-08-13
+
+### Breaking Changes
+
+- **`§10.3 Token 管理默认行为翻转**(Flask 后端):从「单端登录(同一账号只能在一处登录)」改为「允许多登录(同账号多设备同时在线)」,默认行为直接翻转,既有项目按旧版生成的代码会被新规范覆盖。详见 `skills/mcpowers-shared/docs/技术规范/Flask后端规范.md §10.3`。如必须保留单端行为,请自定义反向键实现并显式注释,不引用本节默认行为。
+- **Key 命名变更**:`ADMIN_USER_TOKEN_BY_ID`(string,反向键,单端登录)→ `ADMIN_USER_TOKENS_BY_ID`(Set,反向集合,多端登录)。`skills/mcpowers-shared/docs/技术规范/缓存规范.md §3.3 Key 类` + `§3.4 Key 模式表` 同步更新。升级前请检查项目 `common/constants.py` 是否使用 `ADMIN_USER_TOKEN_BY_ID` —— 如有,必须按 Set 用法迁移(SADD/SREM);Redis 排查命令 `keys app:user:token_by_id:*` 须改为 `keys app:user:tokens_by_id:*`。
+
+### 新增
+
+- **Set 反向键支持多端登录**:`ADMIN_USER_TOKENS_BY_ID:{user_id}` 存同账号所有有效 token,登录时 SADD,登出时 SREM + DEL 正向键;正向键 `ADMIN_USER_TOKEN:{token}` 不变。
+- **`kick_all` 强制下线辅助函数**(Flask 后端 §10.3 范例):从 Set 读取所有 token 一次性 DEL 正向键 + DEL 反向 Set,用于「改密码」「管理员强制下线」场景。
+- **新增 `sadd` / `srem` / `smembers` 客户端方法**:`缓存规范.md §2.2` 客户端方法表补充 Redis Set 操作,§10.3 多登录 Set 用法落地。
+
+### 修复
+
+- 无
+
+### 调整
+
+- **frontmatter `last_breaking_change` 同步声明**:`Flask后端规范.md` `v2.29.1` → `v3.0.0`;`缓存规范.md` `v1.0` → `v3.0.0`(v2.27.4+ 铁律要求)。`mcpowers-code-review` 增 `R14` 反模式条目待跟进(下个 minor 版本)。
+- **`mcpowers-code-review` 触发词与 Quick-Check 命令统一为 master 分支(本仓库适配)**:`SKILL.md` 11 处 `main` → `master`(L1 description 触发词 1 处 + 「何时触发」1 处 + 6 段 Quick-Check 命令 9 处),与本仓库实际主分支对齐;`git diff master...HEAD` 替换 `git diff main...HEAD`。
+
+### 风险
+
+- **旧项目默认行为翻转风险**:既有项目若按 v2.x.x 单端实现,新规范默认行为直接翻转会导致用户体验变化(用户现在能在多设备同时登录);必须显式告知产品/运营,或自定义反向键维持单端。
+- **Redis 内存占用略增**:多端登录会保留多个 token(每个 TTL 24h),Set 内 token 数量 = 同时在线设备数;极端情况(同账号 100+ 设备)需监控 Set 体积。
+- **运维工具不兼容**:Redis Key 名 `token_by_id` → `tokens_by_id`,老的 `keys app:user:token_by_id:*` 排查命令 + 监控告警规则须同步更新。
 
 ## v2.31.0 - 2026-08-12
 

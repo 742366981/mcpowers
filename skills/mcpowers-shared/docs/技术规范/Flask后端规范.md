@@ -4,9 +4,9 @@ type: tech-spec
 applies_to: [Flask后端]
 priority: required
 version: 1.2
-last_updated: 2026-08-11
+last_updated: 2026-08-13
 stability: evolving
-last_breaking_change: v2.29.1
+last_breaking_change: v3.0.0
 ---
 
 # Flask后端项目规范
@@ -1366,19 +1366,31 @@ def permission_required(*permission_codes):
 > ⚠️ **通用规范引用**：详见 `缓存规范.md`
 
 ```python
-# 同一账号只能在一处登录，新登录会使之前的token失效
+# 默认允许多登录：同账号可在多设备同时在线，互不挤下线。
+# 反向集合存同账号所有有效token；登出只踢自己，不影响其他设备。
+# 如需「单端登录」(新登录挤掉旧设备)，请自定义反向键实现并显式注释，不引用本节默认行为。
 
 # 生成新token（含用户信息确保唯一）
 token = generate_login_token(user.id, user.username)
 
-# 存储双向映射
+# 正向键：token → user_id（验证 token 用）
 admin_redis.set(AdminRedisKeys.ADMIN_USER_TOKEN.format(token), user_id, ex=86400)
-admin_redis.set(AdminRedisKeys.ADMIN_USER_TOKEN_BY_ID.format(user_id), token, ex=86400)
 
-# 删除该用户之前的token
-old_token = admin_redis.get(AdminRedisKeys.ADMIN_USER_TOKEN_BY_ID.format(user_id))
-if old_token:
-    admin_redis.delete(AdminRedisKeys.ADMIN_USER_TOKEN.format(old_token))
+# 反向 Set：user_id → {token1, token2, ...}（多端共存）
+admin_redis.sadd(AdminRedisKeys.ADMIN_USER_TOKENS_BY_ID.format(user_id), token)
+admin_redis.expire(AdminRedisKeys.ADMIN_USER_TOKENS_BY_ID.format(user_id), 86400)
+
+# 登出（只踢当前 token，不影响该账号其他设备）
+def logout(current_user_id, current_token):
+    admin_redis.srem(AdminRedisKeys.ADMIN_USER_TOKENS_BY_ID.format(current_user_id), current_token)
+    admin_redis.delete(AdminRedisKeys.ADMIN_USER_TOKEN.format(current_token))
+
+# 踢掉该账号所有设备（如改密码 / 强制下线场景）
+def kick_all(current_user_id):
+    tokens = admin_redis.smembers(AdminRedisKeys.ADMIN_USER_TOKENS_BY_ID.format(current_user_id))
+    if tokens:
+        admin_redis.delete(*[AdminRedisKeys.ADMIN_USER_TOKEN.format(t) for t in tokens])
+    admin_redis.delete(AdminRedisKeys.ADMIN_USER_TOKENS_BY_ID.format(current_user_id))
 ```
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: mcpowers-feat
-description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做一个 / 实现一下 → 触发本技能。口语：我想加/做个功能、帮我做/开发/实现/加一个 XX、做一个 XX、写一个 XX、搭一个新模块/接口/页面、新建 XX、创建 XX、加个 XX、做个新 XX、搞个 XX、弄一个 XX、整一个 XX、做一下 XX、加进来、新加一个。中英：add, add feature, implement, create, develop, feat, feature, new, build, ship。边界：改既有（字段/流程/逻辑）→`mcpowers-requirement-change`；修 bug→`mcpowers-bugfix`。澄清→任务拆解→按规范实现→TDD→自审→提交，覆盖 80% 日常开发。"
+description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做一个 / 实现一下 → 触发本技能。口语：我想加/做个功能、帮我做/开发/实现/加一个 XX、做一个 XX、写一个 XX、搭一个新模块/接口/页面、新建 XX、创建 XX、加个 XX、做个新 XX、搞个 XX、弄一个 XX、整一个 XX、做一下 XX、加进来、新加一个。中英：add, add feature, implement, create, develop, feat, feature, new, build, ship。边界：改既有（字段/流程/逻辑）→`mcpowers-requirement-change`；修 bug→`mcpowers-bugfix`。澄清→任务拆解→按规范实现→TDD→自审→提交，覆盖 80% 日常开发；v4.0.2+ 文档零引用——若需要写文档/规范须知，避开参考/参见/详见/引用等 22 字眼（详见 §9.5 决策 3 问）。"
 ---
 
 # mcpowers-feat（加功能）
@@ -95,6 +95,7 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
   - 爬虫 → `代码规范` + `爬虫规范` + **`日志规范`（v2.6.0+ 必读）**
   - 涉及 DB → 加上 `数据库规范`
   - 涉及缓存 → 加上 `缓存规范`
+  - **v4.0.2+ 文档编写**：若本次任务涉及新增 / 修改 README / 规范 / 设计文档 / 用户手册 → 必读 `文档编写规范.md §9.5 画蛇添足字眼场景化决策模型`（输出型禁止 / 参考型允许 / 历史型允许——3 问决策）
 
 ### 4. 接口先写文档（强制 — v2.3.0 对齐接口契约规范）
 
@@ -211,3 +212,7 @@ rg --type py "def\s+${候选关键词}\b" $(git rev-parse --show-toplevel)/commo
 - [ ] 代码和文档已同 commit
 - [ ] **文档与代码同步（v2.9.0+ 必检）**
   - [ ] 如本次改动涉及对外接口/路由/数据库表/环境变量/部署脚本，已同步更新对应文档（docs/api.md / README.md / CHANGELOG.md 等）
+- [ ] **文档画蛇添足字眼（v4.0.2+ 新增·如本次写了文档）**
+  - [ ] 已跑 §9.5 决策 3 问：① 这段文字是给谁看的？② 删掉「参考 / 参见 / 详见 / 引用 / 参照 / 引自」等 22 字眼后意思会变吗？③ 输出型禁止 / 参考型允许且必要 / 历史型允许
+  - [ ] 输出型文档正文无 22 禁用字眼（独立出现也算画蛇添足，不限于"在某文档后"）
+  - [ ] 参考型 / 历史型文档已确认走路径白名单（CHANGELOG / 历史教训 / mcpowers-spec-index / API 契约 / 迁移指南）

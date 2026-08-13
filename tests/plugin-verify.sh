@@ -146,7 +146,10 @@ assert "pre-write-check-duplicate.sh 存在（v2.26.0+）" "[ -f '$REPO_DIR/hook
 assert "pre-write-check-import.sh 存在（v2.27.0+）" "[ -f '$REPO_DIR/hooks/pre-write-check-import.sh' ]"
 assert "check_python_import_placement.py 存在（v2.27.0+）" "[ -f '$REPO_DIR/hooks/check_python_import_placement.py' ]"
 assert "post-write-commit-reminder.sh 存在" "[ -f '$REPO_DIR/hooks/post-write-commit-reminder.sh' ]"
+assert "post-write-check-doc-content.sh 存在（v4.0.2+）" "[ -f '$REPO_DIR/hooks/post-write-check-doc-content.sh' ]"
+assert "_forbidden_ref_words.txt 共享常量存在（v4.0.2+）" "[ -f '$REPO_DIR/skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt' ]"
 assert "pre-bash-guard 可执行" "[ -x '$REPO_DIR/hooks/pre-bash-guard.sh' ]"
+assert "post-write-check-doc-content.sh 可执行" "[ -x '$REPO_DIR/hooks/post-write-check-doc-content.sh' ]"
 
 # 验证 hooks.json 用 ${CLAUDE_PLUGIN_ROOT}
 assert "hooks.json 用 CLAUDE_PLUGIN_ROOT 路径" "grep -q 'CLAUDE_PLUGIN_ROOT' '$REPO_DIR/hooks/hooks.json'"
@@ -416,6 +419,54 @@ if [ -f "$ARTIFACTS_VERIFY" ] && [ -n "$PY_BIN" ]; then
     RC_ARTIFACTS=$?
     set -e
     assert_eq "会话派生产物自检通过（exit 0）" "$RC_ARTIFACTS" "0"
+fi
+
+# ============== 7.7 post-write-check-doc-content.sh 软门禁自检（v4.0.2+ 新增） ==============
+echo "[7.7] post-write-check-doc-content.sh 软门禁自检（v4.0.2+ 文档零引用）"
+HOOK_DOCC="$REPO_DIR/hooks/post-write-check-doc-content.sh"
+FORBIDDEN_FILE="$REPO_DIR/skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt"
+assert "post-write-check-doc-content.sh 存在" "[ -f '$HOOK_DOCC' ]"
+assert "_forbidden_ref_words.txt 共享常量存在" "[ -f '$FORBIDDEN_FILE' ]"
+if [ -x "$HOOK_DOCC" ] && [ -f "$FORBIDDEN_FILE" ]; then
+    # T1:写含「参考」的 .md → exit 0 + stderr 含「参考」
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"docs/test.md","content":"# X\n本接口参考 RBAC"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t1
+    RC_T1=$?
+    set -e
+    assert_eq "T1 含「参考」exit 0（软门禁不阻断）" "$RC_T1" "0"
+    assert "T1 stderr 含「参考」" "grep -q '参考' /tmp/docc_t1"
+
+    # T2:CHANGELOG.md 含「参见」 → exit 0 + stderr 无提示（白名单）
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"CHANGELOG.md","content":"## v4.0.2\n参见 #123"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t2
+    RC_T2=$?
+    set -e
+    assert_eq "T2 CHANGELOG.md 含「参见」exit 0" "$RC_T2" "0"
+    assert "T2 CHANGELOG.md 走白名单（stderr 无「画蛇添足」）" "! grep -q '画蛇添足' /tmp/docc_t2"
+
+    # T3:docs/历史教训/x.md 含「v1 时用 X」 → exit 0 无提示
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"docs/历史教训/x.md","content":"## 教训\nv1 时用 X"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t3
+    RC_T3=$?
+    set -e
+    assert_eq "T3 历史教训路径 exit 0" "$RC_T3" "0"
+    assert "T3 历史教训路径走白名单" "! grep -q '画蛇添足' /tmp/docc_t3"
+
+    # T4:非 .md 文件 → exit 0 无提示
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考 xxx"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t4
+    RC_T4=$?
+    set -e
+    assert_eq "T4 非 .md 文件 exit 0" "$RC_T4" "0"
+    assert "T4 非 .md 文件不触发扫描" "! grep -q '画蛇添足' /tmp/docc_t4"
+
+    # T5:英文 see also → exit 0 + stderr 提示
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"docs/api.md","content":"# API\nsee also OpenAPI 3.0"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t5
+    RC_T5=$?
+    set -e
+    assert_eq "T5 英文 see also exit 0" "$RC_T5" "0"
+    assert "T5 英文 see also 命中" "grep -q 'see also' /tmp/docc_t5"
 fi
 
 # ============== 旧安装脚本不应残留 ==============

@@ -1,6 +1,6 @@
 ---
 name: mcpowers-sdk-design
-description: "SDK设计 / 封装领域能力 / 绝对零业务 / 无任何外部参考 / 通讯层中立 / 默认健康检查硬拒绝 / 上游错误重试vs客户端错误分离 → 触发本技能。口语：做个SDK、写个接口封装、封装第三方接口、做客户端库、SDK怎么设计、客户端SDK、领域SDK、可分发包。中英：SDK design,API wrapper,client library,absolute zero business,no external reference,domain SDK,health check,retry on upstream error。边界：纯工具函数零业务→mcpowers-min-module；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract；已有项目加功能→mcpowers-feat。流程：确认领域→§0零业务审计→外部依赖分析→SDK形态→defaults.ini+覆盖→健康检查→异常分层→资源泄漏防护→七类扫描兜底。"
+description: "SDK设计 / 封装领域能力 / 绝对零业务 / 无任何外部参考 / 通讯层中立 / 默认健康检查硬拒绝 / 上游错误重试vs客户端错误分离 → 触发本技能。口语：做个SDK、写个接口封装、封装第三方接口、做客户端库、SDK怎么设计、客户端SDK、领域SDK、可分发包。中英：SDK design,API wrapper,client library,absolute zero business,no external reference,domain SDK,health check,retry on upstream error。边界：纯工具函数零业务→mcpowers-min-module；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract；已有项目加功能→mcpowers-feat。流程：确认领域→§0零业务审计→外部依赖分析→SDK形态→defaults.ini+覆盖→健康检查→异常分层→资源泄漏防护→七类扫描兜底；v4.0.2+ 文档零引用——README/verify/错误消息避开参考/参见/详见/引用等 22 字眼（详见 §9.5 决策 3 问）。"
 ---
 
 # mcpowers-sdk-design（SDK 设计）
@@ -26,7 +26,7 @@ description: "SDK设计 / 封装领域能力 / 绝对零业务 / 无任何外部
 | **具体路径字面值** | `C:\projects\xxx` / `D:\workspace\yyy` / `/Users/alice/foo` / `/home/bob/bar` | 跨平台抽象 `pathlib.Path.home() / ".cache" / "{SDK 名称}"` |
 | **环境变量读取** | `os.getenv("API_KEY")` / `os.environ["TOKEN"]` / `process.env.SECRET` / `${ENV_VAR}` | 配置文件 + 运行时覆盖 dict / 命令行参数 |
 | **真实凭据** | `sk-xxx...` / `AKIA...` / `Bearer eyJhbGc...` | `CHANGE_ME` / `<your-credential>` 占位符 |
-| **外部参考字眼** | "参考 XXX 文档" / "引用 XXX 规范" / "详见 XXX" / "参见 XXX" / "借鉴 XXX" / "基于 XXX 改进" / "类似 XXX 但更..." / "致敬 XXX" / "致谢 XXX" / `based on xxx` / `inspired by xxx` / `reference: xxx` / `see also xxx` | 只描述该 SDK 自身的技术决策（"按 X 协议"、"遵循 RFC 7231"等通用标准是允许的） |
+| **外部参考字眼（v4.0.2+ 22 字眼清单）** | "参考 XXX 文档" / "引用 XXX 规范" / "详见 XXX" / "参见 XXX" / "借鉴 XXX" / "基于 XXX 改进" / "类似 XXX 但更..." / "致敬 XXX" / "致谢 XXX" / "参照 XXX" / "引自 XXX" / "根据规范" / "按照规范" / "按规范要求" / "遵守规范" / "按规范" / `based on xxx` / `inspired by xxx` / `reference: xxx` / `see also xxx` / `according to` / `refer to` / `referring to` / `as described in` / `as specified in` / `conform to` / `conforms to` / `defined in` / `outlined in` | 只描述该 SDK 自身的技术决策（"按 X 协议"、"遵循 RFC 7231"等通用标准是允许的） |
 | **其他项目路径** | `<project_root>/xxx` / `<your_app>/yyy` / `<repo_root>/zzz` / `<app_root>/...`（即使抽象路径也禁止） | 跨平台抽象 `Path(__file__).parent / "defaults.ini"` / `Path.home() / ".cache" / "{SDK 名称}"` |
 | **SDK 名 / 文件名业务前缀** | `payment_sdk.py` / `bangkokair_client.py` / `order_api.py` | 通用名 `client.py` / `config.py` / `exceptions.py` / `<抽象领域>_sdk.py` |
 
@@ -55,8 +55,8 @@ rg "os\.getenv|os\.environ|process\.env|\${ENV}" {sdk_dir}/
 # 4. 真实凭据扫描
 rg "sk-[A-Za-z0-9]{20}|AKIA[A-Z0-9]{16}|Bearer [A-Za-z0-9]{20}" {sdk_dir}/
 
-# 5. 外部参考字眼扫描
-rg -in "参考|引用|参照|借鉴|致谢|致敬|改进自|参考:|reference:|see also|详见|参见|类似|based on|inspired by" {sdk_dir}/
+# 5. 外部参考字眼扫描（v4.0.2+ 22 字眼清单——共享常量 `_forbidden_ref_words.txt`）
+rg -in "参考|参见|详见|引用|参照|引自|根据规范|按照规范|按规范要求|遵守规范|按规范|according to|refer to|referring to|as described in|as specified in|see also|conform to|conforms to|based on|defined in|outlined in|借鉴|致谢|致敬|改进自|参考:|reference:|inspired by|类似" {sdk_dir}/
 
 # 6. 其他项目路径扫描（即使抽象路径也禁止）
 rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {sdk_dir}/
@@ -305,7 +305,7 @@ SDK 与 min-module 的关系 = **「第三方库调用」**，不是"源码集�
 
 - ❌ SDK 含具体业务字段、具体业务状态机、具体业务路径、具体厂商域名
 - ❌ SDK 内部注释 / docstring / README / verify 脚本出现项目特定字眼
-- ❌ SDK 任何产物含外部参考字眼（"参考 xxx" / "引用 xxx" / "详见 xxx" / "类似 xxx" / `based on xxx` / `inspired by xxx`）
+- ❌ SDK 任何产物含外部参考字眼（v4.0.2+ 22 字眼清单——参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范 + 英文 11 + "类似 xxx" / `based on xxx` / `inspired by xxx`）
 - ❌ SDK 任何产物含其他项目路径字面值（即使抽象路径 `<project_root>/...` 也禁止）
 - ❌ import 业务模块（`common.*` / `apps.*` / `flask.*` / 本项目 `config/*`）
 - ❌ 依赖整个框架（ORM 之外的 Flask / Django / FastAPI 等）
@@ -334,7 +334,7 @@ SDK 与 min-module 的关系 = **「第三方库调用」**，不是"源码集�
 - [ ] **路径字面值扫描**：`C:\` / `D:\` / `/Users/` / `/home/xxx/` → 必须空
 - [ ] **环境变量读取扫描**：`os.getenv` / `os.environ` / `process.env` / `${ENV}` → 必须空
 - [ ] **真实凭据扫描**：`sk-` / `AKIA` / `Bearer [A-Za-z0-9]{20}` → 必须空
-- [ ] **外部参考字眼扫描**：参考 / 引用 / 借鉴 / 致谢 / 类似 / 致敬 / `based on` / `inspired by` / `see also` → 必须空
+- [ ] **外部参考字眼扫描（v4.0.2+ 22 字眼）**：参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范 + 英文 11（`according to` / `refer to` / `based on` / `see also` 等） + 借鉴 / 致谢 / 致敬 → 必须空（与 `_forbidden_ref_words.txt` 共享常量对齐）
 - [ ] **其他项目路径扫描**：`<project_root>` / `<your_app>` / `<repo_root>` / `<your_workspace>` → 必须空
 - [ ] **SDK 名 / 文件名无业务前缀**（`payment_sdk.py` ❌ / `client.py` ✅）
 - [ ] **docstring / 错误消息字符串无业务字段名**

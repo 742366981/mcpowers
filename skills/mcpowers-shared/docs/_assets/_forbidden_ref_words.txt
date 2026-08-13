@@ -1,0 +1,38 @@
+# mcpowers 文档禁用引用字眼清单（v4.0.1+ 接口零引用 + v4.0.2+ 文档零引用通用）
+# 设计动机：接口文档（docstring / spec / md）与通用文档（README / 规范 / 用户手册）
+# 应聚焦"当前怎么做 / 怎么对接调用"，不应含指向其他文档的字眼——
+# 这些字眼会让读者以为还要再去查其他文档才能用。
+#
+# 使用方式：
+#   - Python:  open(this).read().splitlines() → 过滤空行 + # 注释
+#   - Shell:   grep -v '^#' this | grep -v '^$'
+#   - 路径解析：通过 ${CLAUDE_PLUGIN_ROOT} 定位（hooks 唯一允许环境变量场景）
+#
+# 单一权威源；swagger-lint-helper.py / export_docs.py / post-write-check-doc-content.sh 三处共用
+# 增删字眼必须同步更新三处
+
+# 中文 11 个
+参考
+参见
+详见
+引用
+参照
+引自
+根据规范
+按照规范
+按规范要求
+遵守规范
+按规范
+
+# 英文 11 个
+according to
+refer to
+referring to
+as described in
+as specified in
+see also
+conform to
+conforms to
+based on
+defined in
+outlined in

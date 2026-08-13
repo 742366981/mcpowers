@@ -109,6 +109,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R13** | ❌ **Swagger 接口 5 字段契约不完整**（v2.31.0+ 全栈适用铁律）：写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）时漏 `tags` / `summary` / `description` / `parameters` / `responses` 任一顶层字段，或 `parameters[]` 缺 `description`+`example`、或 `responses[]` 缺 `200`、或 `responses[]` 状态码缺 `schema`+`examples`。违反 `接口契约规范.md §1` + `Swagger字段契约.md §1` | 5 字段必须齐全（按规范 §1.A/B/C）；parameters 子字段必须含 description+example；responses 必须含 200 + 每个状态码含 schema+examples（业务接口只列 200；4xx/5xx 误列见 R14）；项目根 `.swagger-required-fields.yml` 自定义字段也必须满足；CR 看到缺任一字段即阻塞，要求补全后重跑 lint |
 | **R14** | ❌ **业务接口 responses 误列 4xx/5xx**（v4.0.0+ 用户决策 A 铁律·业务接口响应规范）：业务接口 docstring 的 `responses:` 块误列 `401` / `403` / `404` / `500` 等 4xx/5xx 状态码——按新铁律，业务接口 HTTP 一律 `200`，业务成功 / 失败由响应体 `code` 字段判断（`code: 0` = 成功；`code: 10001` = 业务失败）；4xx/5xx 仅由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出，不由业务接口声明。违反 `接口契约规范.md §1.C.1` + `swagger-lint-helper.py check_business_api_responses` | 业务接口 responses 块只允许列 `200`；路径含 `login` / `logout` / `refresh` / `verify` / `register` / `password` / `download` / `export` / `stream` / `upload` / `file` / `attachment` 关键字的认证 / 流式 / 下载接口例外（可保留 401/416）；CR 看到业务接口 docstring 误列 `401` / `403` / `404` / `500` 即阻塞，要求删除并只保留 `200`；写时硬门禁已被 `swagger-lint-helper.py check_business_api_responses` 兜底，CR 复核时同步检查 |
 | **R15** | ❌ **API 文档含禁用引用字眼**（v4.0.1+ 用户决策 B 铁律·接口文档零引用）：接口 docstring 的 `summary:` / `description:` / `parameters[].description` / `responses[].description` 等用户可见字段值含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also」等指向其他文档的字眼——按 v4.0.1+ 铁律，接口文档（docstring → spec → md 全链路）应聚焦"怎么对接调用"，**不应含指向其他文档的字眼**——这些字眼会让对接方以为还要再去查其他文档才能用。违反 `接口契约规范.md §1.E` + `swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` | 接口文档 description / summary 等字段值不应含指向其他文档的字眼；YAML 字段名行（`summary:` / `description:` 等结构标记行）跳过不扫；CR 看到 description 含「参考」「参见」「详见」「引用」「refer to」「according to」等字眼即阻塞，要求改写为在该接口 docstring 里直接说明（不引用其他文档）；写时硬门禁已被 `swagger-lint-helper.py check_no_reference_words` 兜底，导出时硬门禁已被 `export_docs.py check_no_reference_words_spec` 兜底，CR 复核时同步检查 |
+| **R16** | ❌ **文档正文含画蛇添足字眼**（v4.0.2+ 用户决策 C 铁律·文档零引用）：通用文档（README / 用户手册 / 技术规范正文 / 设计文档 / 任何内容型 .md 文档）正文含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also / conform to / conforms to / based on / defined in / outlined in」等 22 个禁止字眼（独立出现也算画蛇添足，不限于"在某文档后"），路径不在白名单内——按 v4.0.2+ 铁律（`文档编写规范.md §9.5`），输出型文档应聚焦"当前怎么做"，**不应含指向其他文档的字眼**；删掉字眼后读者对"当前该怎么做"的理解不受损即视为画蛇添足；3 问决策：① 这段文字是给谁看的？② 删掉字眼后意思会变吗？③ 输出型禁止 / 参考型允许且必要 / 历史型允许。违反 `文档编写规范.md §9.5` + `post-write-check-doc-content.sh` 软门禁 + CLAUDE.md 必读铁律段 | CR 看到输出型 .md 正文含 22 字眼任一即阻塞，要求改写为在该文档内直接说明（不引用其他文档）；参考型（mcpowers-spec-index / API 契约 / 迁移指南 / 技能索引）+ 历史型（CHANGELOG / 历史教训 / Deprecation / README「最近变更」）走路径白名单跳过；CLAUDE.md 段 + 6 文档场景技能（L1 + L3 + L4）+ 软门禁 hook（L5）共 6 层 AI 视野覆盖；v4.0.1 接口零引用 = R16 在接口描述这一子集的最严格实施 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -290,6 +291,42 @@ git diff -r master...HEAD \
 > **白名单**（不参与本检查）：YAML 字段名行（`summary:` / `description:` 等形如 `key:` 末尾冒号且无 value 的纯结构标记行）—— 是结构不是字眼；业务术语「规范」作为普通名词（"接口规范""行业规范"）不违规，但「按规范」「按规范要求」违规。
 >
 > **双层写时硬门禁**：`swagger-lint-helper.py check_no_reference_words(docstring, route)` 在 PreToolUse(Write) 阶段拦截（exit 2 → Claude Code confirm UI）+ `export_docs.py check_no_reference_words_spec(spec)` 在拉 spec 后立即校验（exit 2 + stderr 列出违规位置 + 字眼片段），CR 复核时同步确认。
+
+## v4.0.2+ 通用文档画蛇添足字眼 Quick-Check（review 必跑·用户决策 C）
+
+> 对齐 `文档编写规范.md §9.5` 画蛇添足字眼场景化决策模型 + `post-write-check-doc-content.sh` 软门禁。审查者收到 PR 后必须执行的 3 条扫描命令（**输出型 vs 参考型 vs 历史型** 3 类场景，路径白名单区分）：
+
+```bash
+# 1. 输出型 .md 文档：扫 22 字眼（中文 11 + 英文 11）+ 路径不在白名单
+#    期望:命中 0 条违规（白名单:CHANGELOG.md / docs/历史教训/ / mcpowers-spec-index/ / API契约/ / 迁移指南/ / migration/ / deprecation/）
+git diff master...HEAD -U0 -- '*.md' \
+  | rg -i "参考|参见|详见|引用|参照|引自|根据规范|按照规范|按规范要求|遵守规范|按规范|according to|refer to|referring to|as described in|as specified in|see also|conform to|conforms to|based on|defined in|outlined in" \
+  | rg -v "CHANGELOG\.md|历史教训|mcpowers-spec-index|API契约|迁移|migration|deprecation"
+
+# 2. 参考型文档白名单检查：路径含 6 类白名单标识 → 跳过（不视为违规）
+git diff master...HEAD -U0 -- '*.md' \
+  | rg -i "参考|参见|详见|引用|参照|引自" \
+  | rg -i "CHANGELOG\.md|历史教训|mcpowers-spec-index|API契约|迁移|migration|deprecation" \
+  | rg -v "^--$"
+# 3. 路径白名单边界检查：确认白名单已覆盖 + 类比场景（如「REFERENCE.md」「指南」类）可主动加进 hooks/post-write-check-doc-content.sh
+rg "CHANGELOG|历史教训|mcpowers-spec-index|API契约|迁移|migration|deprecation" hooks/post-write-check-doc-content.sh
+```
+
+> 命令 1 命中（输出型 .md 含 22 字眼且不在白名单）→ Critical 阻塞——按 v4.0.2+ 文档零引用铁律（`文档编写规范.md §9.5`），输出型文档（README / 用户手册 / 技术规范正文 / 设计文档）应聚焦"当前怎么做"，**不应含指向其他文档的字眼**；CR 看到命中即阻塞，要求改写为在该文档内直接说明（不引用其他文档）；删掉字眼后读者对"当前该怎么做"的理解不受损即视为画蛇添足——按 §9.5 决策 3 问：① 这段文字是给谁看的？② 删掉字眼后意思会变吗？③ 输出型禁止 / 参考型允许且必要 / 历史型允许。
+>
+> 命令 2 命中（路径在白名单里）→ 跳过——按 §9.5.5 跨场景落地表，参考型（mcpowers-spec-index / API 契约 / 迁移指南 / 技能索引）+ 历史型（CHANGELOG / 历史教训 / Deprecation / README「最近变更」）走路径白名单跳过。
+>
+> 命令 3 提示——若新增了参考型 / 历史型文档类型，需同步更新 `hooks/post-write-check-doc-content.sh` 路径白名单与 §9.5.5 落地表。
+>
+> **6 层 AI 视野覆盖（v4.0.2+）**：
+> - L1 全局铁律段：`CLAUDE.md` 必读段（每次会话自动加载）
+> - L2 L1 索引触发词：6 个文档场景技能 description 加触发词
+> - L3 编排 Read 步骤：6 技能 ## 编排 / ## 触发即执行 Step 1 强 Read §9.5
+> - L4 自检清单决策问句：3 技能 ## 自检清单加 3 决策问句
+> - L5 软门禁 hook：`post-write-check-doc-content.sh`（写 .md 时扫 + 路径白名单 + exit 0 stderr 提示）
+> - L6 审查门禁：R16 + 上述 Quick-Check 段（review 兜底）
+>
+> **与 v4.0.1 接口零引用关系**：R16 = §9.5 输出型在 API 接口描述（docstring）这一子集的最严格实施（v4.0.1 接口零引用 = R15，无扩展不涉及 .md 文档）；R16 把规则推广到所有输出型 .md 文档。两者共用 22 字眼清单（共享常量 `_forbidden_ref_words.txt`），避免漂移。
 
 ## 审查后
 

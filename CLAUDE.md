@@ -10,7 +10,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **32 个可路由技能**（场景层 24 + 方法层 8，扁平化） |
 | `skills/mcpowers-shared/` | 规范资产库（32 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除；v2.31.0 新增 `Swagger字段契约.md` 字段清单机制） |
-| `hooks/` | Claude Code hooks 资产（4 个事件组 / 9 个脚本 + `hooks.json`；v2.28.2+ 含 `pre-write-check-duplicate.sh` 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 + 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder 协议方法 + 单下划线私有名）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明；**v2.29.0+ 含 `pre-write-check-doc-sync.sh` doc-sync 物理门禁（path/route/env 三类检查）——替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，不向用户项目注入任何文件，装 mcpowers 即自动支持**） |
+| `hooks/` | Claude Code hooks 资产（4 个事件组 / 10 个脚本 + `hooks.json`；v2.28.2+ 含 `pre-write-check-duplicate.sh` 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 + 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder 协议方法 + 单下划线私有名）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明；**v2.29.0+ 含 `pre-write-check-doc-sync.sh` doc-sync 物理门禁（path/route/env 三类检查）——替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，不向用户项目注入任何文件，装 mcpowers 即自动支持**；v4.0.2+ 含 `post-write-check-doc-content.sh` 文档画蛇添足字眼软门禁，6 类路径白名单区分参考型/历史型文档） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
 
@@ -86,6 +86,8 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 **规范稳定性分级 + CHANGELOG 强制破坏声明（v2.27.4+ 全栈适用铁律）**：所有 32 份规范 frontmatter 必须声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；AI 读取规范后必读这两个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG / deprecated 不写新代码）。每次 mcpowers 发布的 `CHANGELOG.md` 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的**唯一权威索引**。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §CHANGELOG 强制破坏声明段」；方法层落地：`mcpowers-code-review` 增 R9 stability 审查维度 + 审查动作清单第 6 项。
 
 **终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
+
+**文档编写铁律·画蛇添足字眼场景化规则（v4.0.2+ 用户决策 C·全栈适用）**：AI 写任何文档（不只是接口描述）都需遵守——**22 个禁用字眼**（中文 11 + 英文 11：参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范 + according to / refer to / referring to / as described in / as specified in / see also / conform to / conforms to / based on / defined in / outlined in）出现必须跑 3 问决策：**① 这段文字是给谁看的？** 对接方/终端用户=输出型 / 自己查的索引=参考型 / 追溯历史=历史型。**② 删掉字眼后意思会变吗？** 不变=画蛇添足=删，变=必要引用=保留。**③ 类型 + Q2 联合判定**——输出型禁止（删/改写）/ 参考型允许且必要 / 历史型允许（§9.4 白名单）。详见 [`文档编写规范.md`](skills/mcpowers-shared/docs/技术规范/文档编写规范.md) §9.5（场景化决策模型）+ §1.E 接口零引用铁律（v4.0.1+ 接口描述特化子集）。栈级落地：共享常量 `skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt`（v4.0.1 + v4.0.2 三处脚本共用）；软门禁 hook `post-write-check-doc-content.sh`（写 .md 时扫禁用字眼 + 6 类路径白名单区分场景 + exit 0 stderr 提示）；审查门禁：`mcpowers-code-review` 增 R16 反模式条目（文档正文含画蛇添足字眼）+ Quick-Check 段含 3 条扫描命令（输出型 .md 扫描 + 参考型白名单扫描 + 路径白名单检查）。
 
 ## 仓库地址
 

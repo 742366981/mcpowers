@@ -1,6 +1,6 @@
 ---
 name: mcpowers-prd
-description: "写 PRD / 写需求文档 / 帮我梳理需求 / 写产品需求文档 → 触发本技能。口语：帮我写 PRD/写需求文档/写产品需求、写一下 PRD/BRD/用户故事/use case、整理需求文档/需求说明书、梳理一下需求、PRD 文档/PRD 模板、写功能需求/产品设计文档、需求怎么写/写需求/需求整理/需求汇总。中英：PRD, MRD, BRD, FRD, spec, specification, requirement doc, user story, use case。覆盖目标/用户/功能/边界/异常/验收六要素。"
+description: "写 PRD / 写需求文档 / 帮我梳理需求 / 写产品需求文档 → 触发本技能。口语：帮我写 PRD/写需求文档/写产品需求、写一下 PRD/BRD/用户故事/use case、整理需求文档/需求说明书、梳理一下需求、PRD 文档/PRD 模板、写功能需求/产品设计文档、需求怎么写/写需求/需求整理/需求汇总。中英：PRD, MRD, BRD, FRD, spec, specification, requirement doc, user story, use case。覆盖目标/用户/功能/边界/异常/验收六要素；v4.0.2+ 通用文档零引用——正文避开参考/参见/详见/引用等 22 字眼（详见 §9.5 决策 3 问）。"
 ---
 
 # mcpowers-prd（写需求文档）
@@ -16,7 +16,7 @@ description: "写 PRD / 写需求文档 / 帮我梳理需求 / 写产品需求�
 - Read `mcpowers-shared/mcpowers-spec-index/SKILL.md`
 - 加载：
   - `mcpowers-shared/docs/产品设计/产品设计规范.md`（**必读**）
-  - `mcpowers-shared/docs/技术规范/文档编写规范.md`（**必读**）
+  - `mcpowers-shared/docs/技术规范/文档编写规范.md`（**必读**——含 §9.5 画蛇添足字眼场景化决策，v4.0.2+ 通用文档零引用铁律）
   - `mcpowers-shared/docs/技术规范/设计规范.md`（**必读**）
 
 ### 2. 信息收集

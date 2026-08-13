@@ -7,7 +7,37 @@
 
 ## [Unreleased]
 
-- 无
+## v4.0.2 - 2026-08-13
+
+> 🎯 **核心定位**:文档编写铁律·画蛇添足字眼场景化规则(用户决策 C:v4.0.1 接口零引用的通则化推广)
+
+### 新增
+
+- **`文档编写规范.md §9.5` 「画蛇添足字眼场景化决策模型」新增**:3 类场景化(输出型 / 参考型 / 历史型)+ 22 字眼清单(中文 11 + 英文 11)+ 3 问决策流程图(Q1 给谁看 → Q2 删字眼意思变吗 → Q3 类型 + Q2 联合判定)+ 反向合规改写示范 4 条 + 跨场景落地表 + 与 v4.0.1 接口零引用关系(v4.0.1 接口零引用 = §9.5 输出型在 API 接口描述这一子集的最严格实施)。
+- **`_assets/_forbidden_ref_words.txt` 共享常量新建**:v4.0.1 `swagger-lint-helper.py` line ~169 + `export_docs.py` line ~460 + v4.0.2 `post-write-check-doc-content.sh` 三处共用 22 字眼清单,避免漂移。`grep -v '^#'` 过滤注释 + `grep -v '^$'` 过滤空行即可加载。
+- **`hooks/post-write-check-doc-content.sh` 软门禁新建**:PostToolUse(Write|Edit|MultiEdit) 触发,只对 `.md` 文件触发,扫 22 字眼并按 6 类路径白名单区分(参考型 / 历史型 自动跳过);命中且不在白名单 → stderr 提示(详见 22 字眼 + 3 决策问句 + 路径白名单清单);`exit 0` 不阻断(软门禁);从 stdin JSON 提取 `file_path` + `content`,`${CLAUDE_PLUGIN_ROOT}` 解析共享常量(hooks 唯一允许环境变量场景)。
+- **CLAUDE.md「文档编写铁律·画蛇添足字眼场景化规则」段新增**:每次会话自动加载,AI 视野核心覆盖(包含 22 字眼清单 + 3 决策问句 + 链 §9.5 + 栈级落地:共享常量/软门禁 hook/R16 审查门禁)。
+- **6 个文档场景技能 description L1 触发词 + Step 1 强 Read §9.5**:`mcpowers-prd` / `mcpowers-feat` / `mcpowers-plan` / `mcpowers-brainstorm` / `mcpowers-min-module` / `mcpowers-sdk-design` 全部加 v4.0.2+ 文档零引用触发词 + 必读 `文档编写规范.md §9.5` 步骤。
+- **3 技能 ## 自检清单加 3 决策问句**:`mcpowers-feat` / `mcpowers-min-module` / `mcpowers-sdk-design` 完成后自检 / §0 审计 / 反模式清单全部加入 §9.5 决策 3 问 + 22 字眼扫描规则。
+- **`mcpowers-code-review` R16 + v4.0.2+ 通用文档画蛇添足字眼 Quick-Check 段新增**:R16 文档正文含画蛇添足字眼反模式条目(3 类场景 + 路径白名单 + 6 层 AI 视野覆盖);Quick-Check 段 3 条扫描命令(输出型 .md 扫描 + 参考型白名单检查 + 路径白名单边界检查) + 6 层覆盖说明 + 与 v4.0.1 R15 接口零引用关系(R16 = 通则化推广)。
+
+### 调整
+
+- **`文档编写规范.md §9.3` 黑名单扩 22 字眼**:与 v4.0.1 接口零引用 + v4.0.2 文档零引用共享常量对齐(新增独立行「画蛇添足字眼(v4.0.2+ 通则化)」)。
+- **`文档编写规范.md §10` 检查清单加 3 决策问句**:配合 §9.5 场景化决策模型。
+- **`文档编写规范.md` frontmatter**:`version: 1.1 → 1.2` + `last_breaking_change: v2.24.0 → v4.0.2` + `stability: evolving` 声明。
+- **`mcpowers-min-module` / `mcpowers-sdk-design` §0.1 外部参考字眼行扩展**:与 v4.0.2 22 字眼清单对齐(新增 11 中文 + 11 英文,扩展原 13 字眼清单)。
+- **`mcpowers-min-module` / `mcpowers-sdk-design` §0.3 第 5 类扫描命令扩展**:正则覆盖 22 字眼 + 借鉴 / 致谢 / 致敬 / 改进自 / 类似 等历史保留字眼。
+- **`mcpowers-min-module` / `mcpowers-sdk-design` 完成后自检清单 §0 审计第 5 项扩展**:与 22 字眼对齐 + 标注 `与 _forbidden_ref_words.txt 共享常量对齐`。
+- **`mcpowers-feat` Step 3 加载规范段加条件分支**:若本次任务涉及新增 / 修改 README / 规范 / 设计文档 / 用户手册 → 必读 `文档编写规范.md §9.5`。
+- **`mcpowers-prd` 必读加载规范段加注**:`文档编写规范.md` 必读 + 含 §9.5 画蛇添足字眼场景化决策标识。
+- **`README.md` 第 15 行(3.5)表格同步声明**:v4.0.2+ 文档编写铁律·画蛇添足字眼场景化规则(无引用字眼 + 3 问决策 + 6 层 AI 视野覆盖)。
+
+### 风险
+
+- **软门禁误伤参考型 / 历史型文档**:6 类路径白名单(`.CHANGELOG.md` / `历史教训` / `mcpowers-spec-index` / `API契约` / `迁移` / `deprecation` / `README.md`)覆盖 95% 场景;剩余 5% 误伤 AI 看到 stderr 提示可主动确认「保留理由」并把路径加进白名单。
+- **v4.0.2 不与 v4.0.1 冲突**:v4.0.2 是 v4.0.1 通则化扩展(22 字眼清单完全一致 + 共享常量三处共用),不破坏 v4.0.0 / v4.0.1 既有接口。`post-write-check-doc-content.sh` 是 PostToolUse 软门禁 + `swagger-lint-helper.py` PreToolUse 硬门禁互补,前者兜底 .md 文档,后者兜底 .py docstring。
+- **`post-write-check-doc-content.sh` shell 兼容性**:用 `grep -v` / `while IFS= read` / `<<<` herestring(Bash 3.2+,跨 macOS / Linux / WSL / Git Bash);`set -euo pipefail` 严格模式 + `exit 0` 兜底不会阻断 Claude Code 流程。
 
 ## v4.0.1 - 2026-08-13
 

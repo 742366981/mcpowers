@@ -1,6 +1,6 @@
 ---
 name: mcpowers-min-module
-description: "最小通用模块化 / 绝对零业务 / 无任何外部参考 / 自包含四件套 / 复制即用跨项目零成本 → 触发本技能。口语：做成最小模块、通用化工具、抽成独立模块、可import的模块、零业务字眼、无项目名/无业务字段、无任何参考引用、通用utils/日志/校验/重试、自包含模块。中英：min-module,standalone module,reusable module,absolute zero business,no external reference,business-free,zero business audit,cross-project。边界：封装特定领域能力→mcpowers-sdk-design；原地改结构→mcpowers-refactor；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract。流程：识别技术能力→剥离业务→§0零业务审计→自包含四件套→配置自包含→自带日志异常→验证脚本→七类扫描兜底。"
+description: "最小通用模块化 / 绝对零业务 / 无任何外部参考 / 自包含四件套 / 复制即用跨项目零成本 → 触发本技能。口语：做成最小模块、通用化工具、抽成独立模块、可import的模块、零业务字眼、无项目名/无业务字段、无任何参考引用、通用utils/日志/校验/重试、自包含模块。中英：min-module,standalone module,reusable module,absolute zero business,no external reference,business-free,zero business audit,cross-project。边界：封装特定领域能力→mcpowers-sdk-design；原地改结构→mcpowers-refactor；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract。流程：识别技术能力→剥离业务→§0零业务审计→自包含四件套→配置自包含→自带日志异常→验证脚本→七类扫描兜底；v4.0.2+ 文档零引用——README/verify/错误消息避开参考/参见/详见/引用等 22 字眼（详见 §9.5 决策 3 问）。"
 ---
 
 # mcpowers-min-module（最小通用模块化）
@@ -26,7 +26,7 @@ description: "最小通用模块化 / 绝对零业务 / 无任何外部参考 / 
 | **具体路径字面值** | `C:\projects\xxx` / `D:\workspace\yyy` / `/Users/alice/foo` / `/home/bob/bar` | 跨平台抽象 `pathlib.Path.home() / ".cache" / "{模块名}"` |
 | **环境变量读取** | `os.getenv("API_KEY")` / `os.environ["TOKEN"]` / `process.env.SECRET` / `${ENV_VAR}` | 配置文件 + 运行时覆盖 dict / 命令行参数 |
 | **真实凭据** | `sk-xxx...` / `AKIA...` / `Bearer eyJhbGc...` | `CHANGE_ME` / `<your-credential>` 占位符 |
-| **外部参考字眼** | "参考 XXX 文档" / "引用 XXX 规范" / "详见 XXX" / "参见 XXX" / "借鉴 XXX" / "基于 XXX 改进" / "类似 XXX 但更..." / "致敬 XXX" / "致谢 XXX" / `based on xxx` / `inspired by xxx` / `reference: xxx` / `see also xxx` | 只描述该模块自身的技术决策（"按 X 协议"、"遵循 RFC 7231"等通用标准是允许的） |
+| **外部参考字眼（v4.0.2+ 22 字眼清单）** | "参考 XXX 文档" / "引用 XXX 规范" / "详见 XXX" / "参见 XXX" / "借鉴 XXX" / "基于 XXX 改进" / "类似 XXX 但更..." / "致敬 XXX" / "致谢 XXX" / "参照 XXX" / "引自 XXX" / "根据规范" / "按照规范" / "按规范要求" / "遵守规范" / "按规范" / `based on xxx` / `inspired by xxx` / `reference: xxx` / `see also xxx` / `according to` / `refer to` / `referring to` / `as described in` / `as specified in` / `conform to` / `conforms to` / `defined in` / `outlined in` | 只描述该模块自身的技术决策（"按 X 协议"、"遵循 RFC 7231"等通用标准是允许的） |
 | **其他项目路径** | `<project_root>/xxx` / `<your_app>/yyy` / `<repo_root>/zzz` / `<app_root>/...`（即使抽象路径也禁止） | 跨平台抽象 `Path(__file__).parent / "defaults.ini"` / `Path.home() / ".cache" / "{name}"` |
 | **模块名 / 文件名业务前缀** | `payment_utils.py` / `order_validators.py` / `bangkokair_client.py` | 通用名 `validators.py` / `retry.py` / `loggings.py` / `client.py` |
 
@@ -54,8 +54,8 @@ rg "os\.getenv|os\.environ|process\.env|\${ENV}" {module_dir}/
 # 4. 真实凭据扫描
 rg "sk-[A-Za-z0-9]{20}|AKIA[A-Z0-9]{16}|Bearer [A-Za-z0-9]{20}" {module_dir}/
 
-# 5. 外部参考字眼扫描
-rg -in "参考|引用|参照|借鉴|致谢|致敬|改进自|参考:|reference:|see also|详见|参见|类似|based on|inspired by" {module_dir}/
+# 5. 外部参考字眼扫描（v4.0.2+ 22 字眼清单——共享常量 `_forbidden_ref_words.txt`）
+rg -in "参考|参见|详见|引用|参照|引自|根据规范|按照规范|按规范要求|遵守规范|按规范|according to|refer to|referring to|as described in|as specified in|see also|conform to|conforms to|based on|defined in|outlined in|借鉴|致谢|致敬|改进自|参考:|reference:|inspired by|类似" {module_dir}/
 
 # 6. 其他项目路径扫描（即使抽象路径也禁止）
 rg "<project|<your.*project|<your_workspace|<repo_root|<app_root" {module_dir}/
@@ -205,7 +205,7 @@ def get_sdk_logger(name: str) -> logging.Logger:
   - 环境变量扫描：`os.getenv` / `os.environ` / `process.env` / `${ENV}` → 必须空
   - 具体路径扫描：`C:\` / `D:\` / `/Users/` / `/home/xxx/` → 必须空
   - 真实凭据扫描：`sk-` / `AKIA` / `Bearer [A-Za-z0-9]{20}` → 必须空
-  - **外部参考字眼扫描**：参考 / 引用 / 借鉴 / 致谢 / 类似 / based on → 必须空
+  - **外部参考字眼扫描（v4.0.2+ 22 字眼）**：参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范 + 英文 11（`according to` / `refer to` / `based on` / `see also` 等） + 借鉴 / 致谢 / 致敬 → 必须空
   - **其他项目路径扫描**：`<project_root>` / `<your_app>` / `<repo_root>` → 必须空
   - 一键兜底：`bash scripts/check-min-module.sh {module_dir}/`
 
@@ -227,7 +227,7 @@ def get_sdk_logger(name: str) -> logging.Logger:
 
 - ❌ 模块含具体业务名、业务字段名、具体业务路径、具体厂商域名
 - ❌ 模块内部注释 / docstring 出现项目特定字眼
-- ❌ 模块任何产物（README / verify / 错误消息 / 日志字段名）含外部参考字眼（"参考 xxx" / "引用 xxx" / "详见 xxx" / "类似 xxx" / `based on xxx` / `inspired by xxx`）
+- ❌ 模块任何产物（README / verify / 错误消息 / 日志字段名）含外部参考字眼（v4.0.2+ 22 字眼清单——参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范 + 英文 11 + "类似 xxx" / `based on xxx` / `inspired by xxx`）
 - ❌ 模块任何产物含其他项目路径字面值（即使抽象路径 `<project_root>/...` 也禁止）
 - ❌ import 业务模块（`common.*` / `apps.*` / `flask.*` / 本项目 `config/*`）
 - ❌ 依赖整个框架（ORM 之外的 Flask / Django / FastAPI 等）
@@ -258,7 +258,7 @@ def get_sdk_logger(name: str) -> logging.Logger:
 - [ ] **路径字面值扫描**：`C:\` / `D:\` / `/Users/` / `/home/xxx/` → 必须空
 - [ ] **环境变量读取扫描**：`os.getenv` / `os.environ` / `process.env` / `${ENV}` → 必须空
 - [ ] **真实凭据扫描**：`sk-` / `AKIA` / `Bearer [A-Za-z0-9]{20}` → 必须空
-- [ ] **外部参考字眼扫描**：参考 / 引用 / 借鉴 / 致谢 / 类似 / 致敬 / `based on` / `inspired by` / `see also` → 必须空
+- [ ] **外部参考字眼扫描（v4.0.2+ 22 字眼）**：参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范 + 英文 11 + 借鉴 / 致谢 / 致敬 / `based on` / `inspired by` / `see also` → 必须空（与 `_forbidden_ref_words.txt` 共享常量对齐）
 - [ ] **其他项目路径扫描**：`<project_root>` / `<your_app>` / `<repo_root>` / `<your_workspace>` → 必须空
 - [ ] **模块名 / 文件名无业务前缀**（`payment_xxx.py` ❌ / `validators.py` ✅）
 - [ ] **docstring / 错误消息字符串无业务字段名**

@@ -454,6 +454,117 @@ def check_5_field_contract(spec, required_fields=DEFAULT_REQUIRED_FIELDS):
     return violations
 
 
+# === API 文档零引用铁律(v4.0.1+ 用户决策 B:接口文档应聚焦"怎么对接调用") ===
+
+# 禁用字眼清单(与 swagger-lint-helper.py check_no_reference_words 对齐)
+_FORBIDDEN_REF_WORDS = (
+    '参考', '参见', '详见', '引用', '参照', '引自',
+    '根据规范', '按照规范', '按规范要求', '遵守规范', '按规范',
+    'according to', 'refer to', 'referring to',
+    'as described in', 'as specified in', 'see also',
+    'conform to', 'conforms to', 'based on', 'defined in', 'outlined in',
+)
+
+
+def check_no_reference_words_spec(spec: dict) -> list[tuple[str, str, str, str]]:
+    """遍历 spec 扫描禁用引用字眼（v4.0.1+ API 文档零引用铁律）。
+
+    接口文档（docstring → spec → md 全链路）应聚焦"接口怎么对接调用"，
+    不应含「参考」「参见」「详见」「引用」等指向其他文档的字眼——
+    这些字眼会让对接方以为还要再去查其他文档才能用。
+
+    禁用字眼清单：中文 11 个（参考/参见/详见/引用/参照/引自/根据规范/按规范/按规范要求/按照规范/遵守规范）+ 英文 11 个（according to/refer to/referring to/as described in/as specified in/see also/conform to/conforms to/based on/defined in/outlined in）。大小写不敏感。
+
+    扫描范围:spec 的 `summary` / `description` 顶层字段 + `parameters[].description`
+    + `responses[].description` 等所有用户可见描述字段值。
+
+    跳过规则:
+      - JSON 字段名（key）—— 不算违规（结构标记不是字眼）
+      - `description` 字段值内的 URL / 代码块示例 —— 仍按子串匹配（保守）
+
+    Args:
+        spec: Swagger 2.0 spec dict
+
+    Returns:
+        violations 列表,每项为 `(path, method, location, snippet)` 四元组:
+          - path: 接口路径（如 `'/users/{id}'`）
+          - method: HTTP 方法大写（如 `'POST'`）
+          - location: 字眼出现位置描述（如 `'description'` / `'parameters[2].description'`）
+          - snippet: 字眼所在行的精简片段（前后各 20 字符,含字眼本身）
+        空 list = 完全合规
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> violations = check_no_reference_words_spec({
+        ...     'paths': {'/x': {'post': {
+        ...         'summary': 'x', 'description': '本接口参考 RBAC 模型实现',
+        ...         'parameters': [], 'responses': {'200': {}}
+        ...     }}}
+        ... })
+        >>> len(violations)
+        1
+        >>> violations[0][3]
+        '...参考...'
+    """
+    violations: list[tuple[str, str, str, str]] = []
+
+    def _scan_value(value, location: str, path: str, method: str) -> None:
+        """递归扫描字符串值,命中禁用字眼即追加 violation"""
+        if not isinstance(value, str) or not value:
+            return
+        value_lower = value.lower()
+        for word in _FORBIDDEN_REF_WORDS:
+            idx = value_lower.find(word)
+            if idx == -1:
+                continue
+            # 取字眼前后各 20 字符作 snippet
+            start = max(0, idx - 20)
+            end = min(len(value), idx + len(word) + 20)
+            snippet = ('...' if start > 0 else '') + value[start:end] + ('...' if end < len(value) else '')
+            violations.append((path, method, location, snippet))
+            break  # 一个值只报第一个命中
+
+    for path, methods in spec.get('paths', {}).items():
+        if not isinstance(methods, dict):
+            continue
+        for method, details in methods.items():
+            if method.upper() not in DEFAULT_HTTP_METHODS:
+                continue
+            if not isinstance(details, dict):
+                continue
+
+            # 1. 顶层 summary / description
+            _scan_value(details.get('summary', ''), 'summary', path, method.upper())
+            _scan_value(details.get('description', ''), 'description', path, method.upper())
+
+            # 2. parameters[].description
+            for idx, param in enumerate(details.get('parameters', []) or []):
+                if not isinstance(param, dict):
+                    continue
+                _scan_value(
+                    param.get('description', ''),
+                    f'parameters[{idx}].description',
+                    path, method.upper(),
+                )
+
+            # 3. responses[].description
+            for code, resp in (details.get('responses', {}) or {}).items():
+                if not isinstance(resp, dict):
+                    continue
+                _scan_value(
+                    resp.get('description', ''),
+                    f'responses[{code}].description',
+                    path, method.upper(),
+                )
+
+    return violations
+
+
 # === JSON -> Markdown 渲染 ===
 
 def json_to_markdown(spec, output_file, login_path=None, template_section=None):
@@ -1127,11 +1238,7 @@ def main():
             for path, method, reason in violations:
                 print(f'   {method} {path}  ->  {reason}', file=sys.stderr)
             print('', file=sys.stderr)
-            print('请按 接口契约规范.md §1 补全,详见:', file=sys.stderr)
-            print('  - docs/技术规范/接口契约规范.md §1(5 字段契约)', file=sys.stderr)
-            print('  - docs/API文档/swagger_template.md(Flasgger docstring 详情锚)', file=sys.stderr)
-            print('  - 业务接口响应规范(HTTP 仅 200 / code 字段表业务错误)由写时 hook 负责:', file=sys.stderr)
-            print('    swagger-lint-helper.py check_business_api_responses()', file=sys.stderr)
+            print('请补全 5 字段契约: tags + summary + description + parameters + responses(必含 200).', file=sys.stderr)
             sys.exit(2)
         path_count = len(spec.get('paths', {}))
         method_count = sum(
@@ -1139,6 +1246,24 @@ def main():
             for methods in spec.get('paths', {}).values()
         )
         print(f'✅ 5 字段契约通过({path_count} 路径,{method_count} 接口)')
+
+    # === API 文档零引用字眼检查(v4.0.1+ 用户决策 B:接口文档应聚焦"怎么对接调用") ===
+    ref_violations = check_no_reference_words_spec(spec)
+    if ref_violations:
+        print(
+            f'❌ API 文档含禁用字眼({len(ref_violations)} 处):',
+            file=sys.stderr
+        )
+        for path, method, location, snippet in ref_violations:
+            print(
+                f'   {method} {path}  ->  {location}: {snippet}',
+                file=sys.stderr
+            )
+        print('', file=sys.stderr)
+        print('接口文档应聚焦"怎么对接调用",description / summary 等字段值不应包含', file=sys.stderr)
+        print('指向其他文档的词语。把约束内容直接写在接口 description 里。', file=sys.stderr)
+        sys.exit(2)
+    print('✅ API 文档零引用字眼检查通过')
 
     # === 公共输出逻辑 ===
     os.makedirs(output_dir, exist_ok=True)

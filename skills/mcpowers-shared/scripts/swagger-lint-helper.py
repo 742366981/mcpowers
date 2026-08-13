@@ -162,6 +162,86 @@ _AUTH_PATH_KEYWORDS = ('login', 'logout', 'refresh', 'verify', 'register', 'pass
 _STREAM_PATH_KEYWORDS = ('download', 'export', 'stream', 'upload', 'file', 'attachment')
 
 
+# v4.0.1+ API 文档零引用铁律:docstring / spec / md 全链路禁用字眼清单
+# 设计动机:接口文档应聚焦"接口怎么对接调用",不应含指向其他文档的字眼
+# ——这些字眼会让对接方以为还要再去查其他文档才能用
+# 跳过规则:YAML 字段名行(形如 `key:` 末尾冒号且无 value)不算违规(这是结构不是字眼)
+_FORBIDDEN_REF_WORDS = (
+    # 中文
+    '参考', '参见', '详见', '引用', '参照', '引自',
+    '根据规范', '按照规范', '按规范要求', '遵守规范', '按规范',
+    # 英文
+    'according to', 'refer to', 'referring to',
+    'as described in', 'as specified in', 'see also',
+    'conform to', 'conforms to', 'based on', 'defined in', 'outlined in',
+)
+
+
+def check_no_reference_words(docstring: str, route: str = '') -> list[tuple[str, str]]:
+    """检查 docstring 是否含禁用引用字眼（v4.0.1+ API 文档零引用铁律）。
+
+    接口文档（docstring / spec / md 全链路）应聚焦"接口怎么对接调用"——
+    不应含「参考」「参见」「详见」「引用」等指向其他文档的字眼（这些会让
+    对接方以为还要再去查其他文档才能用）。
+
+    禁用字眼清单：中文 11 个（参考/参见/详见/引用/参照/引自/根据规范/按规范/按规范要求/按照规范/遵守规范）+ 英文 11 个（according to/refer to/referring to/as described in/as specified in/see also/conform to/conforms to/based on/defined in/outlined in）。
+
+    扫描范围:docstring 所有非 YAML 字段名行（含 description / summary /
+    parameters[].description / responses[].description 等字段值）。
+    跳过规则:YAML 字段名行（stripped 末尾 `:` 且不含值）不算违规——这是
+    结构标记不是字眼。
+
+    Args:
+        docstring: 路由函数的 docstring 文本（含 Flasgger YAML 块）
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'` / `'WARNING'`
+        空 list = 合规
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # description 含「参考」 → ERROR
+        >>> check_no_reference_words(
+        ...     'description:\\n  本接口参考 RBAC 模型实现',
+        ...     '/users'
+        ... )
+        [('ERROR', 'docstring L2 含禁用引用字眼「参考」...')]
+        >>> # 纯 YAML 字段名 → 合规
+        >>> check_no_reference_words('description:\\n  用户登录', '/auth/login')
+        []
+    """
+    violations: list[tuple[str, str]] = []
+    if not docstring:
+        return violations
+
+    for line_no, line in enumerate(docstring.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # 跳过 YAML 字段名行:形如 `key:` 末尾冒号且后面无 value
+        # 示例: `summary:`, `description:`, `parameters:`, `- in:`, `200:`
+        if stripped.endswith(':') and len(stripped) > 1 and not stripped.startswith('#'):
+            continue
+        # 扫禁用字眼(子串包含,大小写不敏感)
+        line_lower = line.lower()
+        for word in _FORBIDDEN_REF_WORDS:
+            if word in line_lower:
+                violations.append((
+                    'ERROR',
+                    f'docstring L{line_no} 含禁用引用字眼「{word}」'
+                    f'——接口文档应聚焦"怎么对接调用",不应指向其他文档'
+                    f'(v4.0.1+ API 文档零引用铁律)',
+                ))
+                break  # 一行只报第一个命中
+    return violations
+
+
 def check_business_api_responses(docstring: str, route: str = '') -> list[tuple[str, str]]:
     """检查业务接口的 responses 块是否误列 4xx/5xx（v4.0.0+ 业务接口响应规范铁律）。
 
@@ -318,6 +398,16 @@ def main():
         # v4.0.0+ 业务接口响应规范铁律（替代旧 check_responses_error_codes）
         # 业务接口 responses 块只列 200；4xx/5xx 由框架层抛出，不由业务接口声明
         for level, msg in check_business_api_responses(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.0.1+ API 文档零引用铁律：description / summary 等字段值
+        # 禁含「参考 / 参见 / 详见 / 引用」等指向其他文档的字眼
+        for level, msg in check_no_reference_words(docstring, route):
             full_msg = f'[{route}] {msg}'
             all_violations.append((level, line_no, func, full_msg))
             if level == 'ERROR':

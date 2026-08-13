@@ -9,6 +9,27 @@
 
 - 无
 
+## v4.0.1 - 2026-08-13
+
+> 🎯 **核心定位**:API 文档零引用铁律(用户决策 B:接口文档应聚焦"怎么对接调用")。
+
+### 新增
+
+- **`swagger-lint-helper.py check_no_reference_words()` 新增**:`summary` / `description` / `parameters[].description` / `responses[].description` 字段值扫描禁用字眼(中文:参考 / 参见 / 详见 / 引用 / 参照 / 引自 / 根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范;英文:according to / refer to / referring to / as described in / as specified in / see also);YAML 字段名行(形如 `key:` 末尾冒号且无 value)跳过不扫。PreToolUse(Write) 阶段 exit 2 触发 Claude Code confirm UI。
+- **`export_docs.py check_no_reference_words_spec()` 新增**:拉 spec 后立即扫描 `summary` / `description` / `parameters[].description` / `responses[].description` 各字段值含禁用字眼;返回 `(path, method, location, snippet)` 四元组;exit 2 + stderr 列违规位置 + 字眼前后各 20 字符片段。`--no-strict-fields` 不跳过本检查(铁律不允许兜底)。
+- **`接口契约规范.md §1.E`「API 文档零引用铁律」新增**:禁用字眼清单 + 判定规则(子串包含即违规;代码块 JSON 示例仍按保守策略扫描)+ 强检测(写时 + 导出时双层)+ 反向合规改写示范(4 个 ❌ → ✅ 对照)+ 例外(URL 形式仍视为违规;「规范」作普通名词不违规)。
+- **`mcpowers-code-review` R15 新增**:API 文档含禁用引用字眼反模式条目;Quick-Check 段增 v4.0.1+ 零引用字眼扫描命令(中文 + 英文禁用字眼 rg 扫描接口文件 diff)。
+
+### 调整
+
+- **`CLAUDE.md` Swagger 5 字段契约铁律段扩充**:追加 v4.0.1+ 接口文档零引用子句,链接 `接口契约规范.md §1.E` + `check_no_reference_words()` + `check_no_reference_words_spec()` 双层检测。
+- **`README.md` 第 15 行功能同步表扩充:v4.0.1+ 接口文档零引用铁律表述,`check_no_reference_words` + `check_no_reference_words_spec` 双层拦截明示。
+
+### 风险
+
+- **存量接口 description 含历史引用字眼**:本次升级会让含「参考 / 参见 / 详见 / 引用」等字眼的存量接口 docstring 全部被写时 / 导出时双层门禁 block。迁移策略:①按 §1.E 反向合规改写示范逐条改写为在该接口 docstring 里直接说明(不引用其他文档);②删除指向外部文档的字面引用,改为接口内的字段值完整描述。
+- **`description` 多行 YAML(`>` / `|`)扫描**:所有 description 字段值无论是否多行,均按子串匹配扫描;可能误伤示例值里含「参考」字眼的 JSON 字面量(如 `{"ref": "参考值"}`),保守策略下视为违规——建议作者改写示例值为不含禁用字眼的中性词。
+
 ## v4.0.0 - 2026-08-13
 
 > 🎯 **核心定位**:工具脚本体系升级 + 业务接口响应规范铁律翻转

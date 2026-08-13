@@ -108,6 +108,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R12** | ❌ **控制台 formatter 默认走 colorlog / winston.format.colorize() / logrus ForceColors: true 等开颜色**（v2.29.2+ 跨语言总章铁律·零配置即合规）：模块 / 框架默认行为让 95% 用户不感知就拿到 ANSI 转义序列，污染复制粘贴（`\x1b[32m...` 混入 Markdown / issue 评论）+ 管道（`grep` / `tee` 关键字匹配穿插转义字符）+ 文件重定向（Loki / ELK 把 ANSI 当异常染色）+ 日志聚合平台（Sentry / DataDog 把 ANSI 字符串归类为 error）。**任何环境（dev / test / prod）一律默认关**；**min-module / sdk-design 内置日志工厂也必须硬编码走 plain**——不允许「等调用方传配置再关」。违反 `日志规范.md §7.6` | 默认 formatter 必须用 plain 实现（Python `logging.Formatter` / JS `winston.format.simple()` / Go `slog.NewTextHandler` / Java `java.util.logging.Formatter`）；用户主动配置才开启颜色（Python `LOG_CONSOLE_COLOR=True` / JS `colorize: true` 显式传参）；CR 看到默认分支直接挂 `colorlog.ColoredFormatter` / `ForceColors: true` / `winston.format.colorize()` 即阻塞；min-module / sdk 内置日志硬编码走 colorlog 也阻塞（v2.29.2+ 新增） |
 | **R13** | ❌ **Swagger 接口 5 字段契约不完整**（v2.31.0+ 全栈适用铁律）：写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）时漏 `tags` / `summary` / `description` / `parameters` / `responses` 任一顶层字段，或 `parameters[]` 缺 `description`+`example`、或 `responses[]` 缺 `200`、或 `responses[]` 状态码缺 `schema`+`examples`。违反 `接口契约规范.md §1` + `Swagger字段契约.md §1` | 5 字段必须齐全（按规范 §1.A/B/C）；parameters 子字段必须含 description+example；responses 必须含 200 + 每个状态码含 schema+examples（业务接口只列 200；4xx/5xx 误列见 R14）；项目根 `.swagger-required-fields.yml` 自定义字段也必须满足；CR 看到缺任一字段即阻塞，要求补全后重跑 lint |
 | **R14** | ❌ **业务接口 responses 误列 4xx/5xx**（v4.0.0+ 用户决策 A 铁律·业务接口响应规范）：业务接口 docstring 的 `responses:` 块误列 `401` / `403` / `404` / `500` 等 4xx/5xx 状态码——按新铁律，业务接口 HTTP 一律 `200`，业务成功 / 失败由响应体 `code` 字段判断（`code: 0` = 成功；`code: 10001` = 业务失败）；4xx/5xx 仅由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出，不由业务接口声明。违反 `接口契约规范.md §1.C.1` + `swagger-lint-helper.py check_business_api_responses` | 业务接口 responses 块只允许列 `200`；路径含 `login` / `logout` / `refresh` / `verify` / `register` / `password` / `download` / `export` / `stream` / `upload` / `file` / `attachment` 关键字的认证 / 流式 / 下载接口例外（可保留 401/416）；CR 看到业务接口 docstring 误列 `401` / `403` / `404` / `500` 即阻塞，要求删除并只保留 `200`；写时硬门禁已被 `swagger-lint-helper.py check_business_api_responses` 兜底，CR 复核时同步检查 |
+| **R15** | ❌ **API 文档含禁用引用字眼**（v4.0.1+ 用户决策 B 铁律·接口文档零引用）：接口 docstring 的 `summary:` / `description:` / `parameters[].description` / `responses[].description` 等用户可见字段值含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also」等指向其他文档的字眼——按 v4.0.1+ 铁律，接口文档（docstring → spec → md 全链路）应聚焦"怎么对接调用"，**不应含指向其他文档的字眼**——这些字眼会让对接方以为还要再去查其他文档才能用。违反 `接口契约规范.md §1.E` + `swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` | 接口文档 description / summary 等字段值不应含指向其他文档的字眼；YAML 字段名行（`summary:` / `description:` 等结构标记行）跳过不扫；CR 看到 description 含「参考」「参见」「详见」「引用」「refer to」「according to」等字眼即阻塞，要求改写为在该接口 docstring 里直接说明（不引用其他文档）；写时硬门禁已被 `swagger-lint-helper.py check_no_reference_words` 兜底，导出时硬门禁已被 `export_docs.py check_no_reference_words_spec` 兜底，CR 复核时同步检查 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -269,6 +270,26 @@ git diff master...HEAD -U0 \
 > **白名单路径关键字**（不参与本检查）：`login` / `logout` / `refresh` / `verify` / `register` / `password`（认证接口）+ `download` / `export` / `stream` / `upload` / `file` / `attachment`（流式/下载接口）—— 这些接口可保留 401/416 等错误码。
 >
 > **写时硬门禁**：`swagger-lint-helper.py check_business_api_responses(docstring, route)` 在 PreToolUse(Write) 阶段拦截（exit 2 → Claude Code confirm UI），CR 复核时同步确认；该函数已替代旧 `check_responses_error_codes`（旧铁律与新铁律冲突，v4.0.0 删除）。
+
+## v4.0.1+ API 文档零引用字眼 Quick-Check（review 必跑·用户决策 B）
+
+> 对齐 `接口契约规范.md §1.E` + `swagger-lint-helper.py check_no_reference_words()` + `export_docs.py check_no_reference_words_spec()` 双层拦截。审查者收到 PR 后必须执行的扫描命令：
+
+```bash
+# 接口文件 docstring 描述字段值禁含指向其他文档的字眼
+# 期望:命中 0 条违规
+git diff -r master...HEAD \
+  -- '*.py' '*.ts' '*.js' '*.java' '*.go' \
+  | rg -B0 -A1 "^\+.*\s+(summary|description|in|200|201|401|403|500):\s+" \
+  | rg -i "参考|参见|详见|引用|参照|引自|根据规范|按照规范|按规范要求|遵守规范|according to|refer to|referring to|as described in|as specified in|see also" \
+  | rg -v "^--$"
+```
+
+> 命令命中 → Critical 阻塞——按 v4.0.1+ API 文档零引用铁律，接口文档应聚焦"怎么对接调用"，不应含指向其他文档的字眼；CR 看到 `summary` / `description` / `parameters[].description` / `responses[].description` 字段值含「参考」「参见」「详见」「引用」「refer to」「according to」等字眼即阻塞，要求改写为在该接口 docstring 里直接说明（不引用其他文档）。
+>
+> **白名单**（不参与本检查）：YAML 字段名行（`summary:` / `description:` 等形如 `key:` 末尾冒号且无 value 的纯结构标记行）—— 是结构不是字眼；业务术语「规范」作为普通名词（"接口规范""行业规范"）不违规，但「按规范」「按规范要求」违规。
+>
+> **双层写时硬门禁**：`swagger-lint-helper.py check_no_reference_words(docstring, route)` 在 PreToolUse(Write) 阶段拦截（exit 2 → Claude Code confirm UI）+ `export_docs.py check_no_reference_words_spec(spec)` 在拉 spec 后立即校验（exit 2 + stderr 列出违规位置 + 字眼片段），CR 复核时同步确认。
 
 ## 审查后
 

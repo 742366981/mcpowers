@@ -12,7 +12,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 32 个技能（24 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
-| 3.5 | **📝 Swagger 接口契约硬门禁**（v2.31.0+ 写时硬拦） | 写接口文件时 PreToolUse 阶段物理拦截 5 字段契约（`tags` + `summary` ≤ 30 字 + `description` ≤ 100 字 + `parameters` 含 `description`+`example` + `responses` 含 200 + 错误码 + `schema`+`examples`）不合规的写法，避免 commit 时一次性报 20+ 错误导致返工；项目根可放 `.swagger-required-fields.yml` 自定义必填字段；未装 swagger 的项目零摩擦放行；不向用户项目注入任何文件 |
+| 3.5 | **📝 Swagger 接口契约硬门禁**（v2.31.0+ 写时硬拦；v4.0.0+ 业务接口只列 200） | 写接口文件时 PreToolUse 阶段物理拦截 5 字段契约（`tags` + `summary` ≤ 30 字 + `description` ≤ 100 字 + `parameters` 含 `description`+`example` + `responses` 含 200 + 每个状态码含 `schema`+`examples`）不合规的写法，避免 commit 时一次性报 20+ 错误导致返工；**v4.0.0+ 业务接口 `responses` 只列 `200`**（业务错误走响应体 `code` 字段；4xx/5xx 由框架层抛出），`swagger-lint-helper.py check_business_api_responses` 写时拦截；项目根可放 `.swagger-required-fields.yml` 自定义必填字段；未装 swagger 的项目零摩擦放行；不向用户项目注入任何文件 |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令 + v2.28.2 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder + 单下划线私有名）+ v2.27.0 Python 局部 import 拦截 + v2.27.4 stability / last_breaking_change / CHANGELOG Breaking Changes 段强制声明 + **v2.31.0 Swagger 5 字段契约硬门禁**（写时即拦，避免返工）） |
 | 6 | **🪝 4 个事件组 / 9 个 Hook 脚本** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.28.2+ 极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block）+ Python 局部 import 拦截（v2.27.0+）+ 规范 frontmatter 双字段强制声明（v2.27.4+）+ **doc-sync 物理门禁（v2.29.0+：path/route/env 三类检查，替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，装 mcpowers 即自动支持，**不向用户项目注入任何文件**）+ **Swagger 5 字段契约硬门禁（v2.31.0+：写接口文件即拦，避免返工）**、PostToolUse 提醒提交 |
@@ -524,6 +524,45 @@ git push origin master
 ```bash
 bash scripts/check-readme-sync.sh && bash tests/plugin-verify.sh
 ```
+
+### 工具脚本使用示例（v4.0.0+ export_docs.py）
+
+`skills/mcpowers-shared/tools/export_docs.py` 用于从 Flask/Flasgger 项目拉取 Swagger 2.0 spec，导出 `openapi.json` + `API文档.md`。v4.0.0 起内置 **5 字段契约硬门禁**（写时 + 导出时双拦截）+ **业务接口响应规范**（HTTP 仅 200，业务错误走 code 字段）+ **可选 `--serve`** 启动 swagger-ui 在线文档。
+
+```bash
+# 1. Flask 项目模式（默认）—— 自动向上找 apps/ 子目录，加载 create_app
+python skills/mcpowers-shared/tools/export_docs.py
+
+# 2. spec 直传模式（适用 FastAPI/Spring Boot 等已生成 spec 的项目）
+python skills/mcpowers-shared/tools/export_docs.py --spec /path/to/openapi.json
+
+# 3. 跳过 5 字段契约检查（仅一次性紧急用，未来要删）
+python skills/mcpowers-shared/tools/export_docs.py --no-strict-fields
+
+# 4. 导出后启动 swagger-ui 在线文档（默认端口 8080）
+python skills/mcpowers-shared/tools/export_docs.py --serve
+
+# 5. 自定义端口 + 自动打开浏览器
+python skills/mcpowers-shared/tools/export_docs.py --serve --port=9000 --open-browser
+
+# 6. 自定义项目根目录
+python skills/mcpowers-shared/tools/export_docs.py --project /path/to/flask-app
+```
+
+**退出码约定**：
+
+| 退出码 | 含义 |
+|:------:|:-----|
+| `0` | 成功 |
+| `1` | 文件 / 解析错误（项目结构不符、spec 加载失败） |
+| `2` | 5 字段契约违反或业务接口响应规范违反 |
+
+**输出文件**：
+
+- `<项目根>/docs/API文档/openapi.json` —— 机器消费（前端 TS 类型 / schemathesis fuzz 测试）
+- `<项目根>/docs/API文档/API文档.md` —— 人读（产品 / 测试）
+
+> **v4.0.0 业务接口响应规范铁律**：业务接口 `responses` 块只列 `200`，业务错误走响应体 `code` 字段；4xx/5xx 仅由框架层（Flask abort / Webargs / Flask-JWT-Extended）抛出，不由业务接口在 docstring 声明。详见 `接口契约规范 §1.C.1` + `swagger-lint-helper.py check_business_api_responses`。
 
 ### CI 物理门禁说明（v2.5.2+）
 

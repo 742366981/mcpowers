@@ -67,16 +67,54 @@ def _walk_with_ancestors(tree):
 
 
 def collect_local_imports(source):
-    if not source or not source.strip():
+    """扫描源码,收集所有位于函数 / 方法 / 类体内部的 import 语句。
+
+    用 AST 遍历识别任何属于 LOCAL_SCOPE_TYPES(FunctionDef / AsyncFunctionDef /
+    ClassDef)的 import / ImportFrom 节点——这些是 v2.27.0+ 禁止的"局部 import"。
+
+    Args:
+        source: 源码字符串（通常为 Python 文件全文,或 hook 注入的
+            new_string / content）
+
+    Returns:
+        违规列表,每项为 dict:
+          - lineno (int): import 语句的 1-indexed 行号
+          - scope (str): 所属作用域的描述（如 `'def foo'` / `'async def bar'` /
+            `'class Baz'`）
+          - text (str): import 文本（如 `'import os'` / `'from . import x'`）
+        空 source 或 SyntaxError 时返回空列表（放行,不阻断）
+
+    Raises:
+        无（SyntaxError / ValueError 由 ast.parse 抛,被本地 try/except 捕获）
+
+    Side Effects:
+        无
+
+    Example:
+        >>> src = '''
+        ... import os
+        ... def foo():
+        ...     import sys
+        ... '''
+        >>> violations = collect_local_imports(src)
+        >>> len(violations)
+        1
+        >>> violations[0]['scope']
+        'def foo'
+        >>> violations[0]['text']
+        'import sys'
+    """
+    if not source:
         return []
     try:
         tree = ast.parse(source)
     except (SyntaxError, ValueError):
+        # 解析失败放行（让其他 hook / 编译器兜底）
         return []
-
     violations = []
     for node, scope, _ancestors in _walk_with_ancestors(tree):
         if scope is None:
+            # 模块级 import,合规
             continue
         violations.append({
             'lineno': getattr(node, 'lineno', 0),
@@ -139,10 +177,46 @@ main = lambda: None
 
 
 def main():
-    raw = sys.stdin.read()
+    """hook 主入口（Claude Code PreToolUse 协议,本文件用 `main()` 而非 `hook_main()`）。
+
+    读取 stdin 的 Claude Code JSON 工具调用,识别 Write / Edit / MultiEdit 三类
+    操作,重建"编辑后"的源码,与"编辑前"对比,仅 diff 新增的局部 import 违规。
+
+    三类操作的差异处理:
+      - Write（`content` 字段）：覆盖式,所有违规视为新增（避免既有遗留被掩盖）
+      - Edit（`old_string` + `new_string`）：增量编辑,仅 diff 新增违规
+      - MultiEdit（`edits` 列表）：增量编辑,逐个 edit 应用后再 diff
+
+    Args:
+        无（stdin 由 Claude Code 注入,JSON 含 `tool_input.{file_path, content,
+            new_string, old_string, edits}`）
+
+    Returns:
+        整数退出码:
+          - 0 = 无新增违规,放行；或非 .py 文件 / 解析失败路径,放行
+          - 1 = stdin JSON 解析失败,放行（让其他 hook 兜底）
+          - 2 = 命中新增违规,stderr 已写警告（最多列 20 条）,触发 confirm UI
+
+    Raises:
+        无（主流程异常由 `__main__` 块统一兜底为 exit 0,不阻断用户开发）
+
+    Side Effects:
+        - 读取 stdin（Claude Code 注入的 JSON）
+        - 可能写 stderr（违规警告 / 内部错误提示）
+        - 读取磁盘文件（`_read_existing_file` 调用,仅 Edit / MultiEdit 时）
+
+    Example:
+        # 由 Claude Code hook 协议自动调用,不可手动调用:
+        #   stdin = '{"tool_input":{"file_path":"src/main.py",
+        #             "new_string":"def foo():\\n    import os"}}'
+        #   exit 2 + stderr 触发 confirm UI
+    """
+
     try:
-        data = json.loads(raw)
-    except Exception:
+        raw = sys.stdin.read()
+        data = json.loads(raw) if raw else {}
+    except (json.JSONDecodeError, ValueError):
+        # stdin 解析失败放行（让其他 hook 兜底）
         return 1
 
     tool_input = data.get('tool_input', {}) or {}

@@ -7,6 +7,32 @@
 
 ## [Unreleased]
 
+## v4.0.3 - 2026-08-13
+
+> 🎯 **核心定位**:`export_docs.py` parameters[].example 取值兜底,兼容 Flasgger body 参数重写行为(用户实测发现的真实 bug)
+
+### Breaking Changes
+
+- 无。本次为纯渲染逻辑兜底,不影响任何 .py docstring 写法、不破坏 v4.0.0/v4.0.1/v4.0.2 既有接口/规范/铁律。`swagger-lint-helper.py check_no_reference_words()` + `export_docs.py check_no_reference_words_spec()` 双层检测零引用字眼行为不变。
+
+### 修复
+
+- **`tools/export_docs.py` parameters[].example 取值兜底**(v4.0.3+ 必读):Flasgger 解析视图函数 docstring 时,如果用户把 `example:` 写在 body 参数的 schema **外面**(即 `parameters[].example` 顶层位置),Flasgger 会把 example **重写到 `parameters[].schema.example` 内**,导致参数顶层 `example` 字段为空——直接 `param.get('example')` 取不到值,渲染出的 API 文档就缺请求示例。本次修复新增 `_get_param_example(param)` 辅助函数(52 行含完整 docstring):
+  - 路径 1(优先):参数顶层 `example` 字段(OpenAPI 标准 / Flasgger 正常解析路径)
+  - 路径 2(body 类型兜底):`schema.example`(Flasgger 重写路径)
+  - 其他类型(query/path/header/formData)无 schema 字段,只走路径 1
+- **3 处参数取值替换**:`_render_endpoint` 内 query/path/header/formData 参数的 `param.get('example', '')` 全部改为 `_get_param_example(param)`,虽 body 重写行为不影响这 3 类,但统一走同一函数保持一致。
+- **body 整体请求示例强化**:`json_to_markdown` 内 body 整体示例从单 `schema.get('example', {})` 改为 `schema.get('example', {}) or _get_param_example(body_params[0])`——兼容某些 Flasgger 版本可能不重写到 schema.example 的情况,双重兜底。
+
+### 调整
+
+- 无(纯函数级修复,不动接口、不动规范、不动铁律)。
+
+### 风险
+
+- **覆盖范围有限**:仅修复 `tools/export_docs.py` 的渲染逻辑;不修复 Flasgger 解析行为本身(项目内仍可继续按 docstring 顶层写 `example:`,本修复让 export_docs 兼容两种写法)。
+- **零回归**:`tests/plugin-verify.sh` 74 项断言全过 + 7 个新增 `_get_param_example` 单元测试场景(query 顶层 / body 重写 / body 顶层优先 / 无 example / 都无 / formData / 非 dict / 字符串)+ 集成测试 body 类型参数请求示例渲染正确(输出 `{"username": "admin", "password": "123456"}`)。
+
 ## v4.0.2 - 2026-08-13
 
 > 🎯 **核心定位**:文档编写铁律·画蛇添足字眼场景化规则(用户决策 C:v4.0.1 接口零引用的通则化推广)

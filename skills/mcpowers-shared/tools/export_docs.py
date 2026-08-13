@@ -181,6 +181,58 @@ def build_example_from_props(props):
     return ex
 
 
+def _get_param_example(param: Any) -> Any:
+    """从 parameter 字典中兜底取 example(兼容 Flasgger body 参数重写行为)。
+
+    Flasgger 解析视图函数 docstring 时,如果用户把 ``example:`` 写在 body 参数
+    的 schema 外面(即 ``parameters[].example`` 顶层位置),Flasgger 会把 example
+    重写到 ``parameters[].schema.example`` 内,导致参数顶层 example 字段为空;
+    直接 ``param.get('example')`` 取不到值,渲染出的 API 文档就缺请求示例。
+
+    本函数兼容两种写法(按优先级):
+      1. 参数顶层 ``example`` 字段(OpenAPI 标准 / Flasgger 正常解析路径)
+      2. body 类型参数兜底取 ``schema.example``(Flasgger 重写路径)
+
+    其他类型(query / path / header / formData)无 schema 字段,只走路径 1。
+
+    Args:
+        param: 单个 parameter dict(Swagger 2.0 spec 中 parameters 数组项)
+
+    Returns:
+        example 值;无 example 返回 ``''``(与 ``param.get('example', '')`` 行为一致)
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> _get_param_example({'name': 'id', 'in': 'query', 'example': '1'})
+        '1'
+        >>> # Flasgger 把 body 参数的 example 重写到 schema.example
+        >>> _get_param_example({'name': 'body', 'in': 'body', 'schema': {'example': {'username': 'admin'}}})
+        {'username': 'admin'}
+        >>> # 无 example
+        >>> _get_param_example({'name': 'id', 'in': 'query'})
+        ''
+    """
+    if not isinstance(param, dict):
+        return ''
+    # 1. 优先取参数顶层 example(OpenAPI 标准 / Flasgger 正常路径)
+    top = param.get('example', '')
+    if top:
+        return top
+    # 2. body 类型参数兜底从 schema.example 取(Flasgger 重写路径)
+    if param.get('in') == 'body':
+        schema = param.get('schema')
+        if isinstance(schema, dict):
+            sch_example = schema.get('example')
+            if sch_example:
+                return sch_example
+    return ''
+
+
 def extract_response_data_fields(resp_props):
     """从响应 properties 中提取 `data` 字段的属性。
 
@@ -759,7 +811,7 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                     lines.append('|:------|:----:|:----:|:----:|------|')
                     for param in query_path_params:
                         prop_desc = param.get('description', '')
-                        prop_example = param.get('example', '')
+                        prop_example = _get_param_example(param)
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
                         lines.append(
@@ -776,7 +828,7 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                     lines.append('|:------|:----:|:----:|------|')
                     for param in header_params:
                         prop_desc = param.get('description', '')
-                        prop_example = param.get('example', '')
+                        prop_example = _get_param_example(param)
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
                         lines.append(
@@ -792,7 +844,7 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                     lines.append('|:------|:----:|:----:|------|')
                     for param in formdata_params:
                         prop_desc = param.get('description', '')
-                        prop_example = param.get('example', '')
+                        prop_example = _get_param_example(param)
                         if prop_example:
                             prop_desc = f'{prop_desc}(示例: {prop_example})'
                         lines.append(
@@ -804,7 +856,9 @@ def json_to_markdown(spec, output_file, login_path=None, template_section=None):
                 # 请求示例
                 if body_params:
                     schema = body_params[0].get('schema', {})
-                    example = schema.get('example', {})
+                    # 优先 schema.example(Flasgger 重写路径);兜底 body_params[0].get('example')
+                    # 兼容 Flasgger 重写行为——见 _get_param_example 注释
+                    example = schema.get('example', {}) or _get_param_example(body_params[0])
                     if example:
                         lines.append('**请求示例**:')
                         lines.append('```json')

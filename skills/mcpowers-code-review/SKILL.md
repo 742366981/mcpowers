@@ -1,6 +1,6 @@
 ---
 name: mcpowers-code-review
-description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮我看看这段代码 → 触发本技能。口语：帮我 review 一下这段/帮我审一下/审一下这段/审一下代码、帮我 CR 一下、检视一下、看看有没有问题/有没有 bug/代码质量怎么样/有没有问题/OK 吗/有什么问题、代码健康度怎么样、帮我把把关/过一遍、过一下代码、PR 要提交了/我要提 PR/提 MR 前帮我审、合并到 main 前帮我审、自审一下/自查/再审一遍、再帮我审一遍。中英：review, CR, PR review, MR review, code review, peer review, self-review。边界：完整测试→`mcpowers-tdd`；排查特定 bug→`mcpowers-bugfix`；性能审查→`mcpowers-optimize`。多维并行审查，Critical 阻塞提交。"
+description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮我看看这段代码 → 触发本技能。口语：帮我 review 一下这段/帮我审一下/审一下这段/审一下代码、帮我 CR 一下、检视一下、看看有没有问题/有没有 bug/代码质量怎么样/有没有问题/OK 吗/有什么问题、代码健康度怎么样、帮我把把关/过一遍、过一下代码、PR 要提交了/我要提 PR/提 MR 前帮我审、合并到 master 前帮我审、自审一下/自查/再审一遍、再帮我审一遍。中英：review, CR, PR review, MR review, code review, peer review, self-review。边界：完整测试→`mcpowers-tdd`；排查特定 bug→`mcpowers-bugfix`；性能审查→`mcpowers-optimize`。多维并行审查，Critical 阻塞提交。"
 ---
 
 # mcpowers-code-review（代码审查）
@@ -75,7 +75,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 
 - 任务完成后（**强制**）
 - PR 创建前（**强制**）
-- 合并到 main 前（**强制**）
+- 合并到 master 前（**强制**）
 - 用户主动要求"审一下"
 
 ---
@@ -125,7 +125,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 
 ```bash
 # 1. diff 内新增/修改过的 def（看有无重名）
-git diff main...HEAD -U0 | grep -E "^\+[[:space:]]*(async[[:space:]]+)?(def|function|func|fn)[[:space:]]+" | sort -u
+git diff master...HEAD -U0 | grep -E "^\+[[:space:]]*(async[[:space:]]+)?(def|function|func|fn)[[:space:]]+" | sort -u
 # 2. 仓库内同名 def（看是否已有）
 rg --type py "def\s+${候选名}\b" . | grep -v "^${自身文件}:"
 # 3. SDK / common 是否有等价接口
@@ -140,7 +140,7 @@ rg --type py "(class|def)\s+${候选关键词}\b" common/ sdk/ utils/ shared/
 
 ```bash
 # 1. diff 内新增的缩进 import 行（只看 + 行；- 行不查）
-git diff main...HEAD -U0 | grep -E "^\+[[:space:]]+(import[[:space:]]+[A-Za-z_]|from[[:space:]]+[A-Za-z_.]+[[:space:]]+import)" | sort -u
+git diff master...HEAD -U0 | grep -E "^\+[[:space:]]+(import[[:space:]]+[A-Za-z_]|from[[:space:]]+[A-Za-z_.]+[[:space:]]+import)" | sort -u
 # 2. 仓库所有 .py 文件的缩进 import（确认全文件现状）
 rg --type py -n '^( +|\t+)(import|from\s+[^ ]+\s+import)' .
 ```
@@ -154,7 +154,7 @@ rg --type py -n '^( +|\t+)(import|from\s+[^ ]+\s+import)' .
 ```bash
 # 单行透传扫描：函数体仅一行 `return <已有函数>(...)` 的二次包装
 # （hook 已自动拦截，但 review 仍要扫一遍兜底——防止 hook 配置丢失 / 受保护路径漏过）
-git diff main...HEAD -U0 | rg -U "(?:async\s+)?(?:def|function|func|fn)\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\("
+git diff master...HEAD -U0 | rg -U "(?:async\s+)?(?:def|function|func|fn)\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\("
 # 或全文件视角（审查时优先用 diff 视角）
 rg --type py -U "def\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\(" .
 ```
@@ -168,10 +168,10 @@ rg --type py -U "def\s+\w+\s*\([^)]*\)\s*:\s*\n\s*return\s+\w[\w.]*\s*\(" .
 
 ```bash
 # 1. diff 内控制台 formatter 是否含 %(levelname)-Ns 宽度填充（命中即违规，应为 %(levelname)s）
-git diff main...HEAD -U0 | rg "%\(levelname\)-[0-9]+s"
+git diff master...HEAD -U0 | rg "%\(levelname\)-[0-9]+s"
 
 # 2. diff 内 StreamHandler() 是否显式传 stream=sys.stdout（未传即违规）
-git diff main...HEAD -U0 | rg "StreamHandler\(\s*\)" | rg -v "stream="
+git diff master...HEAD -U0 | rg "StreamHandler\(\s*\)" | rg -v "stream="
 ```
 
 > 命令 1 命中 → Critical 阻塞——formatter 字符串里 `%(levelname)-Ns` 宽度填充会输出 `[INFO   ]` 带填充空格；要求改回 `%(levelname)s`（无宽度）或 `%(levelname).1s`（首字母极简）。（注：`colorlog.ColoredFormatter(reset=True)` 只控制 ANSI 颜色重置，**不**控制 levelname 宽度——宽度由 format 字符串决定。）
@@ -184,17 +184,17 @@ git diff main...HEAD -U0 | rg "StreamHandler\(\s*\)" | rg -v "stream="
 
 ```bash
 # 1. Python 项目级控制台 formatter 三态保护（缺 LOG_CONSOLE_COLOR 开关即违规）
-git diff main...HEAD -U0 | rg "setFormatter\([^)]*ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR"
+git diff master...HEAD -U0 | rg "setFormatter\([^)]*ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR"
 
 # 2. JS / TS / Go / Rust diff 内默认开启颜色参数（命中即违规）
-git diff main...HEAD -U0 | rg "colorize\s*:\s*true|ForceColors\s*:\s*true|with_ansi\s*\(\s*true\s*\)"
+git diff master...HEAD -U0 | rg "colorize\s*:\s*true|ForceColors\s*:\s*true|with_ansi\s*\(\s*true\s*\)"
 
 # 3. 项目级配置文件默认值检测（命中即违规——任何环境默认 False）
-git diff main...HEAD -U0 | rg "console_color.*=.*True|console_color.*=.*true"
+git diff master...HEAD -U0 | rg "console_color.*=.*True|console_color.*=.*true"
 
 # 4. 模块内置日志硬编码默认值扫描（v2.29.2+ 新增）
 #    min-module / sdk-design 的日志工厂即便在硬编码里出现 ColoredFormatter 也视为违规
-git diff main...HEAD -U0 | rg "ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR|if .*console_color"
+git diff master...HEAD -U0 | rg "ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR|if .*console_color"
 ```
 
 > 命令 1 命中 → Critical 阻塞——`colorlog.ColoredFormatter` **必须**受 `LOG_CONSOLE_COLOR` 配置开关保护，且默认 `False`；CR 看到控制台 formatter 默认挂 `ColoredFormatter` 即阻塞，要求改为 `if LOG_CONSOLE_COLOR: colorlog.ColoredFormatter(...) else: logging.Formatter(CONSOLE_FORMAT)` 三态。
@@ -217,7 +217,7 @@ git diff main...HEAD -U0 | rg "ColoredFormatter" | rg -v "if .*LOG_CONSOLE_COLOR
 ```bash
 # 1. 接口文件顶层 5 字段齐全性扫描(命中 YAML 顶层键)
 #    期望:tags/summary/description/parameters/responses 五者全在
-git diff main...HEAD -U0 -- '*.py' '*.ts' '*.js' '*.java' '*.go' \
+git diff master...HEAD -U0 -- '*.py' '*.ts' '*.js' '*.java' '*.go' \
   | rg -B1 "@(bp|app|router)\.(get|post|put|delete|route)" \
   | rg "^\s*(tags|summary|description|parameters|responses):" \
   | rg -v "tags:|summary:|description:|parameters:|responses:" \
@@ -225,13 +225,13 @@ git diff main...HEAD -U0 -- '*.py' '*.ts' '*.js' '*.java' '*.go' \
 
 # 2. parameters 子字段 description+example 配对扫描
 #    期望:每个参数块 description: 与 example: 必须同时存在
-git diff main...HEAD -U0 \
+git diff master...HEAD -U0 \
   | rg -A6 '^\s+-\s+in:\s+(query|body|path|formData|header)' \
   | rg -v 'description:|example:|in:|- name:'
 
 # 3. responses 错误码齐全性扫描(只列 200 即违规)
 #    期望:responses 块状态码数 >= 2,含 200 + ≥ 1 个错误码(401/403/422/500 等)
-git diff main...HEAD -U0 \
+git diff master...HEAD -U0 \
   | rg -A20 '^\s*responses:' \
   | rg "^\s+\d{3}:" \
   | awk -F: '{print $1}' | sort -u

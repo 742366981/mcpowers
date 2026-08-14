@@ -110,6 +110,7 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R14** | ❌ **业务接口 responses 误列 4xx/5xx**（v4.0.0+ 用户决策 A 铁律·业务接口响应规范）：业务接口 docstring 的 `responses:` 块误列 `401` / `403` / `404` / `500` 等 4xx/5xx 状态码——按新铁律，业务接口 HTTP 一律 `200`，业务成功 / 失败由响应体 `code` 字段判断（`code: 0` = 成功；`code: 10001` = 业务失败）；4xx/5xx 仅由框架层（Flask abort / Webargs / Flask-JWT-Extended 中间件）抛出，不由业务接口声明。违反 `接口契约规范.md §1.C.1` + `swagger-lint-helper.py check_business_api_responses` | 业务接口 responses 块只允许列 `200`；路径含 `login` / `logout` / `refresh` / `verify` / `register` / `password` / `download` / `export` / `stream` / `upload` / `file` / `attachment` 关键字的认证 / 流式 / 下载接口例外（可保留 401/416）；CR 看到业务接口 docstring 误列 `401` / `403` / `404` / `500` 即阻塞，要求删除并只保留 `200`；写时硬门禁已被 `swagger-lint-helper.py check_business_api_responses` 兜底，CR 复核时同步检查 |
 | **R15** | ❌ **API 文档含禁用引用字眼**（v4.0.1+ 用户决策 B 铁律·接口文档零引用）：接口 docstring 的 `summary:` / `description:` / `parameters[].description` / `responses[].description` 等用户可见字段值含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also」等指向其他文档的字眼——按 v4.0.1+ 铁律，接口文档（docstring → spec → md 全链路）应聚焦"怎么对接调用"，**不应含指向其他文档的字眼**——这些字眼会让对接方以为还要再去查其他文档才能用。违反 `接口契约规范.md §1.E` + `swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` | 接口文档 description / summary 等字段值不应含指向其他文档的字眼；YAML 字段名行（`summary:` / `description:` 等结构标记行）跳过不扫；CR 看到 description 含「参考」「参见」「详见」「引用」「refer to」「according to」等字眼即阻塞，要求改写为在该接口 docstring 里直接说明（不引用其他文档）；写时硬门禁已被 `swagger-lint-helper.py check_no_reference_words` 兜底，导出时硬门禁已被 `export_docs.py check_no_reference_words_spec` 兜底，CR 复核时同步检查 |
 | **R16** | ❌ **文档正文含画蛇添足字眼**（v4.0.2+ 用户决策 C 铁律·文档零引用）：通用文档（README / 用户手册 / 技术规范正文 / 设计文档 / 任何内容型 .md 文档）正文含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also / conform to / conforms to / based on / defined in / outlined in」等 22 个禁止字眼（独立出现也算画蛇添足，不限于"在某文档后"），路径不在白名单内——按 v4.0.2+ 铁律（`文档编写规范.md §9.5`），输出型文档应聚焦"当前怎么做"，**不应含指向其他文档的字眼**；删掉字眼后读者对"当前该怎么做"的理解不受损即视为画蛇添足；3 问决策：① 这段文字是给谁看的？② 删掉字眼后意思会变吗？③ 输出型禁止 / 参考型允许且必要 / 历史型允许。违反 `文档编写规范.md §9.5` + `post-write-check-doc-content.sh` 软门禁 + CLAUDE.md 必读铁律段 | CR 看到输出型 .md 正文含 22 字眼任一即阻塞，要求改写为在该文档内直接说明（不引用其他文档）；参考型（mcpowers-spec-index / API 契约 / 迁移指南 / 技能索引）+ 历史型（CHANGELOG / 历史教训 / Deprecation / README「最近变更」）走路径白名单跳过；CLAUDE.md 段 + 6 文档场景技能（L1 + L3 + L4）+ 软门禁 hook（L5）共 6 层 AI 视野覆盖；v4.0.1 接口零引用 = R16 在接口描述这一子集的最严格实施 |
+| **R17** | ❌ **代码注释 / 配置文件含禁用引用字眼**（v4.3.0+ 用户决策 D 铁律·代码/配置零引用智能二分）：代码注释（`#` 单行 / `"""` docstring / `//` JS / `--` SQL）/ YAML 配置文件 / JSON 配置文件 / .ini / .toml / .sh 头部注释含 22 字眼（中文 11 + 英文 11，共享常量 `_forbidden_ref_words.txt`）+ v4.3.0 新增 4 个口语化补充（遵循本项目规范 / 遵循团队规范 / 遵循本仓库规范 / 按团队规范）——按 v4.3.0 智能二分判定：①外部权威（RFC/PEP/W3C/OWASP/ISO/IEEE/公认作者/官方 URL/行业+规范前缀）→ 放行；②内部规范名（33 份规范 + 别名，共享常量 `_internal_spec_docs.txt`）→ 拦截；③项目内代码文件路径（`utils/xxx.py` / `apps/yyy.go` 等）→ 拦截；④项目内 .md 文档名（含 CLAUDE.md/README.md/AGENTS.md，**用户决策：无例外**）→ 拦截；⑤「按规范/根据规范/遵守规范」无外部前缀 → 拦截；⑥兜底 → 拦截。违反 `代码规范.md §11.3.1` + `pre-write-check-no-ref-words.sh` 硬门禁 + `post-write-check-no-ref-words.sh` 软门禁兜底 + 共享检测器 `scripts/check_no_ref_words.py` | CR 看到代码注释/配置含 22 字眼 + 4 口语化补充任一即阻塞；智能二分判定走 6 优先级（外部权威放行 / 内部规范拦截 / 项目内代码拦截 / .md 拦截 / 无前缀画蛇添足拦截 / 兜底拦截）；路径白名单 6 类（tests/ / fixtures/ / examples/ / templates/ / docs/历史教训/ / CHANGELOG.md）允许保留；PreToolUse Write 硬门禁 exit 2 已物理阻断，CR 复核 PR diff 即可；与 R15（接口零引用）+ R16（.md 零引用）共享 22 字眼清单，3 条铁律共用同一权威源 `_forbidden_ref_words.txt` 避免漂移 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -327,6 +328,81 @@ rg "CHANGELOG|历史教训|mcpowers-spec-index|API契约|迁移|migration|deprec
 > - L6 审查门禁：R16 + 上述 Quick-Check 段（review 兜底）
 >
 > **与 v4.0.1 接口零引用关系**：R16 = §9.5 输出型在 API 接口描述（docstring）这一子集的最严格实施（v4.0.1 接口零引用 = R15，无扩展不涉及 .md 文档）；R16 把规则推广到所有输出型 .md 文档。两者共用 22 字眼清单（共享常量 `_forbidden_ref_words.txt`），避免漂移。
+
+## v4.3.0+ 代码/配置零引用智能二分 Quick-Check（review 必跑·用户决策 D）
+
+> 对齐 `代码规范.md §11.3.1` 智能二分判定 + `pre-write-check-no-ref-words.sh` 硬门禁 + `post-write-check-no-ref-words.sh` 软门禁兜底。审查者收到 PR 后必须执行的 8 条扫描命令（**覆盖代码 + 配置 6 类文件 + 4 类违规 + 路径白名单 + docstring 降级 + 外部权威放行 + 共享常量**）：
+
+```bash
+# 1. 代码/配置文件含 22 字眼 + 4 口语化（命中 → Critical）
+#    覆盖 .py / .sh / .js / .ts / .yaml / .yml / .json / .ini / .toml / .go / .java / .rs
+git diff master...HEAD -U0 -- '*.py' '*.sh' '*.js' '*.ts' '*.jsx' '*.tsx' \
+  '*.yaml' '*.yml' '*.json' '*.ini' '*.toml' '*.go' '*.java' '*.rs' \
+  | rg -i "参考|参见|详见|引用|参照|引自|根据规范|按照规范|按规范要求|遵守规范|按规范|遵循本项目规范|遵循团队规范|遵循本仓库规范|按团队规范|according to|refer to|referring to|as described in|as specified in|see also|conform to|conforms to|based on|defined in|outlined in" \
+  | rg -v "^\\+\\+\\+|^---" \
+  | rg -v "tests/|fixtures/|examples/|templates/|docs/历史教训/|CHANGELOG\.md"
+
+# 2. docstring 内违规降级为 WARNING（不应阻塞,但需提示）
+#    期望:docstring 中 22 字眼命中,但已在 hook 自动降级为 WARNING
+git diff master...HEAD -U0 -- '*.py' \
+  | rg '"""|'\'''\''' \
+  -A 5 \
+  | rg -i "参考|参见|详见|refer to"
+
+# 3. 外部权威应放行（不应误拦）
+#    期望:含 RFC/PEP/W3C/OWASP/官方 URL 的行 不在违规列表里
+git diff master...HEAD -U0 -- '*.py' '*.yaml' '*.yml' \
+  | rg -i "RFC[ -]?[0-9]+|PEP[ -]?[0-9]+|W3C|WHATWG|WCAG|OWASP|ASVS|ISO[/ ]?[0-9]+|IEEE|docs\.python\.org|developer\.mozilla\.org|vuejs\.org|react\.dev"
+
+# 4. 内部规范名引用应拦截（期望:命中 = 真违规）
+git diff master...HEAD -U0 -- '*.py' '*.yaml' '*.yml' \
+  | rg "《代码规范》|《API规范》|《Flask后端规范》|《Vue前端规范》|《接口契约规范》|《Swagger字段契约》|《文档编写规范》"
+
+# 5. 项目内代码文件路径引用应拦截（期望:命中 = 真违规）
+git diff master...HEAD -U0 -- '*.py' '*.yaml' '*.yml' \
+  | rg "utils/[a-z_]+\.py|apps/[a-z_]+/[a-z_]+\.go|src/[a-z_]+\.ts|hooks/[a-z_-]+\.sh"
+
+# 6. 引用 CLAUDE.md / README.md / AGENTS.md 应拦截（用户决策:无例外）
+git diff master...HEAD -U0 -- '*.py' '*.yaml' '*.yml' '*.md' \
+  | rg -i "CLAUDE\.md|README\.md|AGENTS\.md"
+
+# 7. 「按规范/根据规范/遵守规范」无外部前缀应拦截（兜底）
+git diff master...HEAD -U0 -- '*.py' '*.yaml' '*.yml' \
+  | rg -i "按规范要求|按照规范|遵守规范|按本项目规范|按团队规范|按行业规范|按国家标准|按国际标准" \
+  | rg -v "RFC|PEP|OWASP|ISO|IEEE|行业|国家|国际|全球"
+
+# 8. 共享常量 3 份必须存在 + 5 段骨架不被改坏
+test -f skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt
+test -f skills/mcpowers-shared/docs/_assets/_internal_spec_docs.txt
+test -f skills/mcpowers-shared/docs/_assets/_external_authority.txt
+test -f skills/mcpowers-shared/scripts/check_no_ref_words.py
+```
+
+> 命令 1 命中（含 22 字眼 + 4 口语化且不在 6 类白名单）→ Critical 阻塞——按 v4.3.0+ 代码/配置零引用铁律（`代码规范.md §11.3.1`），代码注释/配置文件应聚焦"当前怎么做"，**不应含指向其他文档的字眼**；CR 看到命中即阻塞，要求改写为在该文件内直接说明（不引用其他文档）；删掉字眼后读者对"当前该怎么做"的理解不受损即视为画蛇添足。
+>
+> 命令 2 命中（docstring 含 22 字眼）→ WARNING 软提示——hook 自动降级为 WARNING，不强制阻塞；但 review 仍应询问"这段 docstring 是否真的需要引用其他文档？能不能直接说明？"
+>
+> 命令 3 命中（外部权威）→ 跳过——按 v4.3.0 智能二分优先级 2，含 RFC/PEP/W3C/OWASP/官方 URL 的引用属合规技术引用，应放行。
+>
+> 命令 4 命中（内部规范名）→ Critical 阻塞——按 v4.3.0 智能二分优先级 3，内部规范引用必须改写为直接说明当前做法。
+>
+> 命令 5 命中（项目内代码文件路径）→ Critical 阻塞——按 v4.3.0 智能二分优先级 4，注释应说明该文件做什么，不指向具体文件让读者跳转。
+>
+> 命令 6 命中（CLAUDE.md / README.md / AGENTS.md 引用）→ Critical 阻塞——按 v4.3.0 智能二分优先级 5 + 用户决策，CLAUDE.md/README.md 无例外，注释应自洽。
+>
+> 命令 7 命中（无外部前缀的「按规范」类）→ Critical 阻塞——按 v4.3.0 智能二分优先级 6，删掉字眼后意思不变视为画蛇添足；如确需引用规范名（含 RFC/PEP/行业/国家/国际前缀）则放行。
+>
+> 命令 8 失败（共享常量/检测器缺失）→ Critical 阻塞——v4.3.0 智能二分依赖 3 份共享常量 + 1 个检测器，缺任一即视为门禁被破坏。
+>
+> **6 层 AI 视野覆盖（v4.3.0+）**：
+> - L1 全局铁律段：`CLAUDE.md` 必读段（每次会话自动加载）
+> - L2 L1 索引触发词：6 个代码/配置场景技能 description 加触发词
+> - L3 编排 Read 步骤：6 技能 ## 编排 / ## 触发即执行 Step 1 强 Read §11.3.1
+> - L4 自检清单决策问句：3 技能 ## 自检清单加"代码注释含字眼？"问句
+> - L5 硬门禁 hook：`pre-write-check-no-ref-words.sh`（写代码/配置时智能二分 → exit 2 confirm UI）+ `post-write-check-no-ref-words.sh` 软兜底
+> - L6 审查门禁：R17 + 上述 Quick-Check 段（review 兜底）
+>
+> **与 R15/R16 关系**：R15 = 接口零引用（docstring/spec/md 接口子集）；R16 = 文档零引用（输出型 .md）；R17 = 代码/配置零引用（代码注释 + YAML/JSON/INI/TOML）。三者共用 22 字眼清单（共享常量 `_forbidden_ref_words.txt`），避免漂移；3 条铁律层层递进——接口最严（含字段值）、文档次严（路径白名单区分场景）、代码/配置最广（智能二分覆盖所有写入场景）。
 
 ## 审查后
 

@@ -1,6 +1,6 @@
 ---
 name: mcpowers-bugfix
-description: "修 bug / 修个 bug / 排查问题 / 修一下 / debug 一下 → 触发本技能。口语：程序出 bug 了、代码报错了/代码有问题/这块不对、功能不生效/用不了/点不了、启动不了/启不来、服务挂了/崩了/崩溃、闪退/白屏/卡死了/卡住了、报异常/出错了/有错误、500 错误、接口报错/超时/崩了、页面打不开/崩溃、登录失败/不上、数据不对/错了、怎么报错/崩了/挂了、不对劲、帮我看看报错/查报错/看这段代码、出 bug 了/出现错误/故障、怎么跑不起来、有 bug 帮我看一下。中英：debug, fix, exception, error, traceback, stack trace, crash, flash。边界：改字段/流程/逻辑→`mcpowers-requirement-change`；结构整理→`mcpowers-refactor`；性能问题→`mcpowers-optimize`；新功能→`mcpowers-feat`。系统化：复现→定位根因→最小修复→回归测试（禁止凭直觉乱改）。"
+description: "修 bug / 修个 bug / 排查问题 / 修一下 / debug 一下 → 触发本技能。口语：程序出 bug 了、代码报错了/代码有问题/这块不对、功能不生效/用不了/点不了、启动不了/启不来、服务挂了/崩了/崩溃、闪退/白屏/卡死了/卡住了、报异常/出错了/有错误、500 错误、接口报错/超时/崩了、页面打不开/崩溃、登录失败/不上、数据不对/错了、怎么报错/崩了/挂了、不对劲、帮我看看报错/查报错/看这段代码、出 bug 了/出现错误/故障、怎么跑不起来、有 bug 帮我看一下。中英：debug, fix, exception, error, traceback, stack trace, crash, flash。边界：改字段/流程/逻辑→`mcpowers-requirement-change`；结构整理→`mcpowers-refactor`；性能问题→`mcpowers-optimize`；新功能→`mcpowers-feat`。系统化：复现→定位根因→最小修复→回归测试（禁止凭直觉乱改）；v4.3.0+ 代码注释零引用——修复注释避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §11.3.1 智能二分硬门禁）。"
 ---
 
 # mcpowers-bugfix（修 bug）

@@ -1,0 +1,240 @@
+# mcpowers 外部权威 pattern 清单（v4.3.0+ 智能二分判定权威源）
+# 用途：行内注释/配置/swgger/docstring 含「参考/参见/详见/引用/按规范」等字眼
+#   + 命中本清单任一 pattern → 标记为「外部权威引用」→ 放行
+#   + 命中优先级最高（高于 _internal_spec_docs.txt）
+#
+# 设计原则：
+#   - 必须可验证（具体编号 / 具体作者 / 具体官方域名）
+#   - 工业界/学术界公认，不依赖单一组织立场
+#   - 不含"参考官方文档"这类无限定词引用（必须含具体库名/语言名限定）
+#
+# 维护规则：
+#   1. 增/删权威类型时必须同步更新本文件 + CLAUDE.md 必读段
+#   2. 加入公认作者时必须有公开出版物作为佐证
+#   3. 域名白名单只接受官方主域（docs.python.org / developer.mozilla.org / dev.mysql.com 等）
+#
+# 共享给：scripts/check_no_ref_words.py + pre-write-check-no-ref-words.sh + post-write-check-no-ref-words.sh
+
+# === A. 标准化组织（每行一个 regex pattern，hook 用 grep -E 匹配）===
+# 注释说明每行格式:sed -E 扩展正则;命中整段即视为外部权威
+
+# IETF / RFC
+RFC[ -]?[0-9]{1,5}
+\bRFC\b
+
+# Python PEP
+PEP[ -]?[0-9]{1,4}
+\bPEP\b
+
+# W3C / WHATWG / WCAG
+\bW3C\b
+\bWHATWG\b
+\bWCAG\b
+\bCSSWG\b
+
+# OWASP 安全组织
+\bOWASP\b
+\bASVS\b
+\bCWE\b
+\bCVE-[0-9]{4}-[0-9]+\b
+
+# ISO 国际标准
+ISO[/ ]?[0-9]{1,5}
+ISO[/ ]?IEC[ /]?[0-9]{1,5}
+
+# IEEE 标准
+IEEE[ ]?[0-9]{1,5}(\.[0-9]+)?
+
+# ECMA / ECMAScript
+\becma[- ]?[0-9]{1,4}\b
+\becmascript[ ]?[0-9]{4}\b
+
+# Unicode 标准
+\buscii\b
+\butf-?8\b
+\butf-?16\b
+\butf-?32\b
+
+# SQL 标准
+\bsql/?[0-9]{4}\b
+ansi[ -]?sql
+
+# NIST / FIPS
+\bnist\b
+\bfips[ ]?[0-9]{1,4}\b
+\bnist[ ]?sp[ ]?[0-9]{1,5}\b
+
+# 中国国标 / 行业标准
+gb[/ ]?t[ ]?[0-9]{1,5}(\.[0-9]+)?
+gb[/ ]?[0-9]{1,5}(\.[0-9]+)?
+jr[/ ]?t[ ]?[0-9]{1,5}
+
+# POSIX / SUS
+\bsus(v)?[0-9]{1,2}\b
+\bsus[ ]?[0-9]{1,2}\b
+\bposix\b
+
+# === B. 公认作者 + 经典书目（精确姓名匹配）===
+
+# 软件工程经典
+Martin Fowler
+Robert C\. Martin
+Uncle Bob
+Erich Gamma
+Richard Helm
+Ralph Johnson
+John Vlissides
+Gang of Four
+\bgof\b
+Kent Beck
+Eric Evans
+Ward Cunningham
+Dave Thomas
+Andy Hunt
+Andrew Hunt
+
+# 系统 / 算法经典
+Donald Knuth
+\bKnuth\b
+Thomas H\. Cormen
+Charles E\. Leiserson
+Ronald L\. Rivest
+Clifford Stein
+\bcormen\b
+\BCLRS\b
+
+# Unix / C 经典
+Brian Kernighan
+Dennis Ritchie
+Doug McIlroy
+Rob Pike
+Ken Thompson
+Eric Raymond
+Eric S\. Raymond
+
+# 数据库经典
+C\.J\. Date
+\bcj[ ]?date\b
+Joe Celko
+Fabian Pascal
+
+# 计算机网络经典
+Andrew S\. Tanenbaum
+\btanenbaum\b
+James F\. Kurose
+\bkurose\b
+W\. Richard Stevens
+\bstevens\b
+
+# 安全经典
+Bruce Schneier
+\bschneier\b
+Ross Anderson
+Niels Ferguson
+
+# 语言设计经典
+\bhoare\b
+Tony Hoare
+\bstroustrup\b
+Bjarne Stroustrup
+Guido van Rossum
+James Gosling
+Larry Wall
+Rich Hickey
+John Ousterhout
+
+# AI / 算法经典
+Stuart Russell
+Peter Norvig
+Christopher Bishop
+
+# === C. 官方文档 URL / 域名（精确域名匹配）===
+
+# Python 官方
+docs\.python\.org
+peps\.python\.org
+www\.python\.org
+
+# JS / TS / 浏览器
+developer\.mozilla\.org
+mdn\.mozilla\.org
+tc39\.es
+ecma-international\.org
+
+# Vue / React / Angular
+vuejs\.org
+react\.dev
+reactjs\.org
+angular\.io
+svelte\.dev
+
+# Node.js
+nodejs\.org
+
+# 主流语言
+go\.dev
+golang\.org
+doc\.rust-lang\.org
+docs\.rust-lang\.org
+kotlinlang\.org
+developer\.android\.com
+developer\.apple\.com
+docs\.swift\.org
+dev\.java
+openjdk\.java\.net
+typescriptlang\.org
+scala-lang\.org
+elixir-lang\.org
+
+# 数据库
+dev\.mysql\.com
+www\.postgresql\.org
+docs\.mongodb\.com
+redis\.io
+docs\.redis\.io
+www\.sqlite\.org
+
+# 工具 / 框架
+flask\.palletsprojects\.com
+docs\.flask\.com
+fastapi\.tiangolo\.com
+django\.readthedocs\.io
+docs\.djangoproject\.com
+sqlalchemy\.org
+docs\.sqlalchemy\.org
+pytest\.org
+docs\.pytest\.org
+
+# 容器 / 部署
+docs\.docker\.com
+kubernetes\.io
+helm\.sh
+
+# === D. 限定词 + "官方文档" pattern（行内必须含限定词才算放行）===
+# hook 检测:含"参考\s*官方文档"或"参见\s*官方文档"且前后 10 字符内有具体库名/语言名 → 放行
+# 否则视为"参考官方文档"无限定词 → 拦截
+#   放行示例:「参考 Python 官方文档 asyncio 部分」「参见 Redis 官方文档 SETEX」
+#   拦截示例:「参考官方文档」「参见官方文档」
+
+# === E. 「按 + 行业/国家/国际/全球 + 规范」前缀放行 ===
+# hook 检测:"按行业规范/按国家标准/按国际标准/按全球标准"类前缀 → 视为外部权威 → 放行
+#   放行示例:「按行业规范 JR/T」「按国家标准 GB/T 22239」
+#   拦截示例:「按规范要求」「按本项目规范」
+
+# === F. 边界豁免（hook 自动识别不弹 confirm）===
+# 见 check_no_ref_words.py 的 skip_patterns:
+#   - YAML 字段名行（key: 末尾冒号且无 value）
+#   - GitHub Issue/PR 编号 #\d+ 纯数字
+#   - ${CLAUDE_PLUGIN_ROOT} 占位符
+#   - swagger 5 字段值（已被 v4.0.1 拦截）
+#   - 「RFC 7519 是标准」类陈述句（无"参考/参见"前缀，本身不触发）
+
+# === G. 命中优先级文档（开发者查阅用，不被脚本加载）===
+# 优先级链（命中任一即终止后续判定）:
+#   1. 边界豁免（skip_patterns）→ 直接放行
+#   2. A/B/C 外部权威 pattern → 放行
+#   3. _internal_spec_docs.txt 内部规范名 → 拦截（标记"内部规范"类）
+#   4. 项目内代码文件路径（utils/xxx.py 等） → 拦截（标记"实现跳转"类）
+#   5. 项目内 .md 文档名（含 README/CLAUDE.md 等非白名单） → 拦截（标记"项目说明跳转"类）
+#   6. 「按规范/根据规范/遵守规范/按照规范」无外部前缀 → 拦截（标记"画蛇添足"类）
+#   7. 兜底：「参考/参见/详见/引用」既不外部也不内部 → 拦截（标记"兜底画蛇添足"类）

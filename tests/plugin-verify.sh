@@ -146,10 +146,15 @@ assert "pre-write-check-duplicate.sh 存在（v2.26.0+）" "[ -f '$REPO_DIR/hook
 assert "pre-write-check-import.sh 存在（v2.27.0+）" "[ -f '$REPO_DIR/hooks/pre-write-check-import.sh' ]"
 assert "check_python_import_placement.py 存在（v2.27.0+）" "[ -f '$REPO_DIR/hooks/check_python_import_placement.py' ]"
 assert "post-write-commit-reminder.sh 存在" "[ -f '$REPO_DIR/hooks/post-write-commit-reminder.sh' ]"
-assert "post-write-check-doc-content.sh 存在（v4.0.2+）" "[ -f '$REPO_DIR/hooks/post-write-check-doc-content.sh' ]"
+assert "pre-write-check-no-ref-words.sh 存在（v4.3.0+）" "[ -f '$REPO_DIR/hooks/pre-write-check-no-ref-words.sh' ]"
+assert "post-write-check-no-ref-words.sh 存在（v4.3.0+）" "[ -f '$REPO_DIR/hooks/post-write-check-no-ref-words.sh' ]"
+assert "check_no_ref_words.py 共享检测器存在（v4.3.0+）" "[ -f '$REPO_DIR/skills/mcpowers-shared/scripts/check_no_ref_words.py' ]"
 assert "_forbidden_ref_words.txt 共享常量存在（v4.0.2+）" "[ -f '$REPO_DIR/skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt' ]"
+assert "_internal_spec_docs.txt 共享常量存在（v4.3.0+）" "[ -f '$REPO_DIR/skills/mcpowers-shared/docs/_assets/_internal_spec_docs.txt' ]"
+assert "_external_authority.txt 共享常量存在（v4.3.0+）" "[ -f '$REPO_DIR/skills/mcpowers-shared/docs/_assets/_external_authority.txt' ]"
 assert "pre-bash-guard 可执行" "[ -x '$REPO_DIR/hooks/pre-bash-guard.sh' ]"
-assert "post-write-check-doc-content.sh 可执行" "[ -x '$REPO_DIR/hooks/post-write-check-doc-content.sh' ]"
+assert "pre-write-check-no-ref-words.sh 可执行" "[ -x '$REPO_DIR/hooks/pre-write-check-no-ref-words.sh' ]"
+assert "post-write-check-no-ref-words.sh 可执行" "[ -x '$REPO_DIR/hooks/post-write-check-no-ref-words.sh' ]"
 
 # 验证 hooks.json 用 ${CLAUDE_PLUGIN_ROOT}
 assert "hooks.json 用 CLAUDE_PLUGIN_ROOT 路径" "grep -q 'CLAUDE_PLUGIN_ROOT' '$REPO_DIR/hooks/hooks.json'"
@@ -421,52 +426,93 @@ if [ -f "$ARTIFACTS_VERIFY" ] && [ -n "$PY_BIN" ]; then
     assert_eq "会话派生产物自检通过（exit 0）" "$RC_ARTIFACTS" "0"
 fi
 
-# ============== 7.7 post-write-check-doc-content.sh 软门禁自检（v4.0.2+ 新增） ==============
-echo "[7.7] post-write-check-doc-content.sh 软门禁自检（v4.0.2+ 文档零引用）"
-HOOK_DOCC="$REPO_DIR/hooks/post-write-check-doc-content.sh"
+# ============== 7.7 pre-write-check-no-ref-words.sh 硬门禁自检（v4.3.0+ 新增） ==============
+echo "[7.7] pre-write-check-no-ref-words.sh 硬门禁自检（v4.3.0+ 代码/配置零引用智能二分）"
+HOOK_NOREF_PRE="$REPO_DIR/hooks/pre-write-check-no-ref-words.sh"
+HOOK_NOREF_POST="$REPO_DIR/hooks/post-write-check-no-ref-words.sh"
+DETECTOR_NOREF="$REPO_DIR/skills/mcpowers-shared/scripts/check_no_ref_words.py"
 FORBIDDEN_FILE="$REPO_DIR/skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt"
-assert "post-write-check-doc-content.sh 存在" "[ -f '$HOOK_DOCC' ]"
-assert "_forbidden_ref_words.txt 共享常量存在" "[ -f '$FORBIDDEN_FILE' ]"
-if [ -x "$HOOK_DOCC" ] && [ -f "$FORBIDDEN_FILE" ]; then
-    # T1:写含「参考」的 .md → exit 0 + stderr 含「参考」
+INTERNAL_FILE="$REPO_DIR/skills/mcpowers-shared/docs/_assets/_internal_spec_docs.txt"
+EXTERNAL_FILE="$REPO_DIR/skills/mcpowers-shared/docs/_assets/_external_authority.txt"
+assert "pre-write-check-no-ref-words.sh 存在" "[ -f '$HOOK_NOREF_PRE' ]"
+assert "post-write-check-no-ref-words.sh 存在" "[ -f '$HOOK_NOREF_POST' ]"
+assert "check_no_ref_words.py 检测器存在" "[ -f '$DETECTOR_NOREF' ]"
+assert "_forbidden_ref_words.txt 存在" "[ -f '$FORBIDDEN_FILE' ]"
+assert "_internal_spec_docs.txt 存在" "[ -f '$INTERNAL_FILE' ]"
+assert "_external_authority.txt 存在" "[ -f '$EXTERNAL_FILE' ]"
+if [ -x "$HOOK_NOREF_PRE" ] && [ -x "$HOOK_NOREF_POST" ] && [ -n "$PY_BIN" ]; then
+    # T1:写 .py 含「参考《代码规范》§11.3」 → exit 2（内部规范拦截）
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"docs/test.md","content":"# X\n本接口参考 RBAC"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t1
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考《代码规范》§11.3 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t1
     RC_T1=$?
     set -e
-    assert_eq "T1 含「参考」exit 0（软门禁不阻断）" "$RC_T1" "0"
-    assert "T1 stderr 含「参考」" "grep -q '参考' /tmp/docc_t1"
+    assert_eq "T1 .py 内部规范引用 → exit 2（硬门禁）" "$RC_T1" "2"
+    assert "T1 stderr 含「代码规范」" "grep -q '代码规范' /tmp/noref_t1"
 
-    # T2:CHANGELOG.md 含「参见」 → exit 0 + stderr 无提示（白名单）
+    # T2:写 .py 含「详见 utils/security.py」 → exit 2（项目内代码文件拦截）
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"CHANGELOG.md","content":"## v4.0.2\n参见 #123"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t2
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 详见 utils/security.py\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t2
     RC_T2=$?
     set -e
-    assert_eq "T2 CHANGELOG.md 含「参见」exit 0" "$RC_T2" "0"
-    assert "T2 CHANGELOG.md 走白名单（stderr 无「画蛇添足」）" "! grep -q '画蛇添足' /tmp/docc_t2"
+    assert_eq "T2 .py 项目内代码文件引用 → exit 2" "$RC_T2" "2"
+    assert "T2 stderr 含「utils/security.py」" "grep -q 'utils/security.py' /tmp/noref_t2"
 
-    # T3:docs/历史教训/x.md 含「v1 时用 X」 → exit 0 无提示
+    # T3:写 .py 含「按规范要求」 → exit 2（兜底画蛇添足拦截）
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"docs/历史教训/x.md","content":"## 教训\nv1 时用 X"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t3
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 按规范要求校验\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t3
     RC_T3=$?
     set -e
-    assert_eq "T3 历史教训路径 exit 0" "$RC_T3" "0"
-    assert "T3 历史教训路径走白名单" "! grep -q '画蛇添足' /tmp/docc_t3"
+    assert_eq "T3 .py 兜底画蛇添足 → exit 2" "$RC_T3" "2"
 
-    # T4:非 .md 文件 → exit 0 无提示
+    # T4:写 .py 含「参考 RFC 7519 实现 JWT」 → exit 0（外部权威放行）
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考 xxx"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t4
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考 RFC 7519 实现 JWT\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t4
     RC_T4=$?
     set -e
-    assert_eq "T4 非 .md 文件 exit 0" "$RC_T4" "0"
-    assert "T4 非 .md 文件不触发扫描" "! grep -q '画蛇添足' /tmp/docc_t4"
+    assert_eq "T4 .py 外部权威 RFC → exit 0（放行）" "$RC_T4" "0"
 
-    # T5:英文 see also → exit 0 + stderr 提示
+    # T5:写 .py 含「遵循 PEP 8 命名」 → exit 0（外部权威放行）
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"docs/api.md","content":"# API\nsee also OpenAPI 3.0"}}' | bash "$HOOK_DOCC" 2>/tmp/docc_t5
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 遵循 PEP 8 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t5
     RC_T5=$?
     set -e
-    assert_eq "T5 英文 see also exit 0" "$RC_T5" "0"
-    assert "T5 英文 see also 命中" "grep -q 'see also' /tmp/docc_t5"
+    assert_eq "T5 .py 外部权威 PEP → exit 0（放行）" "$RC_T5" "0"
+
+    # T6:tests/ 路径白名单 → exit 0（无论内容）
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"tests/test_foo.py","content":"# 参考《代码规范》§11.3\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t6
+    RC_T6=$?
+    set -e
+    assert_eq "T6 tests/ 路径白名单 → exit 0（放行）" "$RC_T6" "0"
+
+    # T7:CHANGELOG.md 路径白名单 → exit 0
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"CHANGELOG.md","content":"## v4.3.0\n参见 RFC 7519\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t7
+    RC_T7=$?
+    set -e
+    assert_eq "T7 CHANGELOG.md 路径白名单 → exit 0" "$RC_T7" "0"
+
+    # T8:post-write-check-no-ref-words.sh 软门禁 → exit 0 但 stderr 提示
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考《代码规范》§11.3\nval = 1\n"}}' | bash "$HOOK_NOREF_POST" 2>/tmp/noref_t8
+    RC_T8=$?
+    set -e
+    assert_eq "T8 post-write 软门禁不阻断（exit 0）" "$RC_T8" "0"
+    assert "T8 post-write stderr 含违规提示" "grep -q '代码规范' /tmp/noref_t8"
+
+    # T9:写 .py 含「参考 CLAUDE.md」 → exit 2（用户决策:无例外）
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考 CLAUDE.md\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t9
+    RC_T9=$?
+    set -e
+    assert_eq "T9 .py 引用 CLAUDE.md → exit 2（无例外）" "$RC_T9" "2"
+
+    # T10:写 .yaml 含「reference to」 → exit 2（英文 11 字眼拦截）
+    set +e
+    echo '{"tool_name":"Write","tool_input":{"file_path":"config/app.yaml","content":"name: foo\ndescription: refer to internal spec\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t10
+    RC_T10=$?
+    set -e
+    assert_eq "T10 .yaml refer to → exit 2" "$RC_T10" "2"
 fi
 
 # ============== 旧安装脚本不应残留 ==============

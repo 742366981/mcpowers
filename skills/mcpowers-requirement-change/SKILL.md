@@ -1,6 +1,6 @@
 ---
 name: mcpowers-requirement-change
-description: "改需求 / 需求变更 / 需求变了 / 需求改了 / 调整逻辑 / 改字段 → 触发本技能。口语：需求有变/改一下/调整/更新、业务调整/业务流程改了/业务规则变了、PM 说/产品说改、PRD 改了/更新、加字段/改字段/字段要改/字段要删、改流程/流程变了/调流程、改逻辑/调整逻辑/规则改了、改需求/调整需求/改一下需求、改业务/改接口/调整接口。中英：change requirement, modify logic, update requirement, field change, behavior change, modify, update, adjust。边界：全新功能→`mcpowers-feat`；纯 bug→`mcpowers-bugfix`；结构整理→`mcpowers-refactor`；性能→`mcpowers-optimize`。找全引用点→同步改→记录→通知，禁止只改一处。"
+description: "改需求 / 需求变更 / 需求变了 / 需求改了 / 调整逻辑 / 改字段 → 触发本技能。口语：需求有变/改一下/调整/更新、业务调整/业务流程改了/业务规则变了、PM 说/产品说改、PRD 改了/更新、加字段/改字段/字段要改/字段要删、改流程/流程变了/调流程、改逻辑/调整逻辑/规则改了、改需求/调整需求/改一下需求、改业务/改接口/调整接口。中英：change requirement, modify logic, update requirement, field change, behavior change, modify, update, adjust。边界：全新功能→`mcpowers-feat`；纯 bug→`mcpowers-bugfix`；结构整理→`mcpowers-refactor`；性能→`mcpowers-optimize`。找全引用点→同步改→记录→通知，禁止只改一处；v4.3.0+ 变更后注释零引用——新加字段/流程说明避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §11.3.1 智能二分硬门禁）。"
 ---
 
 # mcpowers-requirement-change（需求变更）

@@ -3,7 +3,7 @@
 # 用途：CI 跑完所有断言无失败即视为文档与代码同步
 # 退出码 0 = 同步，1 = 不同步
 #
-# 检查 13 类一致性：
+# 检查 23 类一致性：
 #   1. README 路由表 ↔ 实际 skills/ 目录
 #   2. README 规范清单 ↔ 实际 docs/ 下的规范文件
 #   3. 每个规范文件有 frontmatter type: 字段
@@ -25,7 +25,10 @@
 #  19. 根文档尺寸门禁（v2.21.1 新增：CLAUDE.md ≤ 350 行 / 35,000 字符，README.md ≤ 650 行 / 50,000 字符）
 #  20. 单一权威源门禁（v2.21.1 新增：关键短语在 CLAUDE.md / README.md 出现即告警，应在规范权威源维护）
 #  21. 规范 frontmatter 双字段门禁（v2.27.4 新增：全部规范必须声明 stability + last_breaking_change，动态计数）
+#  22. Swagger 5 字段契约铁律存在性（v2.31.0+ 新增：CLAUDE.md 铁律段 + Swagger字段契约.md + 默认清单 yml + contract-check.sh + lint-helper.py）
+#  23. 代码/配置零引用智能二分判定（v4.3.0+ 新增：3 份共享常量 + check_no_ref_words.py + 2 新 hook + 旧 hook 删除）
 #
+# v4.3.0：新增 section 23
 # v2.27.4：新增 section 21
 # v2.21.1：新增 section 18/19/20
 # v2.21.0：新增 section 17
@@ -112,7 +115,7 @@ fi
 
 # ============== 3. 规范 frontmatter 完整性 ==============
 # 只检查 技术规范/ 子目录（24 个核心规范范围，AI操作规范和产品设计规范不在范围）
-# v2.31.0:实际是 32 个规范,但其中 31 个以「规范.md」结尾,Swagger字段契约.md 用 §22 单独检查
+# v2.31.0:实际是 32 个规范（含 Swagger字段契约.md）,但其中 31 个以「规范.md」结尾,Swagger字段契约.md 用 §22 单独检查
 echo "[3/13] 校验 32 个核心规范 frontmatter 完整性"
 # v2.0：路径更新
 SPEC_FILES=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -maxdepth 1 -name "*.md" -type f 2>/dev/null)
@@ -1107,6 +1110,83 @@ if [ "$SWAGGER_FAIL" -eq 0 ]; then
     echo "  ✓ v2.31.0+ Swagger 5 字段契约铁律 5 件套完整(CLAUDE.md 铁律段 + Swagger字段契约.md + 默认清单 yml + contract-check.sh + lint-helper.py)"
 else
     FAIL=$((FAIL + SWAGGER_FAIL))
+fi
+
+# ============== §23 代码/配置零引用智能二分判定（v4.3.0+） ==============
+# 防止后续修改只保留脚本骨架，却删除 22 字眼共享清单 / 3 份共享常量 / 智能二分检测器 / 2 个新 hook。
+echo "[23/23] 校验代码/配置零引用智能二分判定（v4.3.0+）"
+NOREF_FAIL=0
+
+check_noref_file() {
+    local file="$1"
+    local label="$2"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file（$label）"
+        NOREF_FAIL=$((NOREF_FAIL + 1))
+        return
+    fi
+}
+
+check_noref_grep() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file（$label）"
+        NOREF_FAIL=$((NOREF_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        NOREF_FAIL=$((NOREF_FAIL + 1))
+    fi
+}
+
+# 1. 3 份共享常量文件存在
+check_noref_file "skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt"  "禁用字眼共享清单"
+check_noref_file "skills/mcpowers-shared/docs/_assets/_internal_spec_docs.txt"  "内部规范名清单"
+check_noref_file "skills/mcpowers-shared/docs/_assets/_external_authority.txt" "外部权威清单"
+
+# 2. 共享检测器存在
+check_noref_file "skills/mcpowers-shared/scripts/check_no_ref_words.py" "智能二分检测器"
+
+# 3. 2 个新 hook 文件存在 + 可执行
+PRE_NOREF_HOOK="hooks/pre-write-check-no-ref-words.sh"
+POST_NOREF_HOOK="hooks/post-write-check-no-ref-words.sh"
+check_noref_file "$PRE_NOREF_HOOK"  "硬门禁 hook"
+check_noref_file "$POST_NOREF_HOOK" "软兜底 hook"
+[ -x "$PRE_NOREF_HOOK" ]  || { echo "  ✗ $PRE_NOREF_HOOK 不可执行";  NOREF_FAIL=$((NOREF_FAIL + 1)); }
+[ -x "$POST_NOREF_HOOK" ] || { echo "  ✗ $POST_NOREF_HOOK 不可执行"; NOREF_FAIL=$((NOREF_FAIL + 1)); }
+
+# 4. 旧 post-write-check-doc-content.sh 必须删除（v4.3.0 替代）
+if [ -f "hooks/post-write-check-doc-content.sh" ]; then
+    echo "  ✗ hooks/post-write-check-doc-content.sh 应删除（v4.3.0 已被 post-write-check-no-ref-words.sh 替代）"
+    NOREF_FAIL=$((NOREF_FAIL + 1))
+fi
+
+# 5. CLAUDE.md 必须含 v4.3.0+ 代码/配置零引用铁律段
+check_noref_grep "CLAUDE.md" "代码/配置零引用铁律·智能二分判定（v4.3.0+" "CLAUDE.md v4.3.0 铁律段"
+# 6. README.md 必须含 v4.3.0 提及（用户可见升级说明）
+check_noref_grep "README.md" "v4.3.0+" "README v4.3.0 升级说明"
+
+# 7. mcpowers-code-review 必须含 R17 + 8 条扫描命令
+CODE_REVIEW_SKILL="skills/mcpowers-code-review/SKILL.md"
+check_noref_grep "$CODE_REVIEW_SKILL" "R17" "code-review R17 反模式条目"
+check_noref_grep "$CODE_REVIEW_SKILL" "v4.3.0+ 代码/配置零引用智能二分 Quick-Check" "code-review Quick-Check v4.3.0 段"
+
+# 8. hooks.json 必须注册新 hook
+HOOKS_JSON="hooks/hooks.json"
+check_noref_grep "$HOOKS_JSON" "pre-write-check-no-ref-words.sh"  "hooks.json PreToolUse 段注册硬门禁"
+check_noref_grep "$HOOKS_JSON" "post-write-check-no-ref-words.sh" "hooks.json PostToolUse 段注册软兜底"
+
+# 9. 代码规范.md 必须新增 §11.3.1 子章节
+CODE_SPEC_DOC="skills/mcpowers-shared/docs/技术规范/代码规范.md"
+check_noref_grep "$CODE_SPEC_DOC" "#### 11.3.1" "代码规范 §11.3.1 智能二分章节"
+
+if [ "$NOREF_FAIL" -eq 0 ]; then
+    echo "  ✓ 代码/配置零引用智能二分判定（v4.3.0+）完整"
+else
+    FAIL=$((FAIL + NOREF_FAIL))
 fi
 
 # ============== 汇总 ==============

@@ -15,7 +15,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 | 3.5 | **📝 Swagger 接口契约硬门禁**（v2.31.0+ 写时硬拦；v4.0.0+ 业务接口只列 200；v4.0.1+ 接口文档零引用） | 写接口文件时 PreToolUse 阶段物理拦截 5 字段契约（`tags` + `summary` ≤ 30 字 + `description` ≤ 100 字 + `parameters` 含 `description`+`example` + `responses` 含 200 + 每个状态码含 `schema`+`examples`）不合规的写法，避免 commit 时一次性报 20+ 错误导致返工；**v4.0.0+ 业务接口 `responses` 只列 `200`**（业务错误走响应体 `code` 字段；4xx/5xx 由框架层抛出），`swagger-lint-helper.py check_business_api_responses` 写时拦截；**v4.0.1+ 接口文档零引用铁律**——`summary` / `description` / `parameters[].description` / `responses[].description` 等字段值禁含「参考 / 参见 / 详见 / 引用」+「according to / refer to / see also」等指向其他文档的字眼，让对接方只看接口文档就能调用，`swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` 双层拦截；**v4.0.2+ 文档编写铁律·画蛇添足字眼场景化规则**（v4.0.1 接口零引用的通则化推广）——AI 写任何文档（不只是接口）都需遵守 22 字眼清单 + 3 问决策（输出型禁止 / 参考型允许且必要 / 历史型允许），CLAUDE.md 必读铁律段 + 6 文档场景技能 description 触发词 + `post-write-check-doc-content.sh` 软门禁 + R16 审查门禁 6 层 AI 视野自动覆盖；项目根可放 `.swagger-required-fields.yml` 自定义必填字段；未装 swagger 的项目零摩擦放行；不向用户项目注入任何文件 |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令 + v2.28.2 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder + 单下划线私有名）+ v2.27.0 Python 局部 import 拦截 + v2.27.4 stability / last_breaking_change / CHANGELOG Breaking Changes 段强制声明 + **v2.31.0 Swagger 5 字段契约硬门禁**（写时即拦，避免返工）） |
-| 6 | **🪝 4 个事件组 / 10 个 Hook 脚本** | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.28.2+ 极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block）+ Python 局部 import 拦截（v2.27.0+）+ 规范 frontmatter 双字段强制声明（v2.27.4+）+ **doc-sync 物理门禁（v2.29.0+：path/route/env 三类检查，替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，装 mcpowers 即自动支持，**不向用户项目注入任何文件**）+ **Swagger 5 字段契约硬门禁（v2.31.0+：写接口文件即拦，避免返工）** + **文档画蛇添足字眼软门禁（v4.0.2+：写 .md 即扫 22 字眼，6 类路径白名单区分参考型/历史型文档）**、PostToolUse 提醒提交 |
+| 6 | **🪝 5 个事件组 / 11 个 Hook 脚本**（v4.3.0+ 新增 pre/post-write-check-no-ref-words.sh 代码/配置零引用智能二分） | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.28.2+ 极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block）+ Python 局部 import 拦截（v2.27.0+）+ 规范 frontmatter 双字段强制声明（v2.27.4+）+ **doc-sync 物理门禁（v2.29.0+：path/route/env 三类检查，替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，装 mcpowers 即自动支持，**不向用户项目注入任何文件**）+ **Swagger 5 字段契约硬门禁（v2.31.0+：写接口文件即拦，避免返工）** + **文档画蛇添足字眼软门禁（v4.0.2+：写 .md 即扫 22 字眼，6 类路径白名单区分参考型/历史型文档）**、PostToolUse 提醒提交 |
 | 7 | **🔧 完全独立 Git 操作** | 内置 `commit / worktree / rollback / cleanBranches` 4 个 git 技能，无需依赖任何外部技能 |
 
 ### 1 句话总结
@@ -37,7 +37,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **终态交付**：文档与代码注释只写当前状态，不留历史演进痕迹和"参考 xxx"来源指代（详见《文档编写规范》§9）
 - **编排显式化**：23 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
 - **规范元数据化**：32 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
-- **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、4 个事件组 / 10 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write/Edit) + PostToolUse，含 v2.27.0+ Python 局部 import 拦截 + v2.27.4+ 规范 frontmatter 双字段强制声明 + v2.28.2+ 重复函数检测极简化：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block + v2.29.0+ doc-sync 物理门禁 + v4.0.2+ 文档画蛇添足字眼软门禁）、冒烟测试 + 同步校验脚本
+- **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、5 个事件组 / 11 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write/Edit) + PostToolUse，含 v2.27.0+ Python 局部 import 拦截 + v2.27.4+ 规范 frontmatter 双字段强制声明 + v2.28.2+ 重复函数检测极简化：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block + v2.29.0+ doc-sync 物理门禁 + v4.0.2+ 文档画蛇添足字眼软门禁）、冒烟测试 + 同步校验脚本
 
 ---
 
@@ -228,7 +228,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 32 个场景/方法技能（24 场景 + 8 方法）
 - ✅ 32 个技术规范（`mcpowers-shared`，详见 [`CHANGELOG.md`](CHANGELOG.md)）
-- ✅ 4 个 Hook 事件组 / 10 个 Hook 脚本（自动注册，无需改 `settings.json`）
+- ✅ 5 个 Hook 事件组 / 11 个 Hook 脚本（v4.3.0+ 新增代码/配置零引用智能二分；自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。
 
@@ -299,7 +299,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 | AI 工具 | 支持状态 | 安装方式 | 说明 |
 |:--------|:--------:|:---------|:-----|
-| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 32 个可路由技能 + 24 技术规范 + 4 个 Hook 事件组 / 10 个脚本全功能 |
+| **Claude Code** | ✅ **完全支持** | `/plugin install mcpowers@mcpowers` | 路由器 + 32 个可路由技能 + 32 技术规范 + 5 个 Hook 事件组 / 11 个脚本全功能 + v4.3.0+ 代码/配置零引用智能二分 |
 | **Cursor** | 🟡 理论支持 | 在 Cursor 插件市场加载 `.claude-plugin/` | ⚠️ 未实测，Cursor 兼容 Claude Code 插件规范 |
 | **Codex CLI** | 🟡 理论支持 | 复制 `skills/` 到 Codex skills 目录 | ⚠️ 未实测，规范 + 技能可读，hooks 需手动配置 |
 | **OpenCode** | 🟡 理论支持 | `opencode.json` 引用本仓库 | ⚠️ 未实测，通过 git 引用，自动加载 |
@@ -314,7 +314,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 #### Claude Code（主推）
 
-- 完整支持 4 个 Hook 事件组 / 10 个脚本（`SessionStart` + `PreToolUse(Bash/Write/Edit)` + `PostToolUse`，含 v2.27.4+ `pre-write-check-spec-frontmatter.sh` + v2.29.0+ `pre-write-check-doc-sync.sh` + v4.0.2+ `post-write-check-doc-content.sh`）
+- 完整支持 5 个 Hook 事件组 / 11 个脚本（`SessionStart` + `PreToolUse(Bash/Write/Edit)` + `PostToolUse`，含 v2.27.4+ `pre-write-check-spec-frontmatter.sh` + v2.29.0+ `pre-write-check-doc-sync.sh` + **v4.3.0+ `pre-write-check-no-ref-words.sh` 硬门禁 + `post-write-check-no-ref-words.sh` 软兜底 + 共享 `scripts/check_no_ref_words.py` 智能二分检测器**——代码/配置零引用铁律,7 优先级判定,R15 接口零引用 + R16 .md 零引用 + R17 代码/配置零引用三层铁律共用 22 字眼清单）
 - 路由器自动加载，用户输入自然语言路由到对应技能
 - 安装命令（**分两步执行，不要用 `&&` 串联**——`&&` 会让 Claude Code 把 install 部分也拼进 marketplace URL，导致 git clone 失败）：
 
@@ -456,7 +456,7 @@ last_updated: 2026-07-08
 
 1. 创建 `hooks/<hook-name>.sh`，头部加 `#!/usr/bin/env bash`，可执行
 2. `hooks/hooks.json` 追加对应事件段（不动现有段）
-3. `CLAUDE.md` 和 `README.md` 同步更新 Hook 事件组/脚本清单及维护说明（v4.0.2+ 累计 10 个脚本 / 4 个事件组）
+3. `CLAUDE.md` 和 `README.md` 同步更新 Hook 事件组/脚本清单及维护说明（v4.3.0+ 累计 11 个脚本 / 5 个事件组）
 4. `skills/mcpowers/SKILL.md` "## 5. 硬约束完整覆盖" 表**加一行**（如新增事件组）或补充对应脚本
 5. `hooks/README.md` 加一段说明
 6. `tests/plugin-verify.sh` 补充脚本存在性或行为断言

@@ -1,6 +1,6 @@
 ---
 name: mcpowers-refactor
-description: "重构 / 代码重构 / 整理代码 / 拆分代码 / 重写 → 触发本技能。口语：代码太乱/太丑/太啰嗦/太长/太复杂、抽方法/抽离公共/提取公共、拆方法/函数/类/小模块、代码结构需要整理/结构混乱、解耦/去耦合、分离关注点/封装一下、可读性差/命名混乱/逻辑混乱、重新组织代码、代码冗余/重复、代码要重构/可读性要提升、简化一下/抽象一下。中英：refactor, simplify, clean up, extract, extract method, restructure, rewrite, SOLID, DRY。边界：改行为→`mcpowers-bugfix`；新功能→`mcpowers-feat`；性能→`mcpowers-optimize`；抽成独立库/可调用脚本/跨项目复用→`mcpowers-extract`。保行为重构（先测试→小步改→验证，禁止无测试保护网）。"
+description: "重构 / 代码重构 / 整理代码 / 拆分代码 / 重写 → 触发本技能。口语：代码太乱/太丑/太啰嗦/太长/太复杂、抽方法/抽离公共/提取公共、拆方法/函数/类/小模块、代码结构需要整理/结构混乱、解耦/去耦合、分离关注点/封装一下、可读性差/命名混乱/逻辑混乱、重新组织代码、代码冗余/重复、代码要重构/可读性要提升、简化一下/抽象一下。中英：refactor, simplify, clean up, extract, extract method, restructure, rewrite, SOLID, DRY。边界：改行为→`mcpowers-bugfix`；新功能→`mcpowers-feat`；性能→`mcpowers-optimize`；抽成独立库/可调用脚本/跨项目复用→`mcpowers-extract`。保行为重构（先测试→小步改→验证，禁止无测试保护网）；v4.3.0+ 重构后注释零引用——保留/新增的注释避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §11.3.1 智能二分硬门禁）。"
 ---
 
 # mcpowers-refactor（重构）

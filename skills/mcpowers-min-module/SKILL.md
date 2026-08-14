@@ -1,6 +1,6 @@
 ---
 name: mcpowers-min-module
-description: "最小通用模块化 / 绝对零业务 / 无任何外部参考 / 自包含四件套 / 复制即用跨项目零成本 → 触发本技能。口语：做成最小模块、通用化工具、抽成独立模块、可import的模块、零业务字眼、无项目名/无业务字段、无任何参考引用、通用utils/日志/校验/重试、自包含模块。中英：min-module,standalone module,reusable module,absolute zero business,no external reference,business-free,zero business audit,cross-project。边界：封装特定领域能力→mcpowers-sdk-design；原地改结构→mcpowers-refactor；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract。流程：识别技术能力→剥离业务→§0零业务审计→自包含四件套→配置自包含→自带日志异常→验证脚本→七类扫描兜底；v4.0.2+ 文档零引用——README/verify/错误消息避开参考/参见/详见/引用等 22 字眼（详见 §9.5 决策 3 问）。"
+description: "最小通用模块化 / 绝对零业务 / 无任何外部参考 / 自包含四件套 / 复制即用跨项目零成本 → 触发本技能。口语：做成最小模块、通用化工具、抽成独立模块、可import的模块、零业务字眼、无项目名/无业务字段、无任何参考引用、通用utils/日志/校验/重试、自包含模块。中英：min-module,standalone module,reusable module,absolute zero business,no external reference,business-free,zero business audit,cross-project。边界：封装特定领域能力→mcpowers-sdk-design；原地改结构→mcpowers-refactor；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract。流程：识别技术能力→剥离业务→§0零业务审计→自包含四件套→配置自包含→自带日志异常→验证脚本→七类扫描兜底；v4.0.2+ 文档零引用 + v4.3.0+ 代码/配置零引用（智能二分硬门禁）——README/verify/错误消息/代码注释避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §9.5 + §11.3.1 决策 3 问）。"
 ---
 
 # mcpowers-min-module（最小通用模块化）

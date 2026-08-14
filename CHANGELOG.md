@@ -7,6 +7,47 @@
 
 ## [Unreleased]
 
+## v4.3.0 - 2026-08-14
+
+> 🎯 **核心定位**:代码/配置零引用铁律·智能二分判定(用户决策 D:之前 v4.0.1 接口零引用 + v4.0.2 .md 零引用已就绪,但代码注释/配置文件仍被「参考《代码规范》§11.3」「详见 utils/security.py」「按规范要求校验」字眼污染,要求最强有力点方案)
+
+### Breaking Changes
+
+- **`hooks/post-write-check-doc-content.sh` 移除**:v4.0.2+ 引入的 .md 软门禁脚本被新 `hooks/post-write-check-no-ref-words.sh` 完全替代。新脚本统一调用共享 `scripts/check_no_ref_words.py` 智能二分检测器,覆盖 .md + 代码 + 配置所有写入场景。**升级影响**:`hooks/hooks.json` 的 `PostToolUse` 段注册名同步替换;运行 `tests/plugin-verify.sh` 自检全过。
+- **`hooks.json` PreToolUse Write 段新增 `pre-write-check-no-ref-words.sh`**:v4.3.0 新增硬门禁 hook,写代码/配置文件时智能二分判定 → ERROR 级 → exit 2 (confirm UI)。**升级影响**:AI 写 `.py` / `.yaml` / `.json` 等含禁用字眼会弹 confirm UI,要求改写为直接说明;运行 `plugin-verify.sh` 第 7.7 段自检覆盖。
+- **代码注释硬门禁**:PreToolUse Write `.py` / `.sh` / `.yaml` 等代码/配置文件,若内容含 22 字眼 + 4 口语化补充,命中以下任一即 exit 2 阻断:内部规范名 / 项目内代码文件路径 / 项目内 .md 文档名(含 CLAUDE.md/README.md 无例外)/ 无外部前缀的「按规范」/ 兜底。**升级影响**:AI 写代码注释必须自洽,不指向其他文档;删掉字眼后意思不变视为画蛇添足。
+
+### 新增
+
+- **`scripts/check_no_ref_words.py` 共享检测器**(v4.3.0+):智能二分判定核心,被 3 个 hook 共用(`pre-write-check-no-ref-words.sh` + `post-write-check-no-ref-words.sh` + 未来扩展的 spec/check 脚本)。API: `scan_content(content, file_path)` / `scan_line(line, line_no)` / `is_path_whitelisted(file_path)` / `Violation` dataclass。CLI 入口支持 `--level=ERROR|WARNING|INFO` + `--json` 双格式输出。
+- **3 份共享常量**(v4.3.0+ 与 R15/R16 共用一份字眼清单,避免漂移):
+  - `_forbidden_ref_words.txt`:22 字眼 + 4 口语化补充(权威源)
+  - `_internal_spec_docs.txt`:33 份规范 + 别名(代码规范/接口契约/日志规范/Flask规范/Vue规范/字段契约等)
+  - `_external_authority.txt`:3 类外部权威 pattern(RFC/PEP/W3C/OWASP/ISO/IEEE + 公认作者 + 官方 URL)
+- **`hooks/pre-write-check-no-ref-words.sh` 硬门禁 wrapper**(v4.3.0+):复用 `pre-write-check-import.sh` 的 wrapper 模式(探测 python 解释器 → 转发 stdin JSON → exit 2 触发 confirm UI),仅对代码/配置触发。
+- **`hooks/post-write-check-no-ref-words.sh` 软兜底 wrapper**(v4.3.0+):PostToolUse 全量兜底,调用检测器 `--level=WARNING`,exit 0 不阻断仅 stderr 提示;覆盖 Edit/MultiEdit 无 content 场景。
+- **6 类路径白名单**(v4.3.0+):`tests/` / `fixtures/` / `examples/` / `templates/` / `docs/历史教训/` / `CHANGELOG.md` —— 命中放行整个文件。
+- **代码规范.md §11.3.1**(v4.3.0+):智能二分权威定义 + 22 字眼 + 4 口语化 + 7 优先级 + 14 反例 + 6 正例。
+- **`mcpowers-code-review` R17**(v4.3.0+):代码/配置零引用智能二分反模式条目,与 R15(接口零引用)+ R16(.md 零引用)共用 22 字眼清单。
+- **`mcpowers-code-review` v4.3.0+ Quick-Check**(v4.3.0+):8 条扫描命令(22 字眼扫描 + docstring 降级 + 外部权威放行 + 内部规范拦截 + 代码文件拦截 + CLAUDE.md/README.md 拦截 + 无前缀拦截 + 共享常量存在性)。
+- **6 技能 description 加 v4.3.0 触发词**:`mcpowers-feat` / `mcpowers-bugfix` / `mcpowers-refactor` / `mcpowers-requirement-change` / `mcpowers-min-module` / `mcpowers-sdk-design` —— L1 索引增强触发灵敏度。
+
+### 调整
+
+- **`hooks/hooks.json` 事件组数 4 → 5**:PreToolUse Write 段新增硬门禁 hook,事件组按 matcher 分组计算 (SessionStart + PreToolUse Bash + PreToolUse Write + PreToolUse Edit|MultiEdit + PostToolUse)。
+- **代码规范.md version 1.6 → 1.7**:`last_breaking_change` v2.28.2 → v4.3.0。
+- **`tests/plugin-verify.sh` §6 + §7.7 重写**:替换 v4.0.2 post-write-check-doc-content 自检为 v4.3.0 pre/post-write-check-no-ref-words 自检 10 个 case(T1~T10:内部规范拦截 / 项目内代码拦截 / 兜底拦截 / 外部权威放行 / tests/白名单 / CHANGELOG 白名单 / post-write 软门禁 / CLAUDE.md 无例外 / .yaml refer to)。
+
+### 风险
+
+- **AI 写代码注释会频繁触发 confirm UI**:尤其是从其他项目复制代码注释或基于既有 spec 写新代码时,可能大量出现「参考《xxx 规范》」类写法。**这是设计意图**——强制自洽,但需给 AI 留出"按 RFC/PEP/OWASP 等外部权威"放行通道,避免误拦。
+- **docstring 内违规降级为 WARNING**:避免整段 docstring 全 ERROR 阻塞(物理门禁放行,仅 stderr 提示),但 review 阶段仍需关注。
+- **不影响 v4.0.1 接口零引用 + v4.0.2 .md 零引用既有行为**:22 字眼清单与 R15/R16 共用,只是扩展到代码/配置;swagger 5 字段契约 + 业务接口响应规范 + 表格防护 + XSS 阻断均不受影响。
+
+### 迁移指南
+
+无。本次纯增量扩展,既有 v4.0.0 ~ v4.2.0 行为完全保留:`hooks.json` 注册名替换 + `post-write-check-doc-content.sh` 文件删除是唯一破坏性变更;安装新版 mcpowers 后所有 hook 自动生效,无需用户项目侧任何操作。
+
 ## v4.2.0 - 2026-08-13
 
 > 🎯 **核心定位**:`export_docs.py` 表格排版错乱防护(用户实测发现的真实痛点:7 个表格生成点全部裸拼文本,description / example 含换行 / `|` / 不可见字符即崩表)

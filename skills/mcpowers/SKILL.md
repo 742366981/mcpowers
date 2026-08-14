@@ -154,7 +154,7 @@ description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 �
 ### 3.3 规范层（Layer 3）—— 资产库，按需 Read
 - **入口**：`skills/mcpowers-shared/SKILL.md`（规范库入口 skill）
 - **导航**：`skills/mcpowers-shared/mcpowers-spec-index/SKILL.md`（查"做什么 → 读哪个规范"）
-- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（31 个文件，原地保留；v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分为 7 册）
+- **规范文件**：`skills/mcpowers-shared/docs/技术规范/*.md`（32 个文件，原地保留；v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分为 7 册；v2.31.0 新增 `Swagger字段契约.md`）
 
 ---
 
@@ -174,7 +174,7 @@ mcpowers 体系**完全独立**，不依赖任何外部技能：
 
 ---
 
-## 5. 硬约束完整覆盖（4 个事件组 / 10 个脚本）
+## 5. 硬约束完整覆盖（5 个事件组 / 11 个脚本，v4.3.0+）
 
 铁律从"软提示"升级为"硬约束"由以下 hooks 实现（详见 `hooks/README.md`）：
 

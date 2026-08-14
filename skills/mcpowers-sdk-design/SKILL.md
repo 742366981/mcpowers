@@ -1,6 +1,6 @@
 ---
 name: mcpowers-sdk-design
-description: "SDK设计 / 封装领域能力 / 绝对零业务 / 无任何外部参考 / 通讯层中立 / 默认健康检查硬拒绝 / 上游错误重试vs客户端错误分离 → 触发本技能。口语：做个SDK、写个接口封装、封装第三方接口、做客户端库、SDK怎么设计、客户端SDK、领域SDK、可分发包。中英：SDK design,API wrapper,client library,absolute zero business,no external reference,domain SDK,health check,retry on upstream error。边界：纯工具函数零业务→mcpowers-min-module；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract；已有项目加功能→mcpowers-feat。流程：确认领域→§0零业务审计→外部依赖分析→SDK形态→defaults.ini+覆盖→健康检查→异常分层→资源泄漏防护→七类扫描兜底；v4.0.2+ 文档零引用——README/verify/错误消息避开参考/参见/详见/引用等 22 字眼（详见 §9.5 决策 3 问）。"
+description: "SDK设计 / 封装领域能力 / 绝对零业务 / 无任何外部参考 / 通讯层中立 / 默认健康检查硬拒绝 / 上游错误重试vs客户端错误分离 → 触发本技能。口语：做个SDK、写个接口封装、封装第三方接口、做客户端库、SDK怎么设计、客户端SDK、领域SDK、可分发包。中英：SDK design,API wrapper,client library,absolute zero business,no external reference,domain SDK,health check,retry on upstream error。边界：纯工具函数零业务→mcpowers-min-module；从零搭骨架→mcpowers-init；从已有项目抽离可复用资产→mcpowers-extract；已有项目加功能→mcpowers-feat。流程：确认领域→§0零业务审计→外部依赖分析→SDK形态→defaults.ini+覆盖→健康检查→异常分层→资源泄漏防护→七类扫描兜底；v4.0.2+ 文档零引用 + v4.3.0+ 代码/配置零引用（智能二分硬门禁）——README/verify/错误消息/SDK 注释避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §9.5 + §11.3.1 决策 3 问）。"
 ---
 
 # mcpowers-sdk-design（SDK 设计）

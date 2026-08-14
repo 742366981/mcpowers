@@ -1,6 +1,6 @@
 {
   "name": "mcpowers",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "AI 辅助开发的标准化技能体系（场景层 24 个 + 方法层 8 个 + 规范库 32 个）",
   "owner": {
     "name": "742366981",
@@ -9,9 +9,9 @@
   "plugins": [
     {
       "name": "mcpowers",
-      "description": "主入口路由器 + 32 个技能 + 32 个技术规范，借鉴 superpowers 方法论",
+      "description": "主入口路由器 + 32 个技能 + 32 个技术规范 + v4.3.0 代码/配置零引用智能二分判定",
       "source": "./",
-      "version": "4.2.0",
+      "version": "4.3.0",
       "category": "development",
       "keywords": [
         "workflow",
@@ -19,7 +19,9 @@
         "brainstorm",
         "code-review",
         "specs",
-        "superpowers"
+        "superpowers",
+        "no-reference",
+        "zero-ref"
       ]
     }
   ]

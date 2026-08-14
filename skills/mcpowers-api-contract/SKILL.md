@@ -1,6 +1,6 @@
 ---
 name: mcpowers-api-contract
-description: "前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 → 触发本技能。口语：前后端怎么对接,接口文档怎么自动生成,前端怎么拿到接口类型,接口测试怎么做,接口改了文档没更新,Swagger怎么用,OpenAPI怎么生成。English: api contract,openapi generation,frontend api sync,api schema,flasgger,apispec,openapi spec。边界：纯文档编写→mcpowers-prd；纯测试→mcpowers-autoTest；纯部署→mcpowers-deploy。流程一句话：基于 Flask docstring 自动生成 OpenAPI 规范，支持加密访问，前端/测试基于 spec 自动对接，代码即单一真实来源。"
+description: "前后端联调 / 接口对接 / API文档 / 自动生成接口规范 / 接口契约 → 触发本技能。口语：前后端怎么对接,接口文档怎么自动生成,前端怎么拿到接口类型,接口测试怎么做,接口改了文档没更新,Swagger怎么用,OpenAPI怎么生成。English: api contract,openapi generation,frontend api sync,api schema,flasgger,apispec,openapi spec。边界：纯文档编写→mcpowers-prd；纯测试→mcpowers-autoTest；纯部署→mcpowers-deploy。流程一句话：基于 Flask docstring 自动生成 OpenAPI 规范，支持加密访问，前端/测试基于 spec 自动对接，代码即单一真实来源。**v4.4.0+ description 零冗余 + 通用响应/分页/认证 `$ref` 复用铁律**——5 个全局组件（`StandardResponse`/`BizResponse`/`PageResponse`/`BizError`/`FileResponse` + `BearerAuth`）在 Swagger template 一次性注入，接口 docstring 用 `$ref` 复用而非内联展开 `{code, msg, data}`/`{records, page_no, ...}`，description 字段禁含 8 类冗余内容；接口路径不重复 basePath/蓝图前缀。"
 ---
 
 # mcpowers-api-contract（API 契约 / 前后端联调）

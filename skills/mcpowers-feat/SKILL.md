@@ -1,6 +1,6 @@
 ---
 name: mcpowers-feat
-description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做一个 / 实现一下 → 触发本技能。口语：我想加/做个功能、帮我做/开发/实现/加一个 XX、做一个 XX、写一个 XX、搭一个新模块/接口/页面、新建 XX、创建 XX、加个 XX、做个新 XX、搞个 XX、弄一个 XX、整一个 XX、做一下 XX、加进来、新加一个。中英：add, add feature, implement, create, develop, feat, feature, new, build, ship。边界：改既有（字段/流程/逻辑）→`mcpowers-requirement-change`；修 bug→`mcpowers-bugfix`。澄清→任务拆解→按规范实现→TDD→自审→提交，覆盖 80% 日常开发；v4.0.2+ 文档零引用 + v4.3.0+ 代码/配置零引用（智能二分硬门禁）——代码注释/配置避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §9.5 + §11.3.1 决策 3 问）。"
+description: "加个功能 / 加功能 / 做个新功能 / 新增功能 / 新做一个 / 实现一下 → 触发本技能。口语：我想加/做个功能、帮我做/开发/实现/加一个 XX、做一个 XX、写一个 XX、搭一个新模块/接口/页面、新建 XX、创建 XX、加个 XX、做个新 XX、搞个 XX、弄一个 XX、整一个 XX、做一下 XX、加进来、新加一个。中英：add, add feature, implement, create, develop, feat, feature, new, build, ship。边界：改既有（字段/流程/逻辑）→`mcpowers-requirement-change`；修 bug→`mcpowers-bugfix`。澄清→任务拆解→按规范实现→TDD→自审→提交，覆盖 80% 日常开发；v4.0.2+ 文档零引用 + v4.3.0+ 代码/配置零引用（智能二分硬门禁）——代码注释/配置避开参考/参见/详见/引用/按规范要求等 22+4 字眼（详见 §9.5 + §11.3.1 决策 3 问）；**v4.4.0+ 接口 docstring description 零冗余 + 通用响应/分页/认证 `$ref` 复用**——新写接口描述禁含 HTTP 状态码/认证方式/错误码清单/响应结构/完整路径/通用约束/路径内模块名 8 类冗余，通用响应走 5 个全局组件 `StandardResponse`/`BizResponse`/`PageResponse`/`BizError`/`FileResponse` + `BearerAuth` 复用，路径不重复 basePath/蓝图前缀。"
 ---
 
 # mcpowers-feat（加功能）

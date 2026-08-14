@@ -242,6 +242,203 @@ def check_no_reference_words(docstring: str, route: str = '') -> list[tuple[str,
     return violations
 
 
+# v4.4.0+ description 字段禁用字眼（接口契约规范 §1.A.1）
+# 这些内容应该在全局组件 / parameters[].description / responses[error_code].description
+# 接口 description 字段只写"接口功能"这一句话
+_FORBIDDEN_DESCRIPTION_CONTENT = (
+    # HTTP 状态码相关
+    'HTTP 永远 200', 'HTTP 200', 'business interface', '业务接口 HTTP',
+    # 认证方式
+    '需登录', '需要登录', '需 JWT', '需要 JWT', 'Bearer Token', '需认证',
+    '需鉴权', '需要鉴权', '需要 token', '需 token',
+    # 响应结构描述（应交给 schema）
+    '返回 {code, msg, data}', '返回 code, msg, data', '响应格式：{code', '返回 {code, data}',
+    # 完整路径
+    '完整路径', 'full path',
+)
+
+
+# v4.4.0+ $ref 复用铁律（接口契约规范 §1.F）
+# schema 重复展开模式（应改为 $ref 引用）
+_REPEATED_SCHEMA_MARKERS = (
+    "type: object\n      required: [code, msg]",  # StandardResponse 内联展开
+    "type: object\n        properties:\n          code:",  # BizResponse 内联展开
+    "type: object\n        required: [records, page_no",  # PageResponse 内联展开
+    "type: object\n        properties:\n          records:",  # PageResponse 内联展开
+)
+
+
+def check_description_redundant_content(docstring: str, route: str = '') -> list[tuple[str, str]]:
+    """检查 description 字段是否含 v4.4.0+ 禁用内容（接口契约规范 §1.A.1）。
+
+    description 字段只写"接口功能"这一句话；HTTP 状态码 / 认证方式 / 错误码清单
+    / 响应结构 / 完整路径都不应在每个接口重复。
+
+    跳过规则：YAML 字段名行（`key:` 末尾冒号且无 value）不参与扫描。
+
+    Args:
+        docstring: 路由函数的 docstring 文本（含 Flasgger YAML 块）
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'WARNING'` / `'ERROR'`
+        v4.4.0+ 默认 WARNING（渐进迁移），v4.5.0 起升级为 ERROR
+    """
+    violations: list[tuple[str, str]] = []
+    if not docstring:
+        return violations
+
+    # 抽取 description 字段值（YAML 字段名跳过，仅扫字段值）
+    lines = docstring.splitlines()
+    in_description = False
+    for line_no, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # 跳过 YAML 字段名行
+        if stripped.endswith(':') and len(stripped) > 1 and not stripped.startswith('#'):
+            in_description = stripped.startswith('description:')
+            if in_description:
+                # 同一行可能有 inline value
+                inline = stripped.split(':', 1)[1].strip()
+                if inline:
+                    for word in _FORBIDDEN_DESCRIPTION_CONTENT:
+                        if word in inline:
+                            violations.append((
+                                'WARNING',
+                                f'docstring L{line_no} description 字段含冗余内容「{word}」'
+                                f'——description 只写接口功能一句话，'
+                                f'HTTP 状态码 / 认证 / 错误码 / 响应结构 / 完整路径禁在每个接口重述'
+                                f'(v4.4.0+ description 字段禁用内容清单)',
+                            ))
+                            break
+            continue
+        if not in_description:
+            continue
+        # description 字段值行
+        for word in _FORBIDDEN_DESCRIPTION_CONTENT:
+            if word in line:
+                violations.append((
+                    'WARNING',
+                    f'docstring L{line_no} description 字段含冗余内容「{word}」'
+                    f'——description 只写接口功能一句话，'
+                    f'HTTP 状态码 / 认证 / 错误码 / 响应结构 / 完整路径禁在每个接口重述'
+                    f'(v4.4.0+ description 字段禁用内容清单)',
+                ))
+                break
+        # description 块结束（下一个顶层字段，或 `---`）
+        if line and not line.startswith(' ') and ':' in stripped:
+            in_description = False
+        if stripped == '---':
+            in_description = False
+
+    return violations
+
+
+def check_no_path_in_description(docstring: str, route: str = '') -> list[tuple[str, str]]:
+    """检查 description 字段是否误写完整路径前缀（接口契约规范 §1.A.1）。
+
+    完整路径 = basePath + 蓝图 url_prefix + @bp.route 路径——已分别在 Swagger
+    template.basePath / Blueprint(url_prefix=...) / @bp.route(...) 声明，
+    不应在每个接口 description 重述。
+
+    判定：description 字段值形如 `/api/v1/xxx` / `完整路径：xxx` 命中。
+
+    Args:
+        docstring: 路由函数的 docstring 文本
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) — 空 list = 合规
+    """
+    violations: list[tuple[str, str]] = []
+    if not docstring:
+        return violations
+
+    lines = docstring.splitlines()
+    in_description = False
+    for line_no, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.endswith(':') and len(stripped) > 1 and not stripped.startswith('#'):
+            in_description = stripped.startswith('description:')
+            if in_description:
+                inline = stripped.split(':', 1)[1].strip()
+                if inline and (inline.startswith('/') or '完整路径' in inline or 'full path' in inline):
+                    violations.append((
+                        'WARNING',
+                        f'docstring L{line_no} description 字段含完整路径「{inline[:50]}」'
+                        f'——路径在 basePath / Blueprint url_prefix / @bp.route 声明，'
+                        f'不在 description 重述(v4.4.0+ description 字段禁用内容清单)',
+                    ))
+            continue
+        if not in_description:
+            continue
+        if line.startswith('/') and ('/' in line[1:]) or '完整路径' in line or 'full path' in line.lower():
+            violations.append((
+                'WARNING',
+                f'docstring L{line_no} description 字段含完整路径'
+                f'——路径在 basePath / Blueprint url_prefix / @bp.route 声明，'
+                f'不在 description 重述(v4.4.0+ description 字段禁用内容清单)',
+            ))
+        if line and not line.startswith(' ') and ':' in stripped:
+            in_description = False
+        if stripped == '---':
+            in_description = False
+
+    return violations
+
+
+def check_no_repeated_schema(docstring: str, route: str = '') -> list[tuple[str, str]]:
+    """检查 responses schema 是否重复展开通用结构（接口契约规范 §1.F）。
+
+    业务接口 responses.200 schema 应为 `$ref: '#/definitions/BizResponse'` / `PageResponse`
+    / `StandardResponse` / `FileResponse` 之一，**禁止**每个接口手工展开 `{code, msg, data}`。
+
+    判定：schemar 字符串含 `{code, msg, data}` / `{records, page_no, ...}` 模式
+    （即代码/配置内联展开）→ WARNING。
+
+    Args:
+        docstring: 路由函数的 docstring 文本
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) — 空 list = 合规
+    """
+    violations: list[tuple[str, str]] = []
+    if not docstring:
+        return violations
+
+    # 简单字符串匹配：检测 schema 段是否含 `code: {type: integer, ...}` 模式
+    # 即内联展开 StandardResponse / BizResponse 的 code + msg 字段
+    if 'code:' in docstring and 'msg:' in docstring and 'integer' in docstring and 'string' in docstring:
+        # 进一步定位：找一个 $ref BizResponse 替代
+        if '$ref: \'#/definitions/BizResponse\'' not in docstring and '$ref: "#/definitions/BizResponse"' not in docstring:
+            if 'responses:' in docstring:
+                # 简化判定：docstring 含 `code: {type: integer` 且 `msg: {type: string` 视为内联展开
+                if 'code:\n          type: integer' in docstring or 'code:\n            type: integer' in docstring:
+                    violations.append((
+                        'WARNING',
+                        f'docstring responses schema 疑似手工展开 {{code, msg, data}} 结构'
+                        f'——应改为 `$ref: \'#/definitions/BizResponse\'`'
+                        f'(v4.4.0+ 通用响应必须用 $ref 复用)',
+                    ))
+
+    # 检测分页结构展开（records + page_no + page_size + total_page + total_count）
+    page_keys = ('records:', 'page_no:', 'page_size:', 'total_page:', 'total_count:')
+    if all(k in docstring for k in page_keys) and '$ref: \'#/definitions/PageResponse\'' not in docstring and '$ref: "#/definitions/PageResponse"' not in docstring:
+        if 'responses:' in docstring:
+            violations.append((
+                'WARNING',
+                f'docstring responses.schema 疑似手工展开 {{records, page_no, ...}} 分页结构'
+                f'——应改为 `$ref: \'#/definitions/PageResponse\'`'
+                f'(v4.4.0+ 通用分页结构必须用 $ref 复用)',
+            ))
+
+    return violations
+
+
 def check_business_api_responses(docstring: str, route: str = '') -> list[tuple[str, str]]:
     """检查业务接口的 responses 块是否误列 4xx/5xx（v4.0.0+ 业务接口响应规范铁律）。
 
@@ -408,6 +605,35 @@ def main():
         # v4.0.1+ API 文档零引用铁律：description / summary 等字段值
         # 禁含「参考 / 参见 / 详见 / 引用」等指向其他文档的字眼
         for level, msg in check_no_reference_words(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.4.0+ description 字段禁用内容清单（接口契约规范 §1.A.1）
+        # description 字段只写"接口功能"这一句话；HTTP 状态码 / 认证方式 / 错误码清单
+        # / 响应结构 / 完整路径都禁在每个接口重述
+        for level, msg in check_description_redundant_content(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.4.0+ description 字段禁用完整路径
+        for level, msg in check_no_path_in_description(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.4.0+ 通用响应/分页结构必须用 $ref 复用
+        for level, msg in check_no_repeated_schema(docstring, route):
             full_msg = f'[{route}] {msg}'
             all_violations.append((level, line_no, func, full_msg))
             if level == 'ERROR':

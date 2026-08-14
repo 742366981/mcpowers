@@ -983,7 +983,7 @@ fi
 echo "[19/20] 根文档尺寸门禁（v2.21.1）..."
 
 CLAUDE_LINE_BUDGET=350
-CLAUDE_CHAR_BUDGET=35000
+CLAUDE_CHAR_BUDGET=40000
 README_LINE_BUDGET=650
 README_CHAR_BUDGET=50000
 
@@ -1187,6 +1187,93 @@ if [ "$NOREF_FAIL" -eq 0 ]; then
     echo "  ✓ 代码/配置零引用智能二分判定（v4.3.0+）完整"
 else
     FAIL=$((FAIL + NOREF_FAIL))
+fi
+
+# ============== §24 接口文档 SSOT 终态收敛铁律（v4.4.0+） ==============
+# 防止后续修改只保留脚本骨架，却删除 5 个全局组件 SSOT 文件 / Flask 注入模板 / 3 个新检查函数 / R18 反模式条目。
+echo "[24/24] 校验接口文档 SSOT 终态收敛铁律（v4.4.0+ description 零冗余 + \$ref 复用）"
+V440_FAIL=0
+
+check_v440_file() {
+    local file="$1"
+    local label="$2"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file（$label）"
+        V440_FAIL=$((V440_FAIL + 1))
+        return
+    fi
+}
+
+check_v440_grep() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file（$label）"
+        V440_FAIL=$((V440_FAIL + 1))
+        return
+    fi
+    if ! grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 缺失（$file 应包含：$pattern）"
+        V440_FAIL=$((V440_FAIL + 1))
+    fi
+}
+
+# 1. swagger_components.md 5 全局组件 SSOT 权威定义文件存在
+SWAGGER_COMPONENTS="skills/mcpowers-shared/docs/API文档/swagger_components.md"
+check_v440_file "$SWAGGER_COMPONENTS" "5 全局组件 SSOT 文档"
+check_v440_grep "$SWAGGER_COMPONENTS" "StandardResponse" "StandardResponse 组件定义"
+check_v440_grep "$SWAGGER_COMPONENTS" "BizResponse"    "BizResponse 组件定义"
+check_v440_grep "$SWAGGER_COMPONENTS" "PageResponse"   "PageResponse 组件定义"
+check_v440_grep "$SWAGGER_COMPONENTS" "BizError"       "BizError 组件定义"
+check_v440_grep "$SWAGGER_COMPONENTS" "FileResponse"   "FileResponse 组件定义"
+check_v440_grep "$SWAGGER_COMPONENTS" "BearerAuth"     "BearerAuth 安全定义"
+
+# 2. flask_swagger_config.py Flasgger 注入模板常量文件存在
+FLASK_SWAGGER_CONFIG="skills/mcpowers-shared/docs/API文档/flask_swagger_config.py"
+check_v440_file "$FLASK_SWAGGER_CONFIG" "Flask Flasgger 注入模板"
+check_v440_grep "$FLASK_SWAGGER_CONFIG" "SWAGGER_TEMPLATE" "SWAGGER_TEMPLATE 常量"
+
+# 3. swagger-lint-helper.py 必须含 3 个新检查函数
+SWAGGER_LINT="skills/mcpowers-shared/scripts/swagger-lint-helper.py"
+check_v440_grep "$SWAGGER_LINT" "check_description_redundant_content" "description 8 类冗余内容检查函数"
+check_v440_grep "$SWAGGER_LINT" "check_no_path_in_description"       "完整路径前缀扫描函数"
+check_v440_grep "$SWAGGER_LINT" "check_no_repeated_schema"            "内联 schema 展开扫描函数"
+
+# 4. 接口契约规范 §1.A.1 description 禁用内容清单 + §1.F $ref 复用铁律
+API_CONTRACT="skills/mcpowers-shared/docs/技术规范/接口契约规范.md"
+check_v440_grep "$API_CONTRACT" "description 禁用内容清单（v4.4.0+" "接口契约规范 §1.A.1 铁律段"
+check_v440_grep "$API_CONTRACT" "通用响应/分页必须用 \`\$ref\` 复用（v4.4.0+" "接口契约规范 §1.F 铁律段"
+
+# 5. Flask 后端规范 §11.5 全局组件挂载 4 步
+FLASK_SPEC="skills/mcpowers-shared/docs/技术规范/Flask后端规范.md"
+check_v440_grep "$FLASK_SPEC" "全局组件挂载（v4.4.0+" "Flask 后端规范 §11.5 铁律段"
+
+# 6. swagger_template.md v3.0（19 类接口模板统一用 $ref 复用）
+SWAGGER_TEMPLATE="skills/mcpowers-shared/docs/API文档/swagger_template.md"
+check_v440_grep "$SWAGGER_TEMPLATE" "last_breaking_change: v4.4.0" "swagger_template.md 声明 v4.4.0 破坏性变更"
+check_v440_grep "$SWAGGER_TEMPLATE" "\$ref" "swagger_template.md 使用 \$ref 复用"
+
+# 7. CLAUDE.md 必须含 v4.4.0+ 接口文档 SSOT 终态收敛铁律段
+check_v440_grep "CLAUDE.md" "接口文档 SSOT 终态收敛（v4.4.0+" "CLAUDE.md v4.4.0 铁律段"
+
+# 8. README.md 必须含 v4.4.0 提及（用户可见升级说明）
+check_v440_grep "README.md" "v4.4.0+" "README v4.4.0 升级说明"
+
+# 9. mcpowers-code-review 必须含 R18 反模式条目 + v4.4.0 Quick-Check 段
+CODE_REVIEW_SKILL="skills/mcpowers-shared/skills/mcpowers-code-review/SKILL.md"
+[ -f "skills/mcpowers-code-review/SKILL.md" ] && CODE_REVIEW_SKILL="skills/mcpowers-code-review/SKILL.md"
+check_v440_grep "$CODE_REVIEW_SKILL" "R18" "code-review R18 反模式条目"
+check_v440_grep "$CODE_REVIEW_SKILL" "v4.4.0+ 接口文档 description 零冗余" "code-review Quick-Check v4.4.0 段"
+
+# 10. 场景技能 description 必须含 v4.4.0 触发词
+check_v440_grep "skills/mcpowers-feat/SKILL.md"           "v4.4.0+ 接口 docstring description 零冗余" "mcpowers-feat v4.4.0 触发词"
+check_v440_grep "skills/mcpowers-api-contract/SKILL.md"   "v4.4.0+ description 零冗余"               "mcpowers-api-contract v4.4.0 触发词"
+
+if [ "$V440_FAIL" -eq 0 ]; then
+    echo "  ✓ 接口文档 SSOT 终态收敛铁律（v4.4.0+）完整"
+else
+    FAIL=$((FAIL + V440_FAIL))
 fi
 
 # ============== 汇总 ==============

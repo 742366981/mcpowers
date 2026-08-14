@@ -1,6 +1,6 @@
 ---
 name: mcpowers
-description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse/reverse-web/reverse-app/reverse-android/reverse-ios/reverse-flutter/reverse-hybrid/reverse-miniprogram/extract/min-module/sdk-design），禁止先调用本 skill 完整正文再判断。会话产物生成/接口候选排序/模块封装种子/目标接口候选→crawler-reverse。文档膨胀/治理顶层文档/历史教训归档/CHANGELOG 同步→进入维护模式（CLAUDE.md §6 维护指南）。完整路由表（32 行骨架）见「强制分流表」段；各技能 description 是 L1 语义匹配主依据。"
+description: "mcpowers 内部路由器（不直接面向用户触发，仅 L1 索引）。收到用户输入立即按强制分流表路由（feat/bugfix/refactor/optimize/deploy/requirement-change/init/git-*/brainstorm/plan/execute/tdd/code-review/subagent/prd/autoTest/api-contract/install-basics-skills/crawler-reverse/reverse-web/reverse-app/reverse-android/reverse-ios/reverse-flutter/reverse-hybrid/reverse-miniprogram/extract/min-module/sdk-design），禁止先调用本 skill 完整正文再判断。会话产物生成/接口候选排序/模块封装种子/目标接口候选→crawler-reverse。文档膨胀/治理顶层文档/历史教训归档/CHANGELOG 同步→进入维护模式（CLAUDE.md §6 维护指南）。v4.4.0+ 接口文档 description 零冗余 + 通用响应/分页/认证 $ref 复用铁律进入前置。完整路由表（32 行骨架）见「强制分流表」段；各技能 description 是 L1 语义匹配主依据。"
 ---
 
 # mcpowers 路由器

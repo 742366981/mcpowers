@@ -1748,6 +1748,126 @@ bash scripts/generate-frontend-ts.sh
 bash scripts/run-api-tests.sh
 ```
 
+### 11.5 全局组件挂载（v4.4.0+ 推荐）
+
+> **要点**：把通用响应 / 分页 / 认证等的 schema 集中到 `Swagger(app, template=SWAGGER_TEMPLATE).definitions`，**接口 docstring 用 `$ref` 复用**——避免每个接口重复展开 `{code, msg, data}` 这类通用结构。
+>
+> 完整 SSOT 定义见 [`docs/API文档/swagger_components.md`](../API文档/swagger_components.md)；本节只讲 Flask 应用工厂 mount 步骤。
+
+#### 11.5.1 复制模板常量
+
+```bash
+# 项目根目录
+cp docs/API文档参考/swagger_components.md docs/API文档/
+cp docs/API文档参考/flask_swagger_config.py apps/
+```
+
+#### 11.5.2 应用工厂注入（apps/__init__.py）
+
+```python
+from flasgger import NO_SANITIZER, Swagger
+
+from apps.flask_swagger_config import SWAGGER_TEMPLATE  # 11.5.1 复制进来的常量
+
+def register_swagger(app):
+    """注册 Swagger 文档（v4.4.0+ 启用全局组件复用）"""
+    if ENV_TYPE == 'prod':
+        return
+    
+    # 项目自己的 swagger UI 配置（沿用 v2.31.0 配置）
+    swagger_config = {
+        "headers": [],
+        "specs": [{"endpoint": "apispec_1", "route": "/apispec_1.json", "rule_filter": lambda rule: True}],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs/",
+        "swagger_ui_bundle_js": "//unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js",
+        "swagger_ui_standalone_preset_js": "//unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js",
+        "swagger_ui_css": "//unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css",
+    }
+    
+    # v4.4.0+ 关键：把全局组件注入 Swagger template
+    # 项目自己的 swagger UI config + 通用 swagger info + 全局组件
+    Swagger(
+        app,
+        config=swagger_config,
+        sanitizer=NO_SANITIZER,
+        template={
+            "swagger": "2.0",
+            "info": {"title": "API 文档", "version": "1.0.0"},
+            "host": f"{get_internal_ip()}:{app_conf.get('port')}",
+            "basePath": "/api",
+            "tags": [
+                {"name": "系统管理/认证管理", "description": "用户登录、退出等认证相关接口"},
+                {"name": "系统管理/用户管理", "description": "用户信息管理接口"},
+            ],
+            # v4.4.0+ 关键：把 5 个全局组件 + BearerAuth 注入
+            **SWAGGER_TEMPLATE,
+        },
+    )
+```
+
+#### 11.5.3 接口 docstring 复用全局组件
+
+**之前（v4.3.0 风格，每个接口重复展开）**：
+
+```yaml
+responses:
+  200:
+    description: 成功
+    schema:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            token: {type: string}
+            user_id: {type: integer}
+    examples:
+      application/json:
+        code: 0
+        msg: success
+        data: {token: "xxx", user_id: 1}
+```
+
+**之后（v4.4.0+ 风格，通用响应只写 `$ref`）**：
+
+```yaml
+responses:
+  200:
+    description: 成功
+    schema:
+      allOf:
+        - $ref: '#/definitions/BizResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token: {type: string, description: 访问 token}
+                user_id: {type: integer, description: 用户 ID}
+    examples:
+      application/json:
+        $ref: '#/definitions/BizResponse'
+```
+
+通用响应结构（`{code, msg, data}`）由 `BizResponse` 全局组件承担，接口 docstring 只写业务独有字段。
+
+#### 11.5.4 渐进迁移路径
+
+| 阶段 | 状态 | 项目动作 |
+|:-----|:-----|:---------|
+| v4.4.0 | WARNING（不阻断） | 新接口按 v4.4.0 风格写；存量接口逐步迁移 |
+| v4.5.0 | ERROR（强门禁） | 全量接口必须用 `$ref` |
+
+`swagger-lint-helper.py check_no_repeated_schema()` 从 v4.4.0 起对**新写**接口默认 WARNING，对存量接口先放行；v4.5.0 升级为 ERROR。
+
 ---
 
 ## 12. API路径规范（强制）

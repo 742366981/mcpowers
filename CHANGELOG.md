@@ -7,7 +7,56 @@
 
 ## [Unreleased]
 
+## v4.4.0 - 2026-08-14
+
+> 🎯 **核心定位**:接口文档 SSOT 终态收敛(用户决策 D 续:本次完成 v4.0.0 业务接口 HTTP 200 + v4.0.1 接口零引用 + v4.3.0 代码/配置零引用 + v4.4.0 接口 docstring 通用响应/分页/认证字段复用 + description 字段零冗余;三条用户决策合龙,接口文档闭环)
+
+### Breaking Changes
+
+- **接口 docstring 通用响应/分页结构必须用 `$ref` 复用(Warning 阶段)**:v4.4.0 起新增 `swagger-lint-helper.py check_no_repeated_schema()` 检测,业务接口 `responses.200.schema` 手工展开 `{code, msg, data}` / `{records, page_no, ...}` 视为 WARNING(渐进迁移)。**升级影响**:v4.4.0 不阻断,仅 stderr 提示;v4.5.0 起升级为 ERROR。**新接口按 v4.4.0 风格写;存量接口逐步迁移**。
+- **description 字段禁用 8 类冗余内容(Warning 阶段)**:v4.4.0 起新增 `check_description_redundant_content()` 检测,description 字段值含 HTTP 状态码 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束 / 路径内模块名 / summary 同义重复等 8 类内容视为 WARNING。**升级影响**:新接口必须 ≤ 30 字简短,只写接口功能;存量接口 review 阶段逐步清理。
+- **接口路径不重复 basePath / 蓝图前缀**:`description` 字段禁止写完整路径(Warning 阶段);基础路径在 `Swagger(app, template=...)` 的 `basePath` 字段声明,蓝图前缀在 `Blueprint(url_prefix=...)` 声明,接口路径在 `@bp.route` 装饰器声明。
+
+### 新增
+
+- **`skills/mcpowers-shared/docs/API文档/swagger_components.md`(v4.4.0+ 新文件)**:5 个全局组件 SSOT 权威定义 — `StandardResponse` / `BizResponse` / `PageResponse` / `BizError` / `FileResponse`;`BearerAuth` security definition + 全局默认 `security`。SSOT 反漂移:任意接口 docstring 改动,只改本组件一次即可全局生效。
+- **`skills/mcpowers-shared/docs/API文档/flask_swagger_config.py`(v4.4.0+ 新文件)**:Flask Flasgger 注入模板常量 `SWAGGER_TEMPLATE`,含 5 个全局组件 + BearerAuth + 全局 `security`。项目 `apps/__init__.py` 调 `Swagger(app, template={..., **SWAGGER_TEMPLATE})` 一行启用。
+- **`skills/mcpowers-shared/docs/技术规范/接口契约规范.md §1.A.1 描述字段禁用内容清单(v4.4.0+ 强制)`**:8 类禁用内容列表(HTTP 状态码 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束 / 路径内模块名 / summary 同义重复)+ 判别口诀「删掉这段文字后,对接方是否还能直接调通这个接口?能就说明是冗余,删」。
+- **`skills/mcpowers-shared/docs/技术规范/接口契约规范.md §1.F 通用响应/分页必须用 $ref 复用(v4.4.0+ 强制)`**:5 类全局组件 + 必须用 `$ref` 的 5 类内容对照表 + 4 类反模式 + 强检测项 4 项。
+- **`Flask后端规范.md §11.5 全局组件挂载(v4.4.0+ 推荐)`**:应用工厂注入步骤 + 复用示范 + 渐进迁移路径(v4.4.0 WARNING → v4.5.0 ERROR)。
+- **`swagger-lint-helper.py 3 个新检查函数(v4.4.0+)`**:
+  - `check_description_redundant_content()`:扫 8 类 description 禁用内容(HTTP 状态码 / 认证 / 错误码 / 响应结构等);
+  - `check_no_path_in_description()`:扫 description 字段含完整路径前缀;
+  - `check_no_repeated_schema()`:扫 responses schema 手工展开 `{code, msg, data}` / `{records, page_no, ...}`。
+- **`swagger_template.md 19 类模板 v4.4.0+ 重写`**:所有 13 类基础 CRUD + 6 类扩展模板(bind / unbind / submit-task / progress / cancel-task / webhook / stream) + 3 类认证模板(login / logout / refresh)统一改用 `$ref` 引用全局组件;`description` 全 ≤ 30 字简短;`security` 由全局默认继承,公开接口显式 `security: []` 覆盖。
+- **`mcpowers-code-review` R18(v4.4.0+ 新增)**:接口 docstring 冗余内容反模式条目 + description 字段禁用清单 + $ref 复用铁律 + v4.4.0+ Quick-Check 段含 4 条扫描命令（8 类描述禁用字眼扫描 / 通用响应/分页 `$ref` 复用扫描 / 完整路径前缀扫描 / 全局组件 `flask_swagger_config.py` 存在性扫描）。
+- **`scripts/check-readme-sync.sh` §24(v4.4.0+ 新增)**:v4.4.0+ 接口文档 SSOT 5 件套完整性校验 — `swagger_components.md` + `flask_swagger_config.py` + 3 个新检查函数 + 接口契约规范 §1.A.1/§1.F + Flask §11.5 + CLAUDE.md v4.4.0 铁律段 + README v4.4.0 提及 + mcpowers-code-review R18 段 + 场景技能 description v4.4.0 触发词。
+
+### 调整
+
+- **`swagger_template.md` 文件版本 2.0 → 3.0**:`last_breaking_change` v2.3.0 → v4.4.0;`stability` 升级为 `evolving`(说明 v4.4.0 起大幅重构,后续还会演化)。
+- **`接口契约规范.md` last_breaking_change v4.0.1 → v4.4.0**:本次新增 1 个强制铁律 §1.A.1 + 1 个强制铁律 §1.F,属小版本破坏性变更。
+- **`Flask后端规范.md` §11.4 后新增 §11.5**:全局组件挂载 4 小节(11.5.1 复制模板常量 / 11.5.2 应用工厂注入 / 11.5.3 接口 docstring 复用 / 11.5.4 渐进迁移路径)。
+- **`mcpowers-feat` v4.4.0 触发词增强**:description 末尾追加"v4.4.0+ 接口 docstring $ref 复用 + description 字段零冗余(全局组件 BizResponse/PageResponse 替代 `{code,msg,data}` 手工展开,描述 ≤ 30 字)"。
+- **`mcpowers-api-contract` v4.4.0 触发词增强**:description 末尾追加 v4.4.0+ description 零冗余 + 通用响应/分页/认证 `$ref` 复用铁律（5 个全局组件 StandardResponse/BizResponse/PageResponse/BizError/FileResponse + BearerAuth 在 Swagger template 一次性注入）。
+
+### 风险
+
+- **存量接口 docstring 迁移工作量大**:用户项目每个接口 docstring 都要按 3 步迁移(全局组件注入 → 改用 `$ref` → description 简化)。`swagger-lint-helper.py` v4.4.0 默认 WARNING 不阻断,只让 AI 看见;v4.5.0 升级为 ERROR,**给存量项目 1 个 minor 周期迁移**。
+- **Flasgger `$ref` 解析细节**:Flasgger 会把 `$ref: '#/definitions/BizResponse'` 字符串原样写到生成的 JSON spec,Swagger UI 5.17.14 自动解析(这是 OpenAPI 2.0 标准),无中间环节。Project 端的 `register_swagger` 注入 `SWAGGER_TEMPLATE` 必须在 `app.config['TESTING']` 设置之前完成,否则测试模式下可能拉不到全局组件。
+- **更激进的接口契约收敛会带来学习成本**:本特性合龙 v4.0.0 + v4.0.1 + v4.3.0 + v4.4.0 4 个铁律,新成员上手门槛抬高。建议:新项目从第一天就用 v4.4.0 风格;存量项目可开启 WARNING 期逐步迁移,不开 v4.5.0 ERROR 仓促升级。
+- **不影响 v4.3.0 既有检查**:`check_no_reference_words` + `check_business_api_responses` 行为完全保留;`swagger-lint-helper.py` 新增 3 个函数,既有 ERROR 级检查不被降级。
+
+### 迁移指南
+
+分 3 步:
+
+1. **升级到 v4.4.0**:`plugin.json` 自动 4.3.0 → 4.4.0;`/plugin` → Update now 即可。
+2. **应用工厂注入全局组件**:复制 `skills/mcpowers-shared/docs/API文档/flask_swagger_config.py` 到 `apps/`,在 `apps/__init__.py` 调 `Swagger(app, template={..., **SWAGGER_TEMPLATE})`(完整示例见 `Flask后端规范.md §11.5`)。
+3. **接口 docstring 改造**:逐个接口按 `swagger_template.md §6.1` 3 处替换(schema → $ref / examples → $ref / security 删除)+ description 简化 ≤ 30 字。新写接口按 v4.4.0 风格;存量接口 v4.4.0 期内保持 WARNING 不阻断,review 阶段逐步清理。
+
 ## v4.3.0 - 2026-08-14
+
 
 > 🎯 **核心定位**:代码/配置零引用铁律·智能二分判定(用户决策 D:之前 v4.0.1 接口零引用 + v4.0.2 .md 零引用已就绪,但代码注释/配置文件仍被「参考《代码规范》§11.3」「详见 utils/security.py」「按规范要求校验」字眼污染,要求最强有力点方案)
 

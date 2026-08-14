@@ -12,15 +12,15 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 |:-:|:-----|:-----|
 | 1 | **🎯 场景化技能路由** | 32 个技能（24 场景 + 8 方法）按用户意图关键词精准分流；逆向任务采用“统一入口 → 平台/运行时专项 → 统一验收”二级路由 |
 | 3 | **🗂️ 19 类接口速查表**（v2.3.0 从 13 类扩到 19 类） | list/detail/create/update/delete/batch-delete/update-status/dict/dict-cascader/import/export/template/upload/bind-unbind/submit-task+progress+cancel-task/webhook/stream-sse，AI 写接口前必查（栈无关通用契约） |
-| 3.5 | **📝 Swagger 接口契约硬门禁**（v2.31.0+ 写时硬拦；v4.0.0+ 业务接口只列 200；v4.0.1+ 接口文档零引用） | 写接口文件时 PreToolUse 阶段物理拦截 5 字段契约（`tags` + `summary` ≤ 30 字 + `description` ≤ 100 字 + `parameters` 含 `description`+`example` + `responses` 含 200 + 每个状态码含 `schema`+`examples`）不合规的写法，避免 commit 时一次性报 20+ 错误导致返工；**v4.0.0+ 业务接口 `responses` 只列 `200`**（业务错误走响应体 `code` 字段；4xx/5xx 由框架层抛出），`swagger-lint-helper.py check_business_api_responses` 写时拦截；**v4.0.1+ 接口文档零引用铁律**——`summary` / `description` / `parameters[].description` / `responses[].description` 等字段值禁含「参考 / 参见 / 详见 / 引用」+「according to / refer to / see also」等指向其他文档的字眼，让对接方只看接口文档就能调用，`swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` 双层拦截；**v4.0.2+ 文档编写铁律·画蛇添足字眼场景化规则**（v4.0.1 接口零引用的通则化推广）——AI 写任何文档（不只是接口）都需遵守 22 字眼清单 + 3 问决策（输出型禁止 / 参考型允许且必要 / 历史型允许），CLAUDE.md 必读铁律段 + 6 文档场景技能 description 触发词 + `post-write-check-doc-content.sh` 软门禁 + R16 审查门禁 6 层 AI 视野自动覆盖；项目根可放 `.swagger-required-fields.yml` 自定义必填字段；未装 swagger 的项目零摩擦放行；不向用户项目注入任何文件 |
+| 3.5 | **📝 Swagger 接口契约硬门禁**（v2.31.0+ 写时硬拦；v4.0.0+ 业务接口只列 200；v4.0.1+ 接口文档零引用；v4.4.0+ description 零冗余 + 通用响应/分页 `$ref` 复用） | 写接口文件时 PreToolUse 阶段物理拦截 5 字段契约（`tags` + `summary` ≤ 30 字 + `description` ≤ 100 字 + `parameters` 含 `description`+`example` + `responses` 含 200 + 每个状态码含 `schema`+`examples`）不合规的写法，避免 commit 时一次性报 20+ 错误导致返工；**v4.0.0+ 业务接口 `responses` 只列 `200`**（业务错误走响应体 `code` 字段；4xx/5xx 由框架层抛出），`swagger-lint-helper.py check_business_api_responses` 写时拦截；**v4.0.1+ 接口文档零引用铁律**——`summary` / `description` / `parameters[].description` / `responses[].description` 等字段值禁含「参考 / 参见 / 详见 / 引用」+「according to / refer to / see also」等指向其他文档的字眼，让对接方只看接口文档就能调用，`swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` 双层拦截；**v4.0.2+ 文档编写铁律·画蛇添足字眼场景化规则**（v4.0.1 接口零引用的通则化推广）——AI 写任何文档（不只是接口）都需遵守 22 字眼清单 + 3 问决策（输出型禁止 / 参考型允许且必要 / 历史型允许），CLAUDE.md 必读铁律段 + 6 文档场景技能 description 触发词 + `post-write-check-doc-content.sh` 软门禁 + R16 审查门禁 6 层 AI 视野自动覆盖；**v4.4.0+ 接口文档 SSOT 终态收敛**——description 字段禁用 8 类内容（HTTP 状态码 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束 / 路径内模块名 / summary 同义重复）；通用响应/分页/认证用 `$ref` 复用 5 个全局组件（`StandardResponse` / `BizResponse` / `PageResponse` / `BizError` / `FileResponse` + `BearerAuth`），接口路径不重复 `basePath` / 蓝图前缀——`swagger-lint-helper.py check_description_redundant_content` / `check_no_path_in_description` / `check_no_repeated_schema` 3 个新检查函数 + `swagger_components.md` + `flask_swagger_config.py` 落地资产；项目根可放 `.swagger-required-fields.yml` 自定义必填字段；未装 swagger 的项目零摩擦放行；不向用户项目注入任何文件 |
 | 4 | **🧪 方法论复用** | TDD 强制先写测试、Brainstorm 澄清需求、Plan 任务拆解、Code Review 铁律，被场景层按需编排 |
 | 5 | **🛡️ 铁律双约束** | 软约束（技能描述里的 `铁律` + `## 反模式（禁止）` ❌ 清单）+ 硬约束（Claude Code hooks 物理阻断危险命令 + v2.28.2 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder + 单下划线私有名）+ v2.27.0 Python 局部 import 拦截 + v2.27.4 stability / last_breaking_change / CHANGELOG Breaking Changes 段强制声明 + **v2.31.0 Swagger 5 字段契约硬门禁**（写时即拦，避免返工）） |
-| 6 | **🪝 5 个事件组 / 11 个 Hook 脚本**（v4.3.0+ 新增 pre/post-write-check-no-ref-words.sh 代码/配置零引用智能二分） | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.28.2+ 极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block）+ Python 局部 import 拦截（v2.27.0+）+ 规范 frontmatter 双字段强制声明（v2.27.4+）+ **doc-sync 物理门禁（v2.29.0+：path/route/env 三类检查，替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，装 mcpowers 即自动支持，**不向用户项目注入任何文件**）+ **Swagger 5 字段契约硬门禁（v2.31.0+：写接口文件即拦，避免返工）** + **文档画蛇添足字眼软门禁（v4.0.2+：写 .md 即扫 22 字眼，6 类路径白名单区分参考型/历史型文档）**、PostToolUse 提醒提交 |
+| 6 | **🪝 5 个事件组 / 11 个 Hook 脚本**（v4.3.0+ 新增 pre/post-write-check-no-ref-words.sh 代码/配置零引用智能二分；v4.4.0+ description 零冗余 + 通用响应 `$ref` 复用三检） | SessionStart 注入铁律、PreToolUse(Bash) 阻断 `rm -rf /`、PreToolUse(Write) 保护核心目录并提示接口文档同步 + 重复函数检测（v2.28.2+ 极简：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block）+ Python 局部 import 拦截（v2.27.0+）+ 规范 frontmatter 双字段强制声明（v2.27.4+）+ **doc-sync 物理门禁（v2.29.0+：path/route/env 三类检查，替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，装 mcpowers 即自动支持，**不向用户项目注入任何文件**）+ **Swagger 5 字段契约硬门禁（v2.31.0+：写接口文件即拦，避免返工）** + **文档画蛇添足字眼软门禁（v4.0.2+：写 .md 即扫 22 字眼，6 类路径白名单区分参考型/历史型文档）** + **v4.4.0+ description 字段 8 类禁用内容 + 完整路径 + 重复 schema 三检（WARNING 渐进迁移阶段）**、PostToolUse 提醒提交 |
 | 7 | **🔧 完全独立 Git 操作** | 内置 `commit / worktree / rollback / cleanBranches` 4 个 git 技能，无需依赖任何外部技能 |
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 32 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物封装形式 + v2.31.0 Swagger 字段契约硬门禁 + 顶层文档中文 + v2.18.0 浏览器自动化 DrissionPage 全场景默认）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 32 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物封装形式 + v2.31.0 Swagger 字段契约硬门禁 + v4.4.0 接口文档 SSOT 终态收敛 + 顶层文档中文 + v2.18.0 浏览器自动化 DrissionPage 全场景默认）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -97,7 +97,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
 │   │
-│   └── mcpowers-shared/               # 规范资产库（24 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层；v2.6.0 新增日志规范）
+│   └── mcpowers-shared/               # 规范资产库（24 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层；v2.6.0 新增日志规范；v4.4.0 新增 swagger_components.md + flask_swagger_config.py）
 │       ├── SKILL.md                   # 入口（按需加载导航）
 │       ├── mcpowers-spec-index/       # 规范导航（查表）
 │       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
@@ -143,7 +143,9 @@ mcpowers/                              # 仓库根 = 插件根
 │           │   └── 日志规范.md        # 🆕 v2.6.0 通用层（栈无关，7 类日志 + JSON 字段 + 大内容默认截断 + 脱敏黑名单；v2.7.0 明确按 type 切文件、禁止按级别切；v2.28.4+ §7.5 级别紧凑打印 + 控制台 stdout）
 │           ├── API文档/
 │           │   ├── API文档模板.md
-│           │   └── swagger_template.md
+│           │   ├── swagger_components.md  # 🆕 v4.4.0 5 个全局组件 SSOT 权威定义
+│           │   ├── flask_swagger_config.py  # 🆕 v4.4.0 Flask Flasgger 注入模板常量
+│           │   └── swagger_template.md  # 🆕 v4.4.0 19 类接口模板（13 基础 + 6 扩展 + 3 认证，统一用 $ref）
 │           ├── API契约/   # 🆕 v2.2.0（4 份资产 + 复用 API文档 模板 + tools/export_docs.py）
 │           │   ├── 集成方案对比.md
 │           │   ├── 加密方案对比.md
@@ -314,7 +316,7 @@ mcpowers 走 **Claude Code 插件市场格式**（`.claude-plugin/marketplace.js
 
 #### Claude Code（主推）
 
-- 完整支持 5 个 Hook 事件组 / 11 个脚本（`SessionStart` + `PreToolUse(Bash/Write/Edit)` + `PostToolUse`，含 v2.27.4+ `pre-write-check-spec-frontmatter.sh` + v2.29.0+ `pre-write-check-doc-sync.sh` + **v4.3.0+ `pre-write-check-no-ref-words.sh` 硬门禁 + `post-write-check-no-ref-words.sh` 软兜底 + 共享 `scripts/check_no_ref_words.py` 智能二分检测器**——代码/配置零引用铁律,7 优先级判定,R15 接口零引用 + R16 .md 零引用 + R17 代码/配置零引用三层铁律共用 22 字眼清单）
+- 完整支持 5 个 Hook 事件组 / 11 个脚本（`SessionStart` + `PreToolUse(Bash/Write/Edit)` + `PostToolUse`，含 v2.27.4+ `pre-write-check-spec-frontmatter.sh` + v2.29.0+ `pre-write-check-doc-sync.sh` + **v4.3.0+ `pre-write-check-no-ref-words.sh` 硬门禁 + `post-write-check-no-ref-words.sh` 软兜底 + 共享 `skills/mcpowers-shared/scripts/check_no_ref_words.py` 智能二分检测器**——代码/配置零引用铁律,7 优先级判定,R15 接口零引用 + R16 .md 零引用 + R17 代码/配置零引用三层铁律共用 22 字眼清单）
 - 路由器自动加载，用户输入自然语言路由到对应技能
 - 安装命令（**分两步执行，不要用 `&&` 串联**——`&&` 会让 Claude Code 把 install 部分也拼进 marketplace URL，导致 git clone 失败）：
 
@@ -515,7 +517,7 @@ git push origin master
 | 工具 | 用途 | 跑法 |
 |:-----|:-----|:-----|
 | `tests/plugin-verify.sh` | 插件结构验证 | `bash tests/plugin-verify.sh`（30+ 断言） |
-| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（12 类断言：清单、frontmatter、编排、版本、description、数字、引用、逆向拓扑、公共合同、浏览器所有权） |
+| `scripts/check-readme-sync.sh` | 校验 README ↔ 实际状态 | `bash scripts/check-readme-sync.sh`（23 类断言：清单、frontmatter、编排、版本、description、数字、引用、逆向拓扑、公共合同、浏览器所有权、v4.4.0 铁律 5 件套） |
 | `bash hooks/session-start.sh` | 验证铁律输出正确 | `bash hooks/session-start.sh`，看输出是否完整 |
 | `.github/workflows/doc-sync.yml` | **CI 物理门禁**（v2.5.2+） | PR 涉及技能体系变化时自动跑，CLAUDE.md/README.md 未同步则红 X |
 
@@ -527,7 +529,7 @@ bash scripts/check-readme-sync.sh && bash tests/plugin-verify.sh
 
 ### 工具脚本使用示例（v4.0.0+ export_docs.py）
 
-`skills/mcpowers-shared/tools/export_docs.py` 用于从 Flask/Flasgger 项目拉取 Swagger 2.0 spec，导出 `openapi.json` + `API文档.md`。v4.0.0 起内置 **5 字段契约硬门禁**（写时 + 导出时双拦截）+ **业务接口响应规范**（HTTP 仅 200，业务错误走 code 字段）+ **可选 `--serve`** 启动 swagger-ui 在线文档。v4.2.0 起新增 **表格排版防护**（`_md_cell_safe()` 4 步走：规范化 / 不可见字符清理 / Markdown 转义 / 危险结构防御）+ **XSS 阻断**（`_scan_xss_risk()` 10 类 XSS 模式命中即 exit 2）+ **`data: array` 响应字段渲染死代码修复**。
+`skills/mcpowers-shared/tools/export_docs.py` 用于从 Flask/Flasgger 项目拉取 Swagger 2.0 spec，导出 `openapi.json` + `API文档.md`。v4.0.0 起内置 **5 字段契约硬门禁**（写时 + 导出时双拦截）+ **业务接口响应规范**（HTTP 仅 200，业务错误走 code 字段）+ **可选 `--serve`** 启动 swagger-ui 在线文档。v4.2.0 起新增 **表格排版防护**（`_md_cell_safe()` 4 步走：规范化 / 不可见字符清理 / Markdown 转义 / 危险结构防御）+ **XSS 阻断**（`_scan_xss_risk()` 10 类 XSS 模式命中即 exit 2）+ **`data: array` 响应字段渲染死代码修复**。v4.4.0 起新增 **接口文档 SSOT 收敛校验**——description 字段 8 类禁用内容扫描（业务接口 HTTP 200 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束 / 路径内模块名 / summary 同义重复）+ 通用响应/分页/认证 `$ref` 复用检测（5 个全局组件 `StandardResponse` / `BizResponse` / `PageResponse` / `BizError` / `FileResponse` + `BearerAuth`，WARNING 渐进迁移阶段）+ 完整路径不重复 `basePath` / 蓝图前缀检测——避免对接方在接口 docstring 看 3 处相同 `{code, msg, data}` 重复定义。
 
 ```bash
 # 1. Flask 项目模式（默认）—— 自动向上找 apps/ 子目录，加载 create_app

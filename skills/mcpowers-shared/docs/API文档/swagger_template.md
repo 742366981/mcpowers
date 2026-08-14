@@ -1,164 +1,106 @@
 ---
-title: Flasgger 文档模板
+title: Flasgger 文档模板（v4.4.0+ 精简版）
 type: tech-template
 applies_to: [Flask后端, Flasgger]
 extends_from: 接口契约规范.md
 priority: required
-version: 2.0
-last_updated: 2026-07-16
+version: 3.0
+last_updated: 2026-08-14
+stability: evolving
+last_breaking_change: v4.4.0
 ---
 
-# Flasgger 文档模板（Flask 实现参考）
+# Flasgger 文档模板（Flask/Flasgger 实现指南）
 
-> **⚠️ 重定位说明（v2.3.0 起）**：
+> **v4.4.0 重写**：所有 19 类模板统一改用 `$ref` 复用全局组件（`BizResponse` / `PageResponse` / `BizError` / `FileResponse`），不再每个接口展开 `{code, msg, data}`；`description` 全部 ≤ 30 字简短；`security` 由全局默认继承，公开接口显式 `security: []` 覆盖。
 >
-> | 你要做什么 | 读哪份文档 |
-> |:----------|:----------|
-> | **设计任何接口的契约**（任何栈）| [`docs/技术规范/接口契约规范.md`](../技术规范/接口契约规范.md) ← **通用层** |
-> | **用 Flask/Flasgger 写 docstring** | **本文档** ← 实现层 |
-> | **业务规范**（路径/错误码/响应） | [`docs/技术规范/API规范.md`](../技术规范/API规范.md) |
->
-> **本文档是 [`接口契约规范.md`](../技术规范/接口契约规范.md) 的 Flask/Flasgger 实现参考**，不是主规范。
->
-> **何时读本文档**：
-> - 项目使用 **Flask + Flasgger** 框架，需要在视图函数 docstring 中写 Swagger 注解时
-> - 需要复制现成的 docstring 模板（13 类基础 CRUD）时
->
-> **何时不读本文档**：
-> - 用 FastAPI / Spring Boot / Express / Gin → 直接看通用层，然后跳到 §3.2-§3.5 语言模板
-> - 只想知道接口设计原则 → 只看通用层即可
+> **核心原则**：接口 docstring 只写**这个接口独有的业务字段**——通用响应 / 分页 / 认证全部由全局组件承担。
 
 ---
 
-## 版本声明
+## 0. 前置准备（应用工厂注入全局组件）
 
-本文档基于 **Swagger 2.0** (OpenAPI 2.0) 规范编写。当前项目工具链（Flasgger）对此版本有良好支持。
+`apps/__init__.py` 调 `Swagger(app, template=SWAGGER_TEMPLATE)` 挂载 5 个全局组件 + BearerAuth：
 
-复制下面的模板到你的视图函数前，根据实际接口修改参数。
-
----
-
-## 注意事项
-
-### 格式要求
-1. **docstring格式**：直接写在视图函数的 `"""..."""` 中，使用 `---` 分隔
-2. **标题与`---`之间不能有空行**：否则Flasgger解析会出错
-3. **使用 `NO_SANITIZER`**：在 `register_swagger` 时传入，防止换行转义为 `<br/>`
-
-### 正确格式
 ```python
-@auth_bp.route('/login', methods=['POST'])
-def login():
-    """用户登录
----
-tags:
-  - 系统管理/认证管理
-summary: 用户登录
-description: 使用用户名或手机号和密码登录，返回Token。
-parameters:
-  - in: body
-    name: body
-    required: true
-    schema:
-      type: object
-      properties:
-        username:
-          type: string
-          description: 用户名（手机号也可以）
-          example: admin
-        password:
-          type: string
-          description: 密码(MD5)
-          example: 0192023a7bbd73250516f069df18b500
-      required:
-        - username
-        - password
-responses:
-  200:
-    description: 登录成功
-    examples:
-      application/json:
-        code: 0
-        msg: "success"
-"""
+from apps.flask_swagger_config import SWAGGER_TEMPLATE
+Swagger(app, template={"swagger": "2.0", "info": {...}, "basePath": "/api", "tags": [...], **SWAGGER_TEMPLATE})
 ```
 
-### 错误格式（会导致description显示<br/>）
-```python
-# ❌ 标题和---之间有空行
-def login():
-    """用户登录
-
-    ---
-    tags:
-    ...
-```
+完整 SSOT 定义在同目录 `swagger_components.md` + `flask_swagger_config.py`；Flask mount 步骤在 Flask 实现层规范第 §11.5 节展开。
 
 ---
 
-## 统一响应说明
+## 1. 通用约定
 
-**所有接口统一返回 HTTP 200 状态码**，成功或失败通过响应体中的 `code` 字段判断：
+### 1.1 字段缩写约定
 
-| code | 说明 |
-|:----:|:-----|
-| 0 | 成功 |
-| 400 | 参数错误 |
-| 401 | 未登录或token过期 |
-| 403 | 无权限 |
-| 404 | 资源不存在 |
-| 500 | 服务器错误 |
+| 写法 | 含义 |
+|:-----|:-----|
+| `schema: {$ref: '#/definitions/BizResponse'}` | 通用业务响应（带 data） |
+| `schema: {$ref: '#/definitions/StandardResponse'}` | 通用业务响应（无 data） |
+| `schema: {$ref: '#/definitions/PageResponse'}` | 分页列表响应 |
+| `schema: {$ref: '#/definitions/BizError'}` | 业务错误 |
+| `schema: {$ref: '#/definitions/FileResponse'}` | 文件流 |
+| `examples: {application/json: {$ref: '#/definitions/BizResponse'}}` | examples 复用本体 |
 
-**响应格式**：
-```json
-{
-  "code": 0,
-  "msg": "success",
-  "data": {}
-}
-```
+### 1.2 模板字段选择清单
+
+| 接口类型 | responses schema | examples |
+|:---------|:-----------------|:---------|
+| list（分页） | `PageResponse` | `PageResponse` |
+| detail / create / update / delete / dict / bind / unbind / submit-task / cancel-task | `BizResponse` | `BizResponse` |
+| update / delete / cancel-task（无 data） | `StandardResponse` | `StandardResponse` |
+| export / template/download / stream | `FileResponse` | `BizResponse` |
+| progress / import（带状态） | `BizResponse` | `BizResponse` |
+| webhook（公开回调） | `BizResponse` | `BizResponse` |
+| 公开接口（login / register / refresh） | `BizResponse` | `BizResponse`（含 `security: []`） |
+
+### 1.3 路径前缀约定
+
+完整路径 = `basePath` + 蓝图 `url_prefix` + `@bp.route` 路径。**接口 docstring 不写完整路径**——基础路径在 `Swagger(app, template=...)` 的 `basePath` 字段声明；蓝图前缀在 `Blueprint(name, url_prefix='/xxx')` 声明；接口路径在 `@bp.route` 装饰器声明。
+
+### 1.4 description 字段硬约束（v4.4.0+ 加强）
+
+- **≤ 30 字**（仅接口功能一句话）
+- **禁写**：HTTP 状态码 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束
+- **禁写**：summary 同义重复 / "待补充" / "TBD" / "TODO"
+
+完整禁用清单在接口契约规范 §1.A.1 段。
 
 ---
 
-## 认证说明
+## 2. 13 类基础 CRUD 模板（v4.4.0+ 精简版）
 
-- 除登录接口外，其他接口均需认证
-- 认证格式：在 Authorization header 中填入 `Bearer {token}`
-- token 通过登录接口获取
-
----
-
-## GET 列表接口模板
+### 2.1 GET list（分页列表）
 
 ```python
 @auth_bp.route('/list', methods=['GET'])
 def list():
-    """查询列表
+    """分页查询列表
 ---
 tags:
   - 大模块/子模块
-summary: 查询列表
-description: 分页查询列表，支持筛选条件。
-security:
-  - Bearer: []
+summary: 分页查询列表
+description: 支持多条件筛选与分页排序。
 parameters:
   - in: query
     name: page_no
     type: integer
     required: false
-    description: 页码，从1开始
+    description: 页码，从 1 开始
     example: 1
   - in: query
     name: page_size
     type: integer
     required: false
-    description: 每页显示数量
-    example: 10
+    description: 每页条数
+    example: 20
   - in: query
     name: keyword
     type: string
     required: false
-    description: 关键词（模糊查询）
+    description: 关键词（模糊匹配）
     example: ""
   - in: query
     name: status
@@ -168,71 +110,16 @@ parameters:
     example: 1
 responses:
   200:
-    description: 查询成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/PageResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          records:
-            - id: 1
-              name: "示例"
-              status: 1
-          page_no: 1
-          page_size: 10
-          total_page: 1
-          total_count: 1
-        msg: "success"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "success"
-        data:
-          type: object
-          properties:
-            records:
-              type: array
-              items:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                    description: 记录ID
-                    example: 1
-                  name:
-                    type: string
-                    description: 名称
-                    example: "示例"
-                  status:
-                    type: integer
-                    description: 状态
-                    example: 1
-            page_no:
-              type: integer
-              description: 当前页码
-              example: 1
-            page_size:
-              type: integer
-              description: 每页数量
-              example: 10
-            total_page:
-              type: integer
-              description: 总页数
-              example: 1
-            total_count:
-              type: integer
-              description: 总记录数
-              example: 1
+        $ref: '#/definitions/PageResponse'
 """
 ```
 
----
-
-## GET 详情接口模板
+### 2.2 GET detail（详情）
 
 ```python
 @auth_bp.route('/detail', methods=['GET'])
@@ -242,57 +129,26 @@ def detail():
 tags:
   - 大模块/子模块
 summary: 查询详情
-description: 根据ID查询详细信息。
-security:
-  - Bearer: []
+description: 根据 ID 查询完整记录。
 parameters:
   - in: query
     name: id
     type: integer
     required: true
-    description: 记录ID
+    description: 记录 ID
     example: 1
 responses:
   200:
-    description: 查询成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          id: 1
-          name: "示例"
-          status: 1
-        msg: "success"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "success"
-        data:
-          type: object
-          properties:
-            id:
-              type: integer
-              description: 记录ID
-              example: 1
-            name:
-              type: string
-              description: 名称
-              example: "示例"
-            status:
-              type: integer
-              description: 状态
-              example: 1
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## POST 创建接口模板
+### 2.3 POST create
 
 ```python
 @auth_bp.route('/create', methods=['POST'])
@@ -303,8 +159,6 @@ tags:
   - 大模块/子模块
 summary: 创建
 description: 创建新记录。
-security:
-  - Bearer: []
 parameters:
   - in: body
     name: body
@@ -315,11 +169,11 @@ parameters:
         name:
           type: string
           description: 名称
-          example: "示例名称"
+          example: 示例名称
         code:
           type: string
           description: 编码
-          example: "CODE001"
+          example: CODE001
         status:
           type: integer
           description: 状态（0=禁用，1=启用）
@@ -327,41 +181,18 @@ parameters:
       required:
         - name
         - code
-      example:
-        name: "示例名称"
-        code: "CODE001"
-        status: 1
 responses:
   200:
-    description: 创建成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          id: 2
-        msg: "创建成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "创建成功"
-        data:
-          type: object
-          properties:
-            id:
-              type: integer
-              description: 新创建的记录ID
-              example: 2
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## POST 更新接口模板
+### 2.4 POST update
 
 ```python
 @auth_bp.route('/update', methods=['POST'])
@@ -371,9 +202,7 @@ def update():
 tags:
   - 大模块/子模块
 summary: 更新
-description: 更新记录信息。
-security:
-  - Bearer: []
+description: 按 ID 更新记录字段。
 parameters:
   - in: body
     name: body
@@ -383,47 +212,30 @@ parameters:
       properties:
         id:
           type: integer
-          description: 记录ID
+          description: 记录 ID
           example: 1
         name:
           type: string
           description: 名称
-          example: "新名称"
+          example: 新名称
         status:
           type: integer
-          description: 状态（0=禁用，1=启用）
+          description: 状态
           example: 1
       required:
         - id
-      example:
-        id: 1
-        name: "新名称"
-        status: 1
 responses:
   200:
-    description: 更新成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "更新成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "更新成功"
-        data:
-          type: object
-          example: {}
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## POST 删除接口模板
+### 2.5 POST delete
 
 ```python
 @auth_bp.route('/delete', methods=['POST'])
@@ -433,9 +245,7 @@ def delete():
 tags:
   - 大模块/子模块
 summary: 删除
-description: 删除记录。
-security:
-  - Bearer: []
+description: 软删除指定记录。
 parameters:
   - in: body
     name: body
@@ -445,37 +255,22 @@ parameters:
       properties:
         id:
           type: integer
-          description: 记录ID
+          description: 记录 ID
           example: 1
       required:
         - id
-      example:
-        id: 1
 responses:
   200:
-    description: 删除成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "删除成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "删除成功"
-        data:
-          type: object
-          example: {}
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## POST 批量删除接口模板
+### 2.6 POST batch-delete
 
 ```python
 @auth_bp.route('/batch-delete', methods=['POST'])
@@ -485,9 +280,7 @@ def batch_delete():
 tags:
   - 大模块/子模块
 summary: 批量删除
-description: 批量删除记录。
-security:
-  - Bearer: []
+description: 批量删除多条记录（上限 100 条）。
 parameters:
   - in: body
     name: body
@@ -499,37 +292,22 @@ parameters:
           type: array
           items:
             type: integer
-          description: 记录ID列表
+          description: 记录 ID 列表
           example: [1, 2, 3]
       required:
         - ids
-      example:
-        ids: [1, 2, 3]
 responses:
   200:
-    description: 删除成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "删除成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "删除成功"
-        data:
-          type: object
-          example: {}
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## POST 状态修改接口模板
+### 2.7 POST update-status
 
 ```python
 @auth_bp.route('/update-status', methods=['POST'])
@@ -539,9 +317,7 @@ def update_status():
 tags:
   - 大模块/子模块
 summary: 修改状态
-description: 修改记录状态。
-security:
-  - Bearer: []
+description: 单独修改记录状态字段。
 parameters:
   - in: body
     name: body
@@ -551,43 +327,27 @@ parameters:
       properties:
         id:
           type: integer
-          description: 记录ID
+          description: 记录 ID
           example: 1
         status:
           type: integer
           description: 状态（0=禁用，1=启用）
-          example: 1
+          example: 0
       required:
         - id
         - status
-      example:
-        id: 1
-        status: 0
 responses:
   200:
-    description: 修改成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "修改成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "修改成功"
-        data:
-          type: object
-          example: {}
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## GET 数据字典接口模板
+### 2.8 GET dict（数据字典）
 
 ```python
 @auth_bp.route('/dict', methods=['GET'])
@@ -597,9 +357,7 @@ def dict():
 tags:
   - 大模块/子模块
 summary: 获取数据字典
-description: 获取指定类型的数据字典列表，用于下拉选项。
-security:
-  - Bearer: []
+description: 按字典类型查询选项列表。
 parameters:
   - in: query
     name: type
@@ -609,107 +367,26 @@ parameters:
     example: account_type
 responses:
   200:
-    description: 查询成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          - dictCode: 1146
-            dictSort: 20
-            dictLabel: "PayPal"
-            dictValue: "PAY_PAL"
-            dictType: "account_type"
-            cssClass: null
-            listClass: null
-            defaultFlag: "1"
-            status: "0"
-            remark: null
-          - dictCode: 1147
-            dictSort: 10
-            dictLabel: "银行转账"
-            dictValue: "BANK_TRANSFER"
-            dictType: "account_type"
-            cssClass: null
-            listClass: null
-            defaultFlag: "0"
-            status: "0"
-            remark: null
-        msg: "success"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "success"
-        data:
-          type: array
-          items:
-            type: object
-            properties:
-              dictCode:
-                type: integer
-                description: 字典编码（对应数据库id）
-                example: 1146
-              dictSort:
-                type: integer
-                description: 排序号
-                example: 20
-              dictLabel:
-                type: string
-                description: 显示文本（对应数据库name，没有时用code）
-                example: "PayPal"
-              dictValue:
-                type: string
-                description: 存储值（对应数据库code，没有时用name）
-                example: "PAY_PAL"
-              dictType:
-                type: string
-                description: 字典类型
-                example: "account_type"
-              cssClass:
-                type: string
-                description: CSS样式类
-                example: null
-              listClass:
-                type: string
-                description: 列表样式类
-                example: null
-              defaultFlag:
-                type: string
-                description: 默认标志
-                example: "1"
-              status:
-                type: string
-                description: 状态
-                example: "0"
-              remark:
-                type: string
-                description: 备注
-                example: null
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## GET 级联下拉接口模板（dict/cascader）
-
-> **新增** - 适用于地区选择、组织架构、分类层级等树形数据
-> **响应规范**：详见 `API规范.md` 第 3.4 节
+### 2.9 GET dict/cascader（级联下拉）
 
 ```python
 @order_bp.route('/dict/cascader', methods=['GET'])
 def cascader_dict():
-    """级联下拉
+    """级联下拉数据
 ---
 tags:
   - 大模块/子模块
 summary: 级联下拉数据
-description: |
-  返回树形结构数据，适用于 Element UI 的 el-cascader 组件。
-  value 字段建议使用路径格式（如 "0-0-0"）保证唯一性。
+description: 返回树形结构，value 用路径格式（如 0-0-0）保证唯一。
 parameters:
   - in: query
     name: type
@@ -719,32 +396,16 @@ parameters:
     example: region
 responses:
   200:
-    description: 树形数据
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          - label: 四川省
-            value: "510000"
-            children:
-              - label: 成都市
-                value: "510100"
-                children:
-                  - label: 武侯区
-                    value: "510107"
-              - label: 绵阳市
-                value: "510700"
-                children:
-                  - label: 涪城区
-                    value: "510703"
-                    disabled: true
-        msg: success
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## GET 导出列表接口模板（文件下载）
+### 2.10 GET export（导出文件流）
 
 ```python
 @auth_bp.route('/export', methods=['GET'])
@@ -754,9 +415,7 @@ def export():
 tags:
   - 大模块/子模块
 summary: 导出列表
-description: 导出数据为 Excel 文件。
-security:
-  - Bearer: []
+description: 按筛选条件导出 Excel 文件流。
 parameters:
   - in: query
     name: keyword
@@ -772,35 +431,16 @@ parameters:
     example: 1
 responses:
   200:
-    description: |
-      Excel 文件流（二进制下载）
-      - Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-      - Content-Disposition: attachment; filename={module}_export_{YYYYMMDD}.xlsx
+    description: Excel 文件流
+    schema:
+      $ref: '#/definitions/FileResponse'
     examples:
       application/json:
-        code: 0
-        msg: "导出成功"
-    schema:
-      type: file
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
-> **后端实现要点**（Flask）：
-> ```python
-> from io import BytesIO
-> from flask import make_response
->
-> response = make_response(output.getvalue())
-> response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-> response.headers['Content-Disposition'] = 'attachment; filename=role_export_20240101.xlsx'
-> return response
-> ```
-> 完整实现见 `导入导出规范.md` §10
-> 大于 1万行建议使用流式导出（§13.4）
-
----
-
-## GET 模板下载接口模板
+### 2.11 GET template/download
 
 ```python
 @auth_bp.route('/template/download', methods=['GET'])
@@ -811,23 +451,18 @@ tags:
   - 大模块/子模块
 summary: 下载导入模板
 description: 下载 Excel 导入模板。
-security:
-  - Bearer: []
 responses:
   200:
     description: Excel 文件流
+    schema:
+      $ref: '#/definitions/FileResponse'
     examples:
       application/json:
-        code: 0
-        msg: "下载成功"
-    schema:
-      type: file
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## POST 导入接口模板
+### 2.12 POST import（导入）
 
 ```python
 @auth_bp.route('/import', methods=['POST'])
@@ -837,11 +472,7 @@ def import_():
 tags:
   - 大模块/子模块
 summary: 导入数据
-description: |
-  通过 Excel 文件导入数据。
-  - 唯一性字段：xxx_code（编码）/xxx_name（名称，模糊匹配不推荐）
-  - 重复策略：失败（详见 导入导出规范.md §14）
-  - 大于 1000 行请使用异步任务接口（/import-task）
+description: 通过 Excel 导入数据，失败行最多返回 10 条。
 parameters:
   - in: formData
     name: file
@@ -850,64 +481,16 @@ parameters:
     description: Excel 文件（.xlsx/.csv）
 responses:
   200:
-    description: 导入结果
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          total: 100
-          success: 95
-          fail: 5
-          errors:
-            - row: 3
-              message: "第3行角色编码 'ADMIN' 已存在"
-            - row: 17
-              message: "第17行部门编码 'DEPT99' 不存在"
-        msg: "导入完成"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "导入完成"
-        data:
-          type: object
-          properties:
-            total:
-              type: integer
-              description: 总行数
-              example: 100
-            success:
-              type: integer
-              description: 成功行数
-              example: 95
-            fail:
-              type: integer
-              description: 失败行数
-              example: 5
-            errors:
-              type: array
-              description: 错误详情列表（最多 10 条）
-              items:
-                type: object
-                properties:
-                  row:
-                    type: integer
-                    description: 失败行号（从 2 开始，第 1 行是表头）
-                    example: 3
-                  message:
-                    type: string
-                    description: 错误原因（含字段名+值+已存在信息）
-                    example: "第3行角色编码 'ADMIN' 已存在"
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## POST 文件上传接口模板
+### 2.13 POST upload（通用文件上传）
 
 ```python
 @auth_bp.route('/upload', methods=['POST'])
@@ -917,9 +500,7 @@ def upload():
 tags:
   - 大模块/子模块
 summary: 上传文件
-description: 上传文件到服务器。
-security:
-  - Bearer: []
+description: 上传文件到服务器（单文件 ≤ 10MB）。
 parameters:
   - in: formData
     name: file
@@ -928,147 +509,20 @@ parameters:
     description: 文件
 responses:
   200:
-    description: 上传成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          url: "/uploads/xxx.png"
-        msg: "上传成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "上传成功"
-        data:
-          type: object
-          properties:
-            url:
-              type: string
-              description: 文件访问URL
-              example: "/uploads/xxx.png"
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
 ---
 
-## POST 登录接口模板（无需认证）
+## 3. 6 类扩展模板
 
-```python
-@auth_bp.route('/login', methods=['POST'])
-def login():
-    """用户登录
----
-tags:
-  - 系统管理/认证管理
-summary: 用户登录
-description: 使用用户名或手机号和密码登录，返回Token。
-parameters:
-  - in: body
-    name: body
-    required: true
-    schema:
-      type: object
-      properties:
-        username:
-          type: string
-          description: 用户名（手机号也可以）
-          example: admin
-        password:
-          type: string
-          description: 密码(MD5)
-          example: 0192023a7bbd73250516f069df18b500
-      required:
-        - username
-        - password
-      example:
-        username: admin
-        password: 0192023a7bbd73250516f069df18b500
-responses:
-  200:
-    description: 登录成功
-    examples:
-      application/json:
-        code: 0
-        data:
-          token: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
-          user_id: 1
-          username: "admin"
-        msg: "success"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "success"
-        data:
-          type: object
-          properties:
-            token:
-              type: string
-              description: 访问令牌
-              example: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
-            user_id:
-              type: integer
-              description: 用户ID
-              example: 1
-            username:
-              type: string
-              description: 用户名
-              example: "admin"
-"""
-```
-
----
-
-## POST 登出接口模板
-
-```python
-@auth_bp.route('/logout', methods=['POST'])
-@login_required
-def logout():
-    """退出登录
----
-tags:
-  - 系统管理/认证管理
-summary: 退出登录
-description: 用户退出登录，使当前Token失效。
-security:
-  - Bearer: []
-responses:
-  200:
-    description: 退出成功
-    examples:
-      application/json:
-        code: 0
-        msg: "退出成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "退出成功"
-        data:
-          type: object
-          example: {}
-"""
-```
-
----
-
-## POST 关联表绑定接口模板（bind）
-
-> **新增**（v2.4.0）— 适用于关联表操作（用户角色绑定、用户权限分配等）
+### 3.1 POST bind（绑定）
 
 ```python
 @user_role_bp.route('/bind', methods=['POST'])
@@ -1078,7 +532,7 @@ def bind_user_role():
 tags:
   - 系统管理/角色分配
 summary: 绑定用户角色
-description: 为已存在的用户绑定一个或多个角色。
+description: 为用户绑定一个或多个角色（已绑定则跳过）。
 parameters:
   - in: body
     name: body
@@ -1099,33 +553,18 @@ parameters:
       required:
         - user_id
         - role_ids
-      example:
-        user_id: 1
-        role_ids: [1, 2, 3]
 responses:
   200:
-    description: 绑定成功（已绑定则跳过，返回提示）
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "绑定成功"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "绑定成功"
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## POST 关联表解绑接口模板（unbind）
-
-> **新增**（v2.4.0）
+### 3.2 POST unbind（解绑）
 
 ```python
 @user_role_bp.route('/unbind', methods=['POST'])
@@ -1156,24 +595,18 @@ parameters:
       required:
         - user_id
         - role_ids
-      example:
-        user_id: 1
-        role_ids: [1]
 responses:
   200:
-    description: 解绑成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "解绑成功"
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## POST 异步任务提交接口模板（submit-task）
-
-> **新增**（v2.4.0）— 长时间任务（如批量导入/导出/报表生成）异步化处理
+### 3.3 POST submit-task（异步提交）
 
 ```python
 @report_bp.route('/generate/submit-task', methods=['POST'])
@@ -1183,7 +616,7 @@ def submit_generate_task():
 tags:
   - 业务模块/报表管理
 summary: 提交报表生成任务
-description: 异步提交报表生成任务，返回 task_id 用于查询进度。
+description: 异步提交任务，返回 task_id 用于查询进度。
 parameters:
   - in: body
     name: body
@@ -1209,124 +642,57 @@ parameters:
         - report_type
         - date_range_start
         - date_range_end
-      example:
-        report_type: monthly_sales
-        date_range_start: "2024-01-01"
-        date_range_end: "2024-01-31"
 responses:
   200:
-    description: 任务提交成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          task_id: "t_20240715_abc123"
-        msg: "已提交"
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "已提交"
-        data:
-          type: object
-          properties:
-            task_id:
-              type: string
-              description: 任务 ID（UUID，用于查询进度）
-              example: t_20240715_abc123
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## GET 异步任务进度查询接口模板（progress）
-
-> **新增**（v2.4.0）— 必须与 submit-task 配合使用
+### 3.4 GET progress（任务进度）
 
 ```python
 @report_bp.route('/generate/progress', methods=['GET'])
 def query_generate_progress():
-    """查询报表生成进度
+    """查询任务进度
 ---
 tags:
   - 业务模块/报表管理
-summary: 查询报表生成进度
-description: 根据 task_id 查询异步任务的当前状态和进度。
+summary: 查询任务进度
+description: 根据 task_id 查询任务状态与进度。
 parameters:
   - in: query
     name: task_id
     type: string
     required: true
-    description: 任务 ID（来自 submit-task 接口的 data.task_id）
+    description: 任务 ID（来自 submit-task 接口）
     example: t_20240715_abc123
 responses:
   200:
-    description: 查询成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        data:
-          status: running
-          progress: 50
-          result: null
-          error: null
-        msg: success
-    schema:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        data:
-          type: object
-          properties:
-            status:
-              type: string
-              enum: [pending, running, success, failed, cancelled]
-              description: |
-                任务状态：
-                - pending：等待调度
-                - running：执行中
-                - success：成功（result 有值）
-                - failed：失败（error 有值）
-                - cancelled：已取消
-              example: running
-            progress:
-              type: integer
-              minimum: 0
-              maximum: 100
-              description: 进度百分比 0-100
-              example: 50
-            result:
-              type: object
-              description: 任务成功时的结果（status=success 才有值）
-              example: null
-            error:
-              type: string
-              description: 任务失败时的错误信息（status=failed 才有值）
-              example: null
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## POST 异步任务取消接口模板（cancel-task）
-
-> **新增**（v2.4.0）
+### 3.5 POST cancel-task（取消任务）
 
 ```python
 @report_bp.route('/generate/cancel-task', methods=['POST'])
 def cancel_generate_task():
-    """取消报表生成任务
+    """取消任务
 ---
 tags:
   - 业务模块/报表管理
-summary: 取消报表生成任务
-description: 取消正在执行的异步任务（终态任务不可取消）。
+summary: 取消任务
+description: 取消正在执行的任务（终态任务不可取消）。
 parameters:
   - in: body
     name: body
@@ -1340,31 +706,18 @@ parameters:
           example: t_20240715_abc123
       required:
         - task_id
-      example:
-        task_id: t_20240715_abc123
 responses:
   200:
-    description: 已取消
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
     examples:
       application/json:
-        code: 0
-        msg: "已取消"
-  400:
-    description: 任务已结束，不允许取消
-    examples:
-      application/json:
-        code: 400
-        msg: "任务已结束，不允许取消"
+        $ref: '#/definitions/StandardResponse'
 """
 ```
 
----
-
-## POST WebHook 回调接口模板（webhook）
-
-> **新增**（v2.4.0）— 第三方回调接收方，必须验签 + 幂等
->
-> 响应规范：详见 `API规范.md` 第 2.x 节 + `接口契约规范.md` §2.12
+### 3.6 POST webhook（第三方回调）
 
 ```python
 @payment_bp.route('/webhook/payment', methods=['POST'])
@@ -1374,7 +727,8 @@ def payment_webhook():
 tags:
   - 业务模块/支付管理
 summary: 支付回调
-description: 接收第三方支付回调，验签后处理订单状态。
+description: 接收支付回调，验签后处理订单状态。
+security: []
 parameters:
   - in: header
     name: X-Signature
@@ -1415,27 +769,16 @@ parameters:
         - event_type
 responses:
   200:
-    description: 接收成功
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
     examples:
       application/json:
-        code: 0
-        msg: ok
-  401:
-    description: 签名校验失败
-    examples:
-      application/json:
-        code: 401
-        msg: signature invalid
+        $ref: '#/definitions/BizResponse'
 """
 ```
 
----
-
-## GET SSE 流式接口模板（stream）
-
-> **新增**（v2.4.0）— Server-Sent Events 长连接推送
->
-> 响应规范：详见 `接口契约规范.md` §2.13
+### 3.7 GET stream/sse（服务器推送）
 
 ```python
 @log_bp.route('/stream', methods=['GET'])
@@ -1445,7 +788,8 @@ def stream_logs():
 tags:
   - 运营管理/日志管理
 summary: 实时日志流
-description: 通过 SSE 实时推送系统日志，前端用 EventSource 监听。
+description: 通过 SSE 实时推送系统日志。
+security: []
 parameters:
   - in: query
     name: level
@@ -1466,30 +810,137 @@ responses:
     description: SSE 事件流
     schema:
       type: string
-      description: |
-        text/event-stream 格式，每条事件格式：
-        ```
-        event: message
-        id: {event_id}
-        data: {"timestamp": "2024-07-15T10:30:00Z", "level": "error", "message": "..."}
-
-        ```
 """
 ```
 
 ---
 
-## 标签对照表
+## 4. 认证 3 类模板（公开接口）
 
-> 标签格式：`大模块/子模块`，按实际业务增删
+### 4.1 POST login（登录·公开）
+
+```python
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """用户登录
+---
+tags:
+  - 系统管理/认证管理
+summary: 用户登录
+description: 使用用户名或手机号和密码登录。
+security: []
+parameters:
+  - in: body
+    name: body
+    required: true
+    schema:
+      type: object
+      properties:
+        username:
+          type: string
+          description: 用户名或手机号
+          example: admin
+        password:
+          type: string
+          description: 密码（MD5）
+          example: 0192023a7bbd73250516f069df18b500
+      required:
+        - username
+        - password
+responses:
+  200:
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
+    examples:
+      application/json:
+        $ref: '#/definitions/BizResponse'
+"""
+```
+
+### 4.2 POST logout（登出）
+
+```python
+@auth_bp.route('/logout', methods=['POST'])
+def logout():
+    """退出登录
+---
+tags:
+  - 系统管理/认证管理
+summary: 退出登录
+description: 使当前 Token 失效。
+security: []
+responses:
+  200:
+    description: 成功
+    schema:
+      $ref: '#/definitions/StandardResponse'
+    examples:
+      application/json:
+        $ref: '#/definitions/StandardResponse'
+"""
+```
+
+### 4.3 POST refresh（token 刷新）
+
+```python
+@auth_bp.route('/refresh', methods=['POST'])
+def refresh_token():
+    """刷新 Token
+---
+tags:
+  - 系统管理/认证管理
+summary: 刷新 Token
+description: 使用旧 Token 换新 Token。
+security: []
+parameters:
+  - in: header
+    name: Authorization
+    type: string
+    required: true
+    description: 旧 Token（格式：Bearer {token}）
+    example: Bearer a1b2c3d4e5f6g7h8i9j0
+responses:
+  200:
+    description: 成功
+    schema:
+      $ref: '#/definitions/BizResponse'
+    examples:
+      application/json:
+        $ref: '#/definitions/BizResponse'
+"""
+```
+
+---
+
+## 5. 标签对照表
+
+标签格式：`大模块/子模块`，按实际业务增删。
 
 | 大模块 | 子模块 |
-|:-------|:-------|  
+|:-------|:-------|
 | 系统管理 | 认证、用户、角色、权限、菜单、操作日志、登录日志 |
 | 基础数据 | 国家、地区、平台、部门、机构 |
 | 业务模块 | （按实际业务填写，如：订单、商品、会员等） |
 
-**使用说明**：
-- 标签在视图函数 docstring 的 `tags` 字段中定义
-- 标签格式：`大模块/子模块`，如 `系统管理/用户管理`
-- 按实际业务增删子模块，格式保持一致
+---
+
+## 6. v4.4.0+ 迁移指引
+
+### 6.1 从 v4.3.0 风格迁移到 v4.4.0 风格
+
+**Step 1**：在 `apps/__init__.py` 注入 `SWAGGER_TEMPLATE`（Flask 实现层规范第 §11.5 节）。
+
+**Step 2**：每个接口 docstring 执行 3 处替换：
+
+| 旧（v4.3.0 风格） | 新（v4.4.0 风格） |
+|:------------------|:------------------|
+| `responses.200.schema` 展开 `{code, msg, data}` | `schema: {$ref: '#/definitions/BizResponse'}` |
+| `responses.200.examples` 写 `{code: 0, msg: success, data: {...}}` | `examples: {application/json: {$ref: '#/definitions/BizResponse'}}` |
+| `security: - Bearer: []` 每个接口重复 | 删除（全局 `security` 已默认） |
+
+**Step 3**：description 改写为 ≤ 30 字简短，去掉通用约束 / 状态码 / 认证 / 错误码内容。
+
+### 6.2 自动迁移脚本（推荐）
+
+项目根目录自主实现迁移脚本（基于 `swagger-lint-helper.py` 的 `parse_python_docstring` 即可写一个简单的文本替换器）；本仓库不强制托管迁移工具。

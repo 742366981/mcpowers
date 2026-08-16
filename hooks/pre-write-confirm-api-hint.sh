@@ -8,7 +8,7 @@
 #   由其完成:栈探测 → 字段清单加载 → 单文件 lint → exit 0/2 透传。
 #
 # 触发时机:PreToolUse(Write|Edit|MultiEdit) 时 Claude Code 传入 stdin JSON(含 tool_input.file_path)
-# 快速过滤:仅匹配接口文件(views.py / /views/ / router.{py,js,ts} / /controllers/)
+# 快速过滤:仅匹配接口文件(views.py / /views/ / router.{py,js,ts} 或 /router/ / /controllers/ / /api/ / /routes/ / /handlers/ / /endpoints/ / urls.py / /resources/ / /blueprints/)
 #         其他文件 → exit 0(沿用 v2.4.0 行为)
 #
 # 退出码:
@@ -56,7 +56,7 @@ else
 fi
 
 # 4. 快速过滤:只对接口文件触发
-if [ -z "$FILE_PATH" ] || ! echo "$FILE_PATH" | grep -qE "(views\.py|/views/|router\.(py|js|ts)|controllers?/)"; then
+if [ -z "$FILE_PATH" ] || ! echo "$FILE_PATH" | grep -qE "(views\.py|/views/|router/|(router\.(py|js|ts))|controllers?/|/api/|/routes/|/handlers/|/endpoints/|urls\.py|/resources/|/blueprints/)"; then
     exit 0
 fi
 

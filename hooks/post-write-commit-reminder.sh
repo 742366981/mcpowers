@@ -97,7 +97,7 @@ fi
 # 仅提醒不阻断（尊重开发者主动权）
 
 # 取出暂存区中的接口类文件
-STAGED_VIEW_FILES=$(git diff --cached --name-only 2>/dev/null | grep -E "(views\.py|views/|\.java$|router\.(py|js|ts)$|controllers?/)" || true)
+STAGED_VIEW_FILES=$(git diff --cached --name-only 2>/dev/null | grep -E "(views\.py|views/|\.java$|router/|(router\.(py|js|ts)$)|controllers?/|/api/|/routes/|/handlers/|/endpoints/|urls\.py|/resources/|/blueprints/)" || true)
 
 if [ -n "$STAGED_VIEW_FILES" ]; then
     VIEW_COUNT=$(echo "$STAGED_VIEW_FILES" | wc -l | tr -d ' ')

@@ -7,6 +7,29 @@
 
 ## [Unreleased]
 
+## v4.4.1 - 2026-08-16
+
+> 🎯 **核心定位**：PreToolUse swagger 接口契约 wrapper hook 快速过滤覆盖范围扩展（覆盖 FastAPI/Express/Gin/Django/Rails/Laravel/Flask 蓝图等主流框架的常见接口文件命名约定）
+
+### Breaking Changes
+
+- 无。本次为纯增量扩展：wrapper hook regex 既有 4 类（views.py / /views/ / router.{py,js,ts} / /controllers/）完全保留，仅追加 7 类新模式；既有 v4.4.0 行为（5 字段契约 + 业务接口 200 + 零引用字眼 + description 零冗余）零影响。
+
+### 新增
+
+- **`hooks/pre-write-confirm-api-hint.sh` 接口文件快速过滤 regex 扩展（4 → 11 类模式）**：第 59 行 `grep -qE` regex 从 `(views\.py|/views/|router\.(py|js,ts)|controllers?/)` 追加 7 类常见命名约定——`/api/` `/routes/` `/handlers/` `/endpoints/` `/urls.py` `/resources/` `/blueprints/`——覆盖 FastAPI（`/api/` `/endpoints/`）/ Express（`/routes/` `/handlers/`）/ Gin（`/handlers/`）/ Django（`/urls.py`）/ Rails / Laravel（`/resources/`）/ Flask 蓝图（`/blueprints/`）等主流框架。**升级影响**：既有项目接口描述文件（views.py / router.py 等）行为完全保留；新增覆盖的命名约定现在也被 PreToolUse 物理门禁兜底——若文件已存在但 docstring 不满足 5 字段契约，写入时会触发 confirm UI。
+
+### 调整
+
+- **`hooks/post-write-commit-reminder.sh` regex 同步扩展**：commit reminder 第 100 行的 grep 模式同步追加 7 类——保证 lint 通过与 commit reminder 触发一致（避免「lint 通过但 commit reminder 漏触发」的不对称行为）。
+- **`router/` 目录形式补全**：两个 hook regex 的 `router\.(py|js,ts)` 扩展为 `(router/|router\.(py|js,ts))`，覆盖 Express 路由目录入口（`src/router/index.ts` / `src/router/users.ts` 等）。**升级影响**：与文件名前缀形式合并到同一 group，仍属 patch bump 范围（纯增量扩展，无破坏性变更）。
+- **`CLAUDE.md` 第 66 行 + `skills/mcpowers-code-review/SKILL.md` R13 段同步更新**：两处「写接口文件（views.py / /views/ / router.{py,js,ts} / /controllers/）」描述同步扩展为新 regex 列表（含 `/router/` 目录形式），保证文档与实现一致。
+
+### 风险
+
+- **新增覆盖范围的项目第一次升级会扫到更多接口文件触发 confirm UI**：用户项目里若已有 `/api/` `/routes/` `/handlers/` 等目录下的接口文件，PreToolUse hook 会扫这些文件，触发 v4.4.0 既有检查（5 字段契约 + 业务接口 200 + 零引用字眼 + description 零冗余）。**这是设计意图**——但用户升级前需确认已有 docstring 已达标或接受触发 confirm UI。
+- **新增路径模式可能误命中非接口文件**：`/api/` `/routes/` `/handlers/` `/endpoints/` `/urls.py` `/resources/` `/blueprints/` 是**目录名/文件名约定**，不区分业务接口与工具类（如同名的 `utils/api_helpers.py`）。但 lint-helper.py 内部 `parse_python_docstring` 会自动识别 `@bp.route` / `@router.get` 等装饰器，没装饰器则短路 `sys.exit(0)`，所以误命中只增加 1 次 hook 启动开销（~50ms），不会产生误报。
+
 ## v4.4.0 - 2026-08-14
 
 > 🎯 **核心定位**:接口文档 SSOT 终态收敛(用户决策 D 续:本次完成 v4.0.0 业务接口 HTTP 200 + v4.0.1 接口零引用 + v4.3.0 代码/配置零引用 + v4.4.0 接口 docstring 通用响应/分页/认证字段复用 + description 字段零冗余;三条用户决策合龙,接口文档闭环)

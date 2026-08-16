@@ -26,6 +26,7 @@
 """
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -39,6 +40,79 @@ try:
 except ImportError as e:
     print(f"⚠️  [swagger-lint-helper] 无法 import lint_api_docstrings:{e}", file=sys.stderr)
     sys.exit(0)  # 自身 bug 不阻断开发
+
+
+# v4.5.0+ 装饰器解析器(独立于 lint_api_docstrings.py,避免污染基础模块)
+# 用 ast 解析 @bp.route('/path', methods=['GET']) 的 methods 列表 + path 模板
+# 返回 {route_path: str, methods: list[str], line: int}
+# parse_python_docstring 已经返回 route_path,这里只补 methods
+def _parse_route_decorators(file_path: Path) -> dict[int, dict[str, object]]:
+    """解析 Python 文件中所有 @bp.route/@bp.get/@app.post 等装饰器。
+
+    Returns:
+        {行号(装饰器所在 1-based): {'path': str, 'methods': list[str]}}
+        行号作为 key,与 parse_python_docstring 的 entry['line'] 对齐
+
+    Raises:
+        无(AST 解析失败 → 返回空 dict,不阻断)
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # @bp.route('/detail', methods=['GET']) 在第 10 行 → {10: {'path': '/detail', 'methods': ['GET']}}
+    """
+    decorators: dict[int, dict[str, object]] = {}
+    if not file_path.exists() or file_path.suffix != '.py':
+        return decorators
+    try:
+        content = file_path.read_text(encoding='utf-8')
+        tree = ast.parse(content, filename=str(file_path))
+    except SyntaxError:
+        # Python 解析失败 → 放行(不让自身 bug 阻塞开发)
+        return decorators
+    except Exception:
+        return decorators
+
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for dec in node.decorator_list:
+            # 形式 1:@bp.route('path', methods=['GET'])  → Call(func=Attribute(Name, 'route'), ...)
+            # 形式 2:@bp.get('path') / @bp.post('path')   → Call(func=Attribute(Name, 'get'/'post'), ...)
+            # 形式 3:@app.route(...) / @user_bp.route(...) — 同上,Name 部分是任意标识符
+            if not isinstance(dec, ast.Call):
+                continue
+            func = dec.func
+            if not isinstance(func, ast.Attribute) or not isinstance(func.value, ast.Name):
+                continue
+            method_name_upper = func.attr.upper()
+            path = ''
+            methods: list[str] = []
+            if method_name_upper == 'ROUTE':
+                # 第一个位置参数 = path
+                if dec.args and isinstance(dec.args[0], ast.Constant) and isinstance(dec.args[0].value, str):
+                    path = dec.args[0].value
+                # methods= 关键字参数
+                for kw in dec.keywords:
+                    if kw.arg == 'methods' and isinstance(kw.value, ast.List):
+                        for elt in kw.value.elts:
+                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                                methods.append(elt.value.upper())
+                # 默认 methods(Flask 默认 ['GET'] 仅在某些版本,稳妥起见若未声明视为 ['GET'])
+                if not methods:
+                    methods = ['GET']
+            elif method_name_upper in ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'):
+                # @bp.get('path') / @bp.post('path') 形式
+                if dec.args and isinstance(dec.args[0], ast.Constant) and isinstance(dec.args[0].value, str):
+                    path = dec.args[0].value
+                methods = [method_name_upper]
+            else:
+                continue
+
+            decorators[node.lineno] = {'path': path, 'methods': methods}
+
+    return decorators
 
 
 def parse_fields_file(fields_file: Path) -> tuple[list[str], list[str], list[str]]:
@@ -160,6 +234,64 @@ def check_parameter_subfields(docstring: str, param_subfields: list[str]) -> lis
 #        流式/下载接口（download/export/stream/upload/file）可保留 416
 _AUTH_PATH_KEYWORDS = ('login', 'logout', 'refresh', 'verify', 'register', 'password')
 _STREAM_PATH_KEYWORDS = ('download', 'export', 'stream', 'upload', 'file', 'attachment')
+
+
+# v4.5.0+ 硬门禁:HTTP 方法白名单(只许 GET/POST)
+# 依据:接口契约规范 §1.H + API规范 §3.2 HTTP 方法规范 + Flask后端规范 §0 全表
+# 业务接口 update/delete 一律 POST,不允许 PUT/PATCH/DELETE
+# 例外路径(认证 login/logout/refresh/verify/register/password)也是 POST,无新增豁免
+_ALLOWED_HTTP_METHODS = frozenset({'GET', 'POST'})
+
+# v4.5.0+ 硬门禁:路径禁止动态参数白名单(必须用 path param 的极少数场景)
+# 依据:接口契约规范 §1.G 例外段 + §10.B OAuth callback + §2.12 webhook
+# 业务接口一律走 query/body,不允许 `/detail/<int:id>` `/user/<user_id>` 等
+_DYNAMIC_PATH_EXCEPTIONS = (
+    'webhook',       # §2.12 webhook 回调 `/webhook/{source}`
+    'callback',      # §10.B OAuth callback `/auth/oauth/{provider}/callback`
+    'oauth',         # 兜底
+)
+
+# v4.5.0+ description 字段禁鉴权字眼清单(接口契约规范 §1.I)
+# 全局 security 已声明 Bearer 鉴权,description 不必重述
+# v4.4.0 已加部分(见 _FORBIDDEN_DESCRIPTION_CONTENT),
+# 本表扩 4 类:精确覆盖 description / parameters[].description / responses[].description 全字段
+_AUTH_WORDS_IN_DESCRIPTION = (
+    'JWT', 'Bearer', '需登录', '需要登录', '需 JWT', '需要 JWT',
+    '需认证', '需要认证', '需鉴权', '需要鉴权', '需 token', '需要 token',
+    'Authorization header', 'Authorization 头', '鉴权失败',
+)
+
+# v4.5.0+ description 字段禁错误码清单(接口契约规范 §1.J)
+# 错误码应放 responses.examples 或 BizError 组件;description 不列「10001 用户不存在」清单
+_ERROR_CODE_LIST_PATTERNS = (
+    # 中文:「错误码：」/「错误码:」/「错误码列表」/「返回码」
+    re.compile(r'错误码[：:]\s*\d+'),
+    re.compile(r'错误码列表'),
+    re.compile(r'返回码[：:]?\s*\d+'),
+    re.compile(r'\d{5}\s+[一-鿿]'),  # 5 位业务码 + 中文:「10001 用户不存在」
+    re.compile(r'code[:\s]+\d{4,}'),  # code: 10001 / code 10001
+    re.compile(r'\d{5}\s*[、，,/]'),  # 多码并列:「10001、10002」
+)
+
+
+# v4.5.1+ POST 强制 JSON 铁律(接口契约规范 §1.K)
+# 业务接口 POST 一律 `Content-Type: application/json`,禁止 form-urlencoded / multipart
+# 例外(必须用 multipart 或其他 Content-Type 的场景):upload / import / 第三方回调
+#   - /upload:文件上传必须 `multipart/form-data`
+#   - /import:Excel/CSV 导入必须 `multipart/form-data`
+#   - 第三方回调(微信/支付宝/Stripe/webhook/oauth callback):Content-Type 受第三方协议约束
+_POST_JSON_EXCEPTIONS = (
+    # 上传 / 导入路径段
+    'upload', 'import', 'attachment',
+    # 第三方回调路径段
+    'webhook', 'callback', 'notify', 'oauth',
+)
+# docstring 中显式声明的 Content-Type 不合规清单(命中即报 ERROR)
+_NON_JSON_CONTENT_TYPES = (
+    'application/x-www-form-urlencoded',
+    'multipart/form-data',
+    'application/x-www-form-urlencoded; charset=utf-8',
+)
 
 
 # v4.0.1+ API 文档零引用铁律:docstring / spec / md 全链路禁用字眼清单
@@ -439,6 +571,451 @@ def check_no_repeated_schema(docstring: str, route: str = '') -> list[tuple[str,
     return violations
 
 
+def _has_dynamic_path_param(path: str) -> bool:
+    """判断路由路径模板是否含动态参数 `<xxx>` / `<int:xxx>` / `<string:xxx>`。
+
+    Flask path 转换器语法:`<name>` / `<type:name>` / `<type:name1|name2>`。
+    任何 `<...>` 形式都视为动态参数(违反 §1.G)。
+    """
+    if not path:
+        return False
+    return bool(re.search(r'<[^>]+>', path))
+
+
+def check_no_dynamic_path(
+    path: str,
+    docstring: str,
+    route: str = '',
+) -> list[tuple[str, str]]:
+    """检查装饰器路由是否含动态参数（v4.5.0+ 接口契约规范 §1.G 铁律）。
+
+    铁律：业务接口路径模板**禁止**含动态参数 `<xxx>` / `<int:xxx>`。
+    所有资源标识（id / user_id / order_id 等）必须走 query 或 body。
+
+    反例：`@bp.route('/detail/<int:id>', methods=['GET'])`
+    正例：`@bp.route('/detail', methods=['GET'])` + query `id`
+
+    例外（必须含 path param 的场景）：
+      - webhook 回调：`/webhook/{source}`（§2.12）
+      - OAuth callback：`/auth/oauth/{provider}/callback`（§10.B）
+
+    Args:
+        path: 装饰器第一位置参数的路径模板字符串
+        docstring: 路由函数的 docstring 文本（保留参数以与其他 check_* 签名一致）
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'`
+        空 list = 合规或为例外路径
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # 含路径参数 → ERROR
+        >>> check_no_dynamic_path('/detail/<int:id>', '', '/detail')
+        [('ERROR', '路由 `/detail/<int:id>` 含动态参数 `<int:id>`...')]
+        >>> # webhook 例外 → 合规
+        >>> check_no_dynamic_path('/webhook/<source>', '', '/webhook/payment')
+        []
+    """
+    violations: list[tuple[str, str]] = []
+    if not path or not _has_dynamic_path_param(path):
+        return violations
+
+    # 例外白名单判定:路径段内含 webhook/oauth/callback 关键字
+    route_lower = (route or path).lower()
+    segments = [seg for seg in re.split(r'[/\-_.<>:]', route_lower) if seg]
+    is_exception = any(kw in segments for kw in _DYNAMIC_PATH_EXCEPTIONS)
+    if is_exception:
+        return violations
+
+    # 提取所有动态参数便于诊断
+    params = re.findall(r'<[^>]+>', path)
+    violations.append((
+        'ERROR',
+        f'路由 `{path}` 含动态参数 {params}'
+        f'——所有资源标识(id/user_id/order_id 等)必须走 query 或 body 传递'
+        f'(v4.5.0+ 接口契约规范 §1.G 路径禁止动态参数铁律)'
+        f'；例如 `/detail/<int:id>` 改为 `/detail?id={{id}}`'
+    ))
+    return violations
+
+
+def check_allowed_methods(
+    methods: list[str],
+    path: str = '',
+    route: str = '',
+) -> list[tuple[str, str]]:
+    """检查装饰器 methods= 是否在白名单内（v4.5.0+ 接口契约规范 §1.H 铁律）。
+
+    铁律：业务接口 HTTP 方法**只允许 GET 或 POST**。
+    列表/详情/字典/导出/下载/进度/流式 → GET；创建/更新/删除/批量删除/导入/上传/bind/webhook → POST。
+    禁止 PUT/PATCH/DELETE/HEAD/OPTIONS——避免前端区分语义（§2.4 update 显式说明）。
+
+    Args:
+        methods: 装饰器 methods 列表(如 `['GET']` / `['POST']`)
+        path: 装饰器路径模板(诊断信息用)
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'`
+        空 list = 合规
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # PUT → ERROR
+        >>> check_allowed_methods(['PUT'], '/update', '/update')
+        [('ERROR', '路由 `/update` methods=含 PUT...')]
+        >>> # GET → 合规
+        >>> check_allowed_methods(['GET'], '/list', '/list')
+        []
+        >>> # @bp.get() → 也算 ['GET'] → 合规
+        >>> check_allowed_methods(['GET'], '/list', '/list')
+        []
+    """
+    violations: list[tuple[str, str]] = []
+    if not methods:
+        return violations
+
+    bad_methods = [m for m in methods if m.upper() not in _ALLOWED_HTTP_METHODS]
+    if bad_methods:
+        violations.append((
+            'ERROR',
+            f'路由 `{path or route or "(未知)"}` methods=含 {bad_methods}'
+            f'——业务接口 HTTP 方法只允许 GET 或 POST'
+            f'(v4.5.0+ 接口契约规范 §1.H HTTP 方法白名单铁律)'
+            f'；依据 §0 速查表 + §2 接口类型表,列表/详情/导出用 GET,'
+            f'创建/更新/删除/bind/webhook 用 POST(避免 PUT/PATCH 语义混淆)'
+        ))
+    return violations
+
+
+def check_no_auth_in_description(
+    docstring: str,
+    route: str = '',
+) -> list[tuple[str, str]]:
+    """检查 description / parameters[].description / responses[].description
+    是否含鉴权相关字眼（v4.5.0+ 接口契约规范 §1.I 铁律）。
+
+    铁律：鉴权方式由 Swagger 全局 `securityDefinitions` + `security` 声明，
+    UI 自动展示锁图标——description / parameters[].description /
+    responses[].description 不必重述「JWT / Bearer / 需登录」。
+
+    反例：`description: 本接口需 JWT Bearer Token 认证后调用`
+    正例：`description: 查询用户详情。` + 全局 `security: - Bearer: []`
+
+    扫描范围：description 字段值 + parameters[].description + responses[].description。
+    跳过规则：YAML 字段名行（`key:` 末尾冒号且无 value）不参与扫描。
+
+    Args:
+        docstring: 路由函数的 docstring 文本
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'`
+        空 list = 合规
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # description 含「JWT」 → ERROR
+        >>> check_no_auth_in_description(
+        ...     'description:\\n  本接口需 JWT Bearer Token 认证',
+        ...     '/users'
+        ... )
+        [('ERROR', 'docstring L2 description 字段含鉴权字眼「JWT」...')]
+        >>> # 纯字段名 → 合规
+        >>> check_no_auth_in_description('description:\\n  用户登录', '/login')
+        []
+    """
+    violations: list[tuple[str, str]] = []
+    if not docstring:
+        return violations
+
+    in_description = False
+    current_field = ''  # 当前正在扫描的字段名
+    for line_no, line in enumerate(docstring.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # 跳过 YAML 字段名行(`key:` 末尾冒号无 value)
+        if stripped.endswith(':') and len(stripped) > 1 and not stripped.startswith('#'):
+            field_name = stripped[:-1].strip()
+            # description / parameters[].description / responses[].description 都参与
+            if field_name == 'description' or field_name.endswith('.description'):
+                in_description = True
+                current_field = field_name
+                # inline value 扫描
+                inline = stripped.split(':', 1)[1].strip()
+                if inline:
+                    for word in _AUTH_WORDS_IN_DESCRIPTION:
+                        if word in inline:
+                            violations.append((
+                                'ERROR',
+                                f'docstring L{line_no} {current_field} 字段含鉴权字眼「{word}」'
+                                f'——鉴权方式由全局 `securityDefinitions` + `security` 声明,'
+                                f'UI 自动展示锁图标,不在 description 重述'
+                                f'(v4.5.0+ 接口契约规范 §1.I description 禁鉴权字眼铁律)'
+                            ))
+                            break
+            else:
+                in_description = False
+                current_field = ''
+            continue
+        if not in_description:
+            continue
+        # 字段值行扫描
+        for word in _AUTH_WORDS_IN_DESCRIPTION:
+            if word in line:
+                violations.append((
+                    'ERROR',
+                    f'docstring L{line_no} {current_field} 字段含鉴权字眼「{word}」'
+                    f'——鉴权方式由全局 `securityDefinitions` + `security` 声明,'
+                    f'UI 自动展示锁图标,不在 description 重述'
+                    f'(v4.5.0+ 接口契约规范 §1.I description 禁鉴权字眼铁律)'
+                ))
+                break
+        # 字段块结束
+        if line and not line.startswith(' ') and ':' in stripped:
+            in_description = False
+        if stripped == '---':
+            in_description = False
+
+    return violations
+
+
+def check_no_error_codes_in_description(
+    docstring: str,
+    route: str = '',
+) -> list[tuple[str, str]]:
+    """检查 description 是否含错误码清单（v4.5.0+ 接口契约规范 §1.J 铁律）。
+
+    铁律：错误码放 `responses.examples` 或 `$ref BizError` 组件；
+    description 不列「10001 用户不存在 / 10002 用户已禁用」清单——这种列表应统一
+    在 `BizError` 组件里维护,description 短句仅说明接口功能。
+
+    反例：
+        description: |
+          错误码：
+          10001 用户不存在
+          10002 用户已禁用
+
+    正例：
+        description: 用户登录。
+        responses:
+          200:
+            examples:
+              application/json:
+                $ref: '#/definitions/BizError'
+
+    Args:
+        docstring: 路由函数的 docstring 文本
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'`
+        空 list = 合规
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # description 含「10001 用户不存在」 → ERROR
+        >>> check_no_error_codes_in_description(
+        ...     'description:\\n  错误码:\\n  10001 用户不存在',
+        ...     '/login'
+        ... )
+        [('ERROR', 'docstring description 含错误码清单「10001 用户不存在」...')]
+    """
+    violations: list[tuple[str, str]] = []
+    if not docstring:
+        return violations
+
+    in_description = False
+    for line_no, line in enumerate(docstring.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.endswith(':') and len(stripped) > 1 and not stripped.startswith('#'):
+            in_description = stripped.startswith('description:')
+            # inline value 扫描
+            if in_description:
+                inline = stripped.split(':', 1)[1].strip()
+                if inline:
+                    for pat in _ERROR_CODE_LIST_PATTERNS:
+                        m = pat.search(inline)
+                        if m:
+                            violations.append((
+                                'ERROR',
+                                f'docstring L{line_no} description 字段含错误码清单「{m.group()}」'
+                                f'——错误码统一在 responses.examples 或 BizError 组件维护,'
+                                f'description 短句仅说明接口功能'
+                                f'(v4.5.0+ 接口契约规范 §1.J description 禁错误码清单铁律)'
+                            ))
+                            break
+            continue
+        if not in_description:
+            continue
+        # 字段值行扫描
+        for pat in _ERROR_CODE_LIST_PATTERNS:
+            m = pat.search(line)
+            if m:
+                violations.append((
+                    'ERROR',
+                    f'docstring L{line_no} description 字段含错误码清单「{m.group()}」'
+                    f'——错误码统一在 responses.examples 或 BizError 组件维护,'
+                    f'description 短句仅说明接口功能'
+                    f'(v4.5.0+ 接口契约规范 §1.J description 禁错误码清单铁律)'
+                ))
+                break
+        # 字段块结束
+        if line and not line.startswith(' ') and ':' in stripped:
+            in_description = False
+        if stripped == '---':
+            in_description = False
+
+    return violations
+
+
+def check_post_must_be_json(
+    methods: list[str],
+    docstring: str,
+    route: str = '',
+) -> list[tuple[str, str]]:
+    """检查 POST 接口的 Content-Type 是否声明为 application/json（v4.5.1+ §1.K 铁律）。
+
+    铁律：业务接口 HTTP POST 一律 `Content-Type: application/json`，禁止
+    `application/x-www-form-urlencoded` / `multipart/form-data`——
+    避免后端代码 `request.form` / `request.files` 兜底导致接口语义混乱
+    （后端应统一 `request.get_json()`，schema 校验交给 Webargs / pydantic）。
+
+    反例（POST + form-urlencoded）：
+        ---
+        tags:
+          - 用户
+        parameters:
+          - name: username
+            in: formData        # ← form 形式，违反 §1.K
+            type: string
+        ---
+
+    正例（POST + JSON）：
+        ---
+        tags:
+          - 用户
+        parameters:
+          - name: body
+            in: body
+            schema:
+              type: object
+              properties:
+                username: {type: string}
+        ---
+
+    例外（必须用 multipart / 第三方协议 Content-Type 的路径段）：
+      - 文件上传：`/upload` / `/attachment` 段
+      - 数据导入：`/import` 段（Excel/CSV）
+      - 第三方回调：`/webhook/<source>` / `/callback/<provider>` /
+        `/notify` / `/oauth/<provider>/callback` 段
+
+    扫描方式：
+      1. methods= 含 POST → 检查 path 段是否在 _POST_JSON_EXCEPTIONS
+      2. 在白名单 → 跳过
+      3. 不在 → 扫描 docstring 内 parameters[] 的 in: formData / consumes
+         字段是否含 `_NON_JSON_CONTENT_TYPES` 之一
+
+    Args:
+        methods: 装饰器 methods 列表
+        docstring: 路由函数的 docstring 文本
+        route: 路由路径字符串（用于错误信息标识）
+
+    Returns:
+        list of (level, msg) 元组 — level: `'ERROR'`
+        空 list = 合规或为例外路径
+
+    Raises:
+        无
+
+    Side Effects:
+        无
+
+    Example:
+        >>> # POST + formData → ERROR
+        >>> check_post_must_be_json(['POST'], 'parameters:\\n  - in: formData', '/users/create')
+        [('ERROR', '路由 `/users/create` 是 POST 但 parameters 含 `in: formData`...')]
+        >>> # POST + JSON body → 合规
+        >>> check_post_must_be_json(['POST'], 'parameters:\\n  - in: body\\n    schema:', '/users/create')
+        []
+        >>> # POST /upload → 例外豁免
+        >>> check_post_must_be_json(['POST'], 'parameters:\\n  - in: formData', '/files/upload')
+        []
+    """
+    violations: list[tuple[str, str]] = []
+    if not methods or not docstring:
+        return violations
+
+    # 1. 仅 POST 触发（GET 不参与——GET 没有 body，Content-Type 无关）
+    methods_upper = {m.upper() for m in methods}
+    if 'POST' not in methods_upper:
+        return violations
+
+    # 2. 例外白名单判定
+    route_lower = (route or '').lower()
+    route_segments = [seg for seg in re.split(r'[/\-_.]', route_lower) if seg]
+    is_exception = any(kw in route_segments for kw in _POST_JSON_EXCEPTIONS)
+    if is_exception:
+        return violations
+
+    # 3. 扫描 docstring parameters[] 的 in: 字段
+    #    命中 in: formData / in: formData  / consumes 字段含 _NON_JSON_CONTENT_TYPES
+    for line_no, line in enumerate(docstring.splitlines(), 1):
+        stripped = line.strip()
+        # 3a. in: formData / in: formdata（大小写不敏感）
+        if re.search(r'\bin:\s*formdata\b', line, re.IGNORECASE):
+            violations.append((
+                'ERROR',
+                f'路由 `{route}` 是 POST 但 parameters 含 `in: formData`'
+                f'——业务接口 POST 一律 `Content-Type: application/json`'
+                f'(v4.5.1+ 接口契约规范 §1.K POST 强制 JSON 铁律)；'
+                f'改写为 `in: body` + JSON schema(JSON body 走 `request.get_json()`,'
+                f'schema 校验交 Webargs / pydantic)；'
+                f'上传文件场景请走 /upload 段(已豁免)或独立 multipart 接口'
+            ))
+            break  # 一条违规足够
+
+    # 3b. consumes 字段含 form-urlencoded / multipart（Swagger 2.0 全局声明）
+    for ct in _NON_JSON_CONTENT_TYPES:
+        if ct in docstring:
+            # 进一步定位:在 consumes 字段里
+            if re.search(rf'^\s*consumes:.*\b{re.escape(ct)}\b', docstring, re.MULTILINE):
+                violations.append((
+                    'ERROR',
+                    f'路由 `{route}` 是 POST 但 docstring `consumes:` 声明 `{ct}`'
+                    f'——业务接口 POST 一律 `Content-Type: application/json`'
+                    f'(v4.5.1+ 接口契约规范 §1.K POST 强制 JSON 铁律)；'
+                    f'上传/导入/回调场景请走豁免路径段(upload/import/webhook/callback/oauth)'
+                ))
+                break
+
+    return violations
+
+
 def check_business_api_responses(docstring: str, route: str = '') -> list[tuple[str, str]]:
     """检查业务接口的 responses 块是否误列 4xx/5xx（v4.0.0+ 业务接口响应规范铁律）。
 
@@ -564,6 +1141,17 @@ def main():
     if not entries:
         sys.exit(0)  # 无路由函数 → 不查
 
+    # v4.5.0+ AST 解析装饰器,提取 path / methods 用于 check_no_dynamic_path /
+    # check_allowed_methods。失败时返回 {} → 新检查自动跳过(不阻断存量代码)。
+    try:
+        decorators_by_line = _parse_route_decorators(file_path)
+    except Exception as exc:
+        print(
+            f"[swagger-contract] _parse_route_decorators 失败（不影响其它检查）:{exc}",
+            file=sys.stderr,
+        )
+        decorators_by_line = {}
+
     all_violations: list[tuple[str, int, str, str]] = []  # (level, line, func, msg)
     error_count = 0
     warning_count = 0
@@ -573,6 +1161,12 @@ def main():
         func = entry['func']
         line_no = entry['line']
         docstring = entry['docstring']
+
+        # 关联装饰器：entry 的 line 是 def 行号；装饰器行号 = line - 1（最常见）
+        # 同时兼容装饰器行 = line - 2 / - 3（多装饰器场景）
+        deco = decorators_by_line.get(line_no - 1) or decorators_by_line.get(line_no - 2) or decorators_by_line.get(line_no - 3) or {}
+        path = deco.get('path') or route  # 兜底用 entry['route']
+        methods = deco.get('methods') or []
 
         # 必填顶层字段名检查(v2.31.0+ 写时硬门禁的核心检查)
         for level, msg in check_required_field_names(docstring, required_fields):
@@ -634,6 +1228,57 @@ def main():
 
         # v4.4.0+ 通用响应/分页结构必须用 $ref 复用
         for level, msg in check_no_repeated_schema(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.5.0+ 接口契约规范 §1.G 路径禁动态参数铁律
+        # 装饰器 @bp.route('/detail/<int:id>') → ERROR（除 webhook/oauth/callback 例外）
+        for level, msg in check_no_dynamic_path(path, docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.5.0+ 接口契约规范 §1.H HTTP 方法白名单铁律
+        # methods= 只允许 GET / POST（PUT/PATCH/DELETE/HEAD/OPTIONS → ERROR）
+        for level, msg in check_allowed_methods(methods, path, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.5.0+ 接口契约规范 §1.I description 禁鉴权字眼铁律
+        # JWT / Bearer / 需登录 等不应出现在 description / parameters[].description
+        for level, msg in check_no_auth_in_description(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.5.0+ 接口契约规范 §1.J description 禁错误码清单铁律
+        # 错误码统一在 responses.examples / BizError 组件维护
+        for level, msg in check_no_error_codes_in_description(docstring, route):
+            full_msg = f'[{route}] {msg}'
+            all_violations.append((level, line_no, func, full_msg))
+            if level == 'ERROR':
+                error_count += 1
+            else:
+                warning_count += 1
+
+        # v4.5.1+ 接口契约规范 §1.K POST 强制 JSON 铁律
+        # 业务接口 POST 一律 application/json;禁 form-urlencoded / multipart
+        # 例外:upload / import / attachment / webhook / callback / notify / oauth 路径段
+        for level, msg in check_post_must_be_json(methods, docstring, route):
             full_msg = f'[{route}] {msg}'
             all_violations.append((level, line_no, func, full_msg))
             if level == 'ERROR':

@@ -7,6 +7,63 @@
 
 ## [Unreleased]
 
+## v4.5.1 - 2026-08-16
+
+> 🎯 **核心定位**：§1.K POST 强制 JSON 铁律（v4.5.0 接口契约四铁律之后用户决策 D 续的「第 5 条」——业务接口 POST 一律 `application/json`，禁 form-urlencoded/multipart，避免后端 `request.form` / `request.files` 兜底导致接口语义混乱）
+
+### Breaking Changes
+
+- **`swagger-lint-helper.py` 第 5 个新检查函数 `check_post_must_be_json()` 默认 ERROR 级**：业务接口 POST + `in: formData` 或 `consumes:` 含 `application/x-www-form-urlencoded` / `multipart/form-data`（路径段不在豁免白名单内）→ 写时 PreToolUse Write exit 2 + Claude Code confirm UI。**豁免白名单**（路径段内含关键字）：① 文件上传 `/upload` / `/attachment`（必须 multipart）；② 数据导入 `/import`（Excel/CSV 必须 multipart）；③ 第三方回调 `/webhook/<source>` / `/callback/<provider>` / `/notify` / `/oauth/<provider>/callback`（Content-Type 受第三方协议约束）。**升级影响**：存量项目第一次升级会扫到 POST + formData / form-urlencoded 违规触发 confirm UI，需改写为 `in: body` + JSON `schema`。
+
+### 新增
+
+- **`接口契约规范.md §1.K POST 强制 JSON 铁律`**（v4.5.1+ 用户决策 D 续第 5 条）：业务接口 HTTP POST 一律 `Content-Type: application/json`，禁止 `application/x-www-form-urlencoded` / `multipart/form-data`——避免后端 `request.form` / `request.files` 兜底导致接口语义混乱（后端统一 `request.get_json()`，schema 校验交 Webargs / pydantic）。**§1.K.4 与 §2 速查表关系**已明确：create/update/delete/batchDelete/bind/unbind 一律 JSON；upload/import/webhook 三类路径段豁免（multipart 或第三方协议决定 Content-Type）。`swagger-lint-helper.py check_post_must_be_json()` 实现 + `_POST_JSON_EXCEPTIONS = ('upload', 'import', 'attachment', 'webhook', 'callback', 'notify', 'oauth')` 白名单 + `_NON_JSON_CONTENT_TYPES` 3 类 form 模式扫描（formData / form-urlencoded / multipart-form-data）。
+- **`swagger-lint-helper.py` 第 5 个新检查函数 `check_post_must_be_json()`**（~80 行）：methods= 含 POST → 检查路径段是否在 `_POST_JSON_EXCEPTIONS` 白名单 → 不在则扫描 docstring 内 `parameters[].in: formData` / `consumes:` 含 `_NON_JSON_CONTENT_TYPES` 之一 → 命中即 ERROR。`/`/`-`/`_`/`.` 分段判例外的实现与 `check_business_api_responses` 一致。
+
+### 调整
+
+- **`mcpowers-code-review` 反模式表新增 R23 + Quick-Check 段 1 条扫描命令**：R23 v4.5.1+ POST 非豁免路径段含 in: formData / consumes form-urlencoded/multipart；Quick-Check 段「v4.5.1+ POST 强制 JSON Quick-Check」含 1 条扫描命令（`in: formData` 正则 + consumes 字段扫描 + 路径段白名单判定豁免）+ 6 层 AI 视野覆盖说明（L1 CLAUDE.md / L2 description 触发词 / L3 ## 编排 Read 步骤 / L4 自检清单 / L5 硬门禁 / L6 审查门禁）。
+- **`CLAUDE.md` 第 70 段后追加 §1.K POST 强制 JSON 铁律段**：`swagger-lint-helper.py check_post_must_be_json()` + `_POST_JSON_EXCEPTIONS` 7 关键字白名单 + R23 审查门禁——保证每次新会话自动加载的全局铁律段与实现 + 审查门禁三方一致。
+- **`README.md` 第 15 行（特性 3.5 Swagger 接口契约硬门禁）+ 第 18 行（hook 清单）+ 第 23 行（mcpowers 一句话总结）+ 第 532 行（export_docs 说明）**：4 处同步加入 v4.5.1 §1.K POST 强制 JSON 铁律 + 第 5 个新检查函数描述。
+- **3 个场景技能 description 触发词同步加 v4.5.1 段**：`mcpowers-feat` + `mcpowers-api-contract` + `mcpowers-requirement-change`——保证 L1 语义匹配能把「加新接口 / 改接口契约 / 改需求涉及接口」场景路由到正确技能时同步加载 v4.5.1 触发词。
+
+### 风险
+
+- **存量项目第一次升级会扫到大量 POST + formData 违规**：第 5 个新检查默认 ERROR 级，反模式范围广（POST + formData / form-urlencoded）。建议升级前批量预扫：`rg "in:\s*formData" 你的项目/views/*.py` 看命中数量；若项目 POST 接口较多（>10 个），可分批修复或临时在 hook 处加旁路。**这是设计意图**——CI 上线前必须清理，否则 AI 反复 confirm UI 拖累开发节奏。
+- **`/notify` 路径段豁免可能误命中非回调接口**：当前白名单包含 `notify` 关键字（业务通知端点常含 `notify` 段，如 `user/notify/preferences`）——若业务路径有 `user_notify_settings` 这种段内含 `notify` 但实际是「用户通知设置」JSON 接口会被白名单跳过。**建议**：若发现误判，CR 时人工复核 + 改路径名为非 `notify` 关键字段（如 `user_notification_settings`）。
+- **`consumes:` 字段扫描是字符串包含匹配**：当前覆盖 `application/x-www-form-urlencoded` / `multipart/form-data` / `application/x-www-form-urlencoded; charset=utf-8` 三种字面模式——若团队用 `application/x-www-form-urlencoded;charset=UTF-8`（无空格分隔）可能漏匹配。当前实现走字符串包含，足够日常但极端写法需人工 CR 兜底。
+
+## v4.5.0 - 2026-08-16
+
+> 🎯 **核心定位**：接口契约四铁律 ERROR 硬门禁（用户决策 D 续·v4.5.0 完成 v4.4.0 SSOT 终态收敛之后的「反模式全部 ERROR 化」阶段——路径禁动态参数 + HTTP 方法白名单 + description 禁鉴权 + description 禁错误码清单，4 条规则都是「明确反模式不是风格建议」，不设 WARNING 过渡期）
+
+### Breaking Changes
+
+- **`swagger-lint-helper.py` 4 个新检查函数默认 ERROR 级**（写时 PreToolUse Write → exit 2 + Claude Code confirm UI）：v4.4.0 的 3 个新检查（`check_description_redundant_content` / `check_no_path_in_description` / `check_no_repeated_schema`）在 v4.5.0 起升级为 ERROR 硬阻断（之前 v4.4.0 WARNING 阶段已结束）；v4.5.0 新增 4 个检查（`check_no_dynamic_path` / `check_allowed_methods` / `check_no_auth_in_description` / `check_no_error_codes_in_description`）**直接 ERROR 级**，不设 WARNING 过渡期——因为这些是「明确反模式」而不是「风格建议」（路径传 id 前端拼接差异 / PUT-PATCH 语义混淆前端调试困难）。**升级影响**：存量项目第一次升级会扫到更多违规触发 confirm UI，需批量改写后通过。
+
+### 新增
+
+- **`接口契约规范.md` §1.G-§1.J 4 段新铁律**（v4.5.0+ 用户决策 D 续）：
+  - **§1.G 路径禁动态参数**（业务接口 `@bp.route` 装饰器路径模板**禁止**含 Flask 风格 `<xxx>` / `<int:xxx>` / `<string:xxx>` / `<uuid:xxx>` 动态参数；所有资源标识 `id` / `user_id` / `order_id` 走 query 或 body；例外白名单：`/webhook/<source>` / `/auth/oauth/<provider>/callback`）——`swagger-lint-helper.py check_no_dynamic_path()` 实现 + `_DYNAMIC_PATH_EXCEPTIONS = ('webhook', 'callback', 'oauth')` 白名单 + AST 解析 `@bp.route` 装饰器路径字符串
+  - **§1.H HTTP 方法白名单**（业务接口 HTTP 方法**只允许 GET 或 POST**；按 §0 / §2 速查表：列表/详情/字典/导出/下载/流式/进度 → GET；创建/更新/删除（单+批量）/导入/上传/bind/webhook → POST；禁 PUT/PATCH/DELETE/HEAD/OPTIONS）——`swagger-lint-helper.py check_allowed_methods()` 实现 + `_ALLOWED_HTTP_METHODS = frozenset({'GET', 'POST'})` 白名单
+  - **§1.I description 禁鉴权字眼**（`description` / `parameters[].description` / `responses[].description` 禁含 15 类鉴权字眼：`JWT` / `Bearer` / `需登录` / `需要登录` / `需 JWT` / `需要 JWT` / `需认证` / `需要认证` / `需鉴权` / `需要鉴权` / `需 token` / `需要 token` / `Authorization header` / `Authorization 头` / `鉴权失败`——鉴权方式由全局 `securityDefinitions` + `security` 声明，UI 自动展示锁图标）——`swagger-lint-helper.py check_no_auth_in_description()` 实现 + `_AUTH_WORDS_IN_DESCRIPTION` 字眼清单 + YAML 字段名行跳过
+  - **§1.J description 禁错误码清单**（`description` 字段值禁含 6 类错误码清单模式：`错误码[：:]\s*\d+` / `错误码列表` / `返回码[：:]?\s*\d+` / `\d{5}\s+[一-鿿]` 标准行式 / `code[:\s]+\d{4,}` / `\d{5}\s*[、，,/]` 并列式；错误码统一在 `responses.examples` 或 `$ref BizError` 全局组件维护）——`swagger-lint-helper.py check_no_error_codes_in_description()` 实现 + `_ERROR_CODE_LIST_PATTERNS` 6 类正则
+
+- **`swagger-lint-helper.py` 新增 AST 解析器 `_parse_route_decorators()`**（~80 行）：用 Python stdlib `ast` 模块扫描目标 .py 文件，提取 `@bp.route('/path', methods=['GET'])` / `@bp.get('/path')` / `@router.post('/path')` 等装饰器第一位置参数路径字符串 + methods 列表，返回 `dict[装饰器行号 → {path, methods}]`。`SyntaxError` 兜底返回 `{}` 不阻断；只在 `parse_python_docstring()` 已识别路由函数的前提下参与检查。`main()` 中按 `def` 行号向前找最近装饰器（`line-1` / `line-2` / `line-3` 三档回退，兼容多装饰器场景）关联 4 个新检查。
+
+### 调整
+
+- **`mcpowers-code-review` 反模式表新增 R19-R22 4 条 + Quick-Check 段 4 条扫描命令**：R19 v4.5.0+ 路径含 `<xxx>` 动态参数 / R20 v4.5.0+ methods= 含 PUT/PATCH/DELETE/HEAD/OPTIONS / R21 v4.5.0+ description 含鉴权字眼 / R22 v4.5.0+ description 含错误码清单；Quick-Check 段「v4.5.0+ 接口契约四铁律 ERROR 硬门禁 Quick-Check」含 4 条扫描命令（装饰器路径含 `<` 模式扫描 / methods= 含禁用方法扫描 / description 含鉴权字眼扫描 / description 含错误码模式扫描）+ 6 层 AI 视野覆盖说明（L1 CLAUDE.md / L2 description 触发词 / L3 ## 编排 Read 步骤 / L4 自检清单 / L5 硬门禁 / L6 审查门禁）。R18 同步升级为 v4.5.0 ERROR 硬阻塞（之前 v4.4.0 WARNING 阶段结束）。
+- **`CLAUDE.md` 第 68 段「接口文档 SSOT 终态收敛」追加 v4.5.0 四铁律段**：`§1.G-§1.J` 4 段铁律 + 4 个新检查函数（`check_no_dynamic_path` / `check_allowed_methods` / `check_no_auth_in_description` / `check_no_error_codes_in_description`）+ R19-R22 审查门禁同步条目——保证每次新会话自动加载的全局铁律段与实现 + 审查门禁三方一致。
+- **`README.md` 第 15 行（特性 3.5 Swagger 接口契约硬门禁）+ 第 18 行（hook 清单）+ 第 23 行（mcpowers 一句话总结）+ 第 461 行（PR 同步要求）+ 第 532 行（export_docs 说明）**：5 处同步加入 v4.5.0 四铁律 + 4 个新检查函数描述。
+- **3 个场景技能 description 触发词同步加 v4.5.0 段**：`mcpowers-feat` + `mcpowers-api-contract` + `mcpowers-requirement-change`——保证 L1 语义匹配能把「加新接口 / 改接口契约 / 改需求涉及接口」场景路由到正确技能时同步加载 v4.5.0 触发词。
+
+### 风险
+
+- **存量项目第一次升级会触发大量 confirm UI**：4 个新检查全部 ERROR 级 + 1 个旧检查升级 ERROR，覆盖反模式范围广（动态路径 + 错误 HTTP 方法 + 鉴权字眼 + 错误码清单 + 旧 8 类冗余）。建议升级前批量预扫：`grep -E "(@bp\.|@app\.|@router\.|methods=\[)" 你的项目/views/*.py` 看命中数量；若项目接口较多（>50 个），可分批修复或临时在 hook 处加 `--allow-warnings` 旁路。**这是设计意图**——CI 上线前必须清理，否则 AI 反复 confirm UI 拖累开发节奏。
+- **`check_no_auth_in_description` 的 15 字眼清单可能漏命中变体**：当前覆盖 `JWT` / `Bearer` / `需登录` / `需 JWT` / `需认证` / `需鉴权` / `需 token` / `Authorization header` / `Authorization 头` / `鉴权失败` 等 15 字眼——若团队用「需 token」/「鉴权失败」变体（中英混合 / 加空格）已覆盖，但「需要 token 才能访问」/「登录鉴权」/「需认证后调用」长句可能需要正则升级。当前实现走字符串包含匹配，足够日常但极端长句需人工 CR 兜底。
+- **`check_no_dynamic_path` 的 webhook/oauth/callback 白名单段内匹配可能误命中**：当前走 `/`、`-`、`_`、`.`、`<`、`>`、`:` 分段后判段内含 `webhook` / `oauth` / `callback` 关键字——若业务路径有 `/user_oauth_callback_info/` 这种段内含 `oauth_callback` 的会被白名单跳过，但实际路径是「用户 OAuth 信息」而不是 OAuth 回调。**建议**：若发现误判，CR 时人工复核 + 改路径名为非 OAuth 关键字段（如 `/user_third_info/`）。
+
 ## v4.4.1 - 2026-08-16
 
 > 🎯 **核心定位**：PreToolUse swagger 接口契约 wrapper hook 快速过滤覆盖范围扩展（覆盖 FastAPI/Express/Gin/Django/Rails/Laravel/Flask 蓝图等主流框架的常见接口文件命名约定）

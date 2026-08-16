@@ -111,7 +111,12 @@ description: "code review / 代码审查 / 帮我审一下 / CR / review / 帮�
 | **R15** | ❌ **API 文档含禁用引用字眼**（v4.0.1+ 用户决策 B 铁律·接口文档零引用）：接口 docstring 的 `summary:` / `description:` / `parameters[].description` / `responses[].description` 等用户可见字段值含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also」等指向其他文档的字眼——按 v4.0.1+ 铁律，接口文档（docstring → spec → md 全链路）应聚焦"怎么对接调用"，**不应含指向其他文档的字眼**——这些字眼会让对接方以为还要再去查其他文档才能用。违反 `接口契约规范.md §1.E` + `swagger-lint-helper.py check_no_reference_words` + `export_docs.py check_no_reference_words_spec` | 接口文档 description / summary 等字段值不应含指向其他文档的字眼；YAML 字段名行（`summary:` / `description:` 等结构标记行）跳过不扫；CR 看到 description 含「参考」「参见」「详见」「引用」「refer to」「according to」等字眼即阻塞，要求改写为在该接口 docstring 里直接说明（不引用其他文档）；写时硬门禁已被 `swagger-lint-helper.py check_no_reference_words` 兜底，导出时硬门禁已被 `export_docs.py check_no_reference_words_spec` 兜底，CR 复核时同步检查 |
 | **R16** | ❌ **文档正文含画蛇添足字眼**（v4.0.2+ 用户决策 C 铁律·文档零引用）：通用文档（README / 用户手册 / 技术规范正文 / 设计文档 / 任何内容型 .md 文档）正文含「参考 / 参见 / 详见 / 引用 / 参照 / 引自」+「根据规范 / 按照规范 / 按规范要求 / 遵守规范 / 按规范」+「according to / refer to / referring to / as described in / as specified in / see also / conform to / conforms to / based on / defined in / outlined in」等 22 个禁止字眼（独立出现也算画蛇添足，不限于"在某文档后"），路径不在白名单内——按 v4.0.2+ 铁律（`文档编写规范.md §9.5`），输出型文档应聚焦"当前怎么做"，**不应含指向其他文档的字眼**；删掉字眼后读者对"当前该怎么做"的理解不受损即视为画蛇添足；3 问决策：① 这段文字是给谁看的？② 删掉字眼后意思会变吗？③ 输出型禁止 / 参考型允许且必要 / 历史型允许。违反 `文档编写规范.md §9.5` + `post-write-check-doc-content.sh` 软门禁 + CLAUDE.md 必读铁律段 | CR 看到输出型 .md 正文含 22 字眼任一即阻塞，要求改写为在该文档内直接说明（不引用其他文档）；参考型（mcpowers-spec-index / API 契约 / 迁移指南 / 技能索引）+ 历史型（CHANGELOG / 历史教训 / Deprecation / README「最近变更」）走路径白名单跳过；CLAUDE.md 段 + 6 文档场景技能（L1 + L3 + L4）+ 软门禁 hook（L5）共 6 层 AI 视野覆盖；v4.0.1 接口零引用 = R16 在接口描述这一子集的最严格实施 |
 | **R17** | ❌ **代码注释 / 配置文件含禁用引用字眼**（v4.3.0+ 用户决策 D 铁律·代码/配置零引用智能二分）：代码注释（`#` 单行 / `"""` docstring / `//` JS / `--` SQL）/ YAML 配置文件 / JSON 配置文件 / .ini / .toml / .sh 头部注释含 22 字眼（中文 11 + 英文 11，共享常量 `_forbidden_ref_words.txt`）+ v4.3.0 新增 4 个口语化补充（遵循本项目规范 / 遵循团队规范 / 遵循本仓库规范 / 按团队规范）——按 v4.3.0 智能二分判定：①外部权威（RFC/PEP/W3C/OWASP/ISO/IEEE/公认作者/官方 URL/行业+规范前缀）→ 放行；②内部规范名（33 份规范 + 别名，共享常量 `_internal_spec_docs.txt`）→ 拦截；③项目内代码文件路径（`utils/xxx.py` / `apps/yyy.go` 等）→ 拦截；④项目内 .md 文档名（含 CLAUDE.md/README.md/AGENTS.md，**用户决策：无例外**）→ 拦截；⑤「按规范/根据规范/遵守规范」无外部前缀 → 拦截；⑥兜底 → 拦截。违反 `代码规范.md §11.3.1` + `pre-write-check-no-ref-words.sh` 硬门禁 + `post-write-check-no-ref-words.sh` 软门禁兜底 + 共享检测器 `scripts/check_no_ref_words.py` | CR 看到代码注释/配置含 22 字眼 + 4 口语化补充任一即阻塞；智能二分判定走 6 优先级（外部权威放行 / 内部规范拦截 / 项目内代码拦截 / .md 拦截 / 无前缀画蛇添足拦截 / 兜底拦截）；路径白名单 6 类（tests/ / fixtures/ / examples/ / templates/ / docs/历史教训/ / CHANGELOG.md）允许保留；PreToolUse Write 硬门禁 exit 2 已物理阻断，CR 复核 PR diff 即可；与 R15（接口零引用）+ R16（.md 零引用）共享 22 字眼清单，3 条铁律共用同一权威源 `_forbidden_ref_words.txt` 避免漂移 |
-| **R18** | ❌ **接口 docstring 含冗余内容 / 通用响应分页未用 `$ref` 复用**（v4.4.0+ 用户决策 D 续·接口文档 SSOT 终态收敛）：接口 docstring `description` 字段含 8 类冗余内容（HTTP 状态码 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束 / 路径内模块名 / summary 同义重复）+ 接口 `responses.200.schema` / `responses.200.examples` 内联展开 `{code, msg, data}` / `{records, page_no, ...}` 等通用响应 / 分页结构（未用 `$ref: '#/definitions/BizResponse'` 等复用全局组件）+ 接口 `security` 内联 `Bearer: []`（未用 `$ref: ['#/securityDefinitions/BearerAuth']` 复用全局安全声明）+ `description` 字段含完整接口路径（应只在 `Swagger(basePath=)` + `Blueprint(url_prefix=)` + `@bp.route` 三处声明）。**判别口诀**：删掉这段文字后对接方是否还能直接调通这个接口？能就说明是冗余，删。违反 `接口契约规范.md §1.A.1`（description 禁用内容清单）+ §1.F（`$ref` 复用铁律）+ `swagger_components.md`（5 全局组件 SSOT）+ `flask_swagger_config.py`（Flasgger 注入模板）+ `Flask后端规范.md §11.5`（应用工厂 4 步）+ `swagger-lint-helper.py check_description_redundant_content` / `check_no_path_in_description` / `check_no_repeated_schema` 3 个新检查函数 | CR 看到接口 docstring 含 8 类 description 冗余任一即阻塞（v4.4.0 WARNING 阶段不阻塞但应记录 + 要求改写；v4.5.0 起升级为 ERROR 阻塞）；CR 看到通用响应/分页/认证结构内联展开即阻塞，要求改写为 `$ref: '#/definitions/BizResponse'` / `$ref: '#/definitions/PageResponse'` / `$ref: ['#/securityDefinitions/BearerAuth']` 复用全局组件；接口路径只允许在 `basePath` / 蓝图 `url_prefix` / `@bp.route` 三处声明，`description` 字段不再重复完整路径；`swagger_components.md` + `flask_swagger_config.py` 必须存在作为 SSOT 资产 |
+| **R18** | ❌ **接口 docstring 含冗余内容 / 通用响应分页未用 `$ref` 复用**（v4.4.0+ 用户决策 D 续·接口文档 SSOT 终态收敛）：接口 docstring `description` 字段含 8 类冗余内容（HTTP 状态码 / 认证方式 / 错误码清单 / 响应结构 / 完整路径 / 通用约束 / 路径内模块名 / summary 同义重复）+ 接口 `responses.200.schema` / `responses.200.examples` 内联展开 `{code, msg, data}` / `{records, page_no, ...}` 等通用响应 / 分页结构（未用 `$ref: '#/definitions/BizResponse'` 等复用全局组件）+ 接口 `security` 内联 `Bearer: []`（未用 `$ref: ['#/securityDefinitions/BearerAuth']` 复用全局安全声明）+ `description` 字段含完整接口路径（应只在 `Swagger(basePath=)` + `Blueprint(url_prefix=)` + `@bp.route` 三处声明）。**判别口诀**：删掉这段文字后对接方是否还能直接调通这个接口？能就说明是冗余，删。违反 `接口契约规范.md §1.A.1`（description 禁用内容清单）+ §1.F（`$ref` 复用铁律）+ `swagger_components.md`（5 全局组件 SSOT）+ `flask_swagger_config.py`（Flasgger 注入模板）+ `Flask后端规范.md §11.5`（应用工厂 4 步）+ `swagger-lint-helper.py check_description_redundant_content` / `check_no_path_in_description` / `check_no_repeated_schema` 3 个新检查函数 | CR 看到接口 docstring 含 8 类 description 冗余任一即阻塞（v4.5.0 起升级为 ERROR 阻塞——之前 v4.4.0 WARNING 过渡期已结束）；CR 看到通用响应/分页/认证结构内联展开即阻塞，要求改写为 `$ref: '#/definitions/BizResponse'` / `$ref: '#/definitions/PageResponse'` / `$ref: ['#/securityDefinitions/BearerAuth']` 复用全局组件；接口路径只允许在 `basePath` / 蓝图 `url_prefix` / `@bp.route` 三处声明，`description` 字段不再重复完整路径；`swagger_components.md` + `flask_swagger_config.py` 必须存在作为 SSOT 资产 |
+| **R19** | ❌ **接口路径含动态参数 `<xxx>`**（v4.5.0+ 用户决策 D 续·接口契约 §1.G 铁律）：装饰器 `@bp.route('/detail/<int:id>')` / `@bp.route('/users/<user_id>/orders')` / `@bp.route('/update/<int:id>')` 等模板含 Flask 风格的动态参数 `<xxx>` / `<int:xxx>` / `<string:xxx>` / `<uuid:xxx>`——按 v4.5.0+ 铁律，所有资源标识（`id` / `user_id` / `order_id` 等）必须走 query 或 body 传递，路径模板禁止包含动态参数（避免前端路径拼接差异 + 后端路由表被无限扩张）。**例外白名单**（必须含 path param 的场景）：① webhook 回调 `/webhook/<source>`（§2.12）/ ② OAuth 第三方回调 `/auth/oauth/<provider>/callback`（§X.1）。违反 `接口契约规范.md §1.G` + `swagger-lint-helper.py check_no_dynamic_path` | CR 看到接口 `@bp.route` 装饰器路径模板含 `<...>` 模式即阻塞，要求改为 `@bp.route('/detail', methods=['GET'])` + query `id` 或 body `{"id": ...}`；例外白名单路径段含 `webhook` / `oauth` / `callback` 关键字自动跳过；写时硬门禁已被 `swagger-lint-helper.py check_no_dynamic_path` 兜底（AST 解析 `@bp.route` 装饰器路径字符串 + `/`、`-`、`_`、`.`、`<`、`>`、`:` 分段判例外），CR 复核 PR diff 即可 |
+| **R20** | ❌ **HTTP 方法含 PUT/PATCH/DELETE/HEAD/OPTIONS**（v4.5.0+ 用户决策 D 续·接口契约 §1.H 铁律）：装饰器 `methods=` 列表含 `PUT` / `PATCH` / `DELETE` / `HEAD` / `OPTIONS` 之一——按 v4.5.0+ 铁律，业务接口 HTTP 方法**只允许 GET 或 POST**（列表/详情/字典/导出/下载/流式/进度 → GET；创建/更新/删除（单+批量）/导入/上传/bind/webhook → POST）；避免前端区分 PUT/PATCH 语义差异（`§2.4 update` 显式说明「为什么用 POST 不用 PUT」）。违反 `接口契约规范.md §1.H` + `swagger-lint-helper.py check_allowed_methods` | CR 看到业务接口 `methods=` 含 PUT/PATCH/DELETE/HEAD/OPTIONS 即阻塞；按 §0 / §2 速查表改为 GET 或 POST；速记表：列表/详情/字典/导出/下载/流式/进度 → GET；创建/更新/删除（单+批量）/导入/上传/bind/webhook → POST；写时硬门禁已被 `swagger-lint-helper.py check_allowed_methods` 兜底（methods= 列表 vs `_ALLOWED_HTTP_METHODS = frozenset({'GET', 'POST'})` 白名单比对），CR 复核 PR diff 即可 |
+| **R21** | ❌ **`description` / `parameters[].description` / `responses[].description` 含鉴权字眼**（v4.5.0+ 用户决策 D 续·接口契约 §1.I 铁律）：接口 docstring 的 `description` 字段值 / `parameters[].description` / `responses[].description` 含 15 类鉴权字眼之一（`JWT` / `Bearer` / `需登录` / `需要登录` / `需 JWT` / `需要 JWT` / `需认证` / `需要认证` / `需鉴权` / `需要鉴权` / `需 token` / `需要 token` / `Authorization header` / `Authorization 头` / `鉴权失败`）——按 v4.5.0+ 铁律，鉴权方式由 Swagger 全局 `securityDefinitions` + `security` 声明，UI 自动展示锁图标，不必在每个接口 description 重述。违反 `接口契约规范.md §1.I` + `swagger-lint-helper.py check_no_auth_in_description` | CR 看到接口 description / parameters[].description / responses[].description 含鉴权字眼即阻塞，要求改写为简短接口功能描述；鉴权走全局 `securityDefinitions` + `security` 即可；YAML 字段名行（`key:` 末尾冒号且无 value）跳过不扫；写时硬门禁已被 `swagger-lint-helper.py check_no_auth_in_description` 兜底，CR 复核 PR diff 即可 |
+| **R22** | ❌ **`description` 含错误码清单**（v4.5.0+ 用户决策 D 续·接口契约 §1.J 铁律）：接口 docstring 的 `description` 字段值罗列「10001 用户不存在 / 10002 用户已禁用」错误码清单（命中 6 类模式：① `错误码[：:]\s*\d+` / ② `错误码列表` / ③ `返回码[：:]?\s*\d+` / ④ `\d{5}\s+[一-鿿]` 标准行式 / ⑤ `code[:\s]+\d{4,}` / ⑥ `\d{5}\s*[、，,/]` 并列式）——按 v4.5.0+ 铁律，错误码统一在 `responses.examples` 或 `$ref BizError` 全局组件维护，description 短句仅说明接口功能。违反 `接口契约规范.md §1.J` + `swagger-lint-helper.py check_no_error_codes_in_description` | CR 看到接口 description 含 6 类错误码清单模式之一即阻塞，要求把错误码移到 `responses.examples` 或 `$ref BizError` 组件维护，description 改写为简短接口功能描述；写时硬门禁已被 `swagger-lint-helper.py check_no_error_codes_in_description` 兜底（6 类 `_ERROR_CODE_LIST_PATTERNS` 正则匹配），CR 复核 PR diff 即可 |
+| **R23** | ❌ **POST 接口 Content-Type 非 JSON**（v4.5.1+ 铁律·接口契约 §1.K）：接口 `methods=` 含 `POST` 且 docstring `parameters[].in: formData` 或 `consumes:` 含 `application/x-www-form-urlencoded` / `multipart/form-data`（路径段不在豁免白名单内）——按 v4.5.1+ 铁律，业务接口 POST 一律 `Content-Type: application/json`，避免后端 `request.form` / `request.files` 兜底导致接口语义混乱；后端统一 `request.get_json()`，schema 校验交 Webargs / pydantic。**豁免白名单**（路径段内含关键字）：① 文件上传 `/upload` / `/attachment`（必须 multipart）；② 数据导入 `/import`（Excel/CSV 必须 multipart）；③ 第三方回调 `/webhook/<source>` / `/callback/<provider>` / `/notify` / `/oauth/<provider>/callback`（Content-Type 受第三方协议约束）。违反 `接口契约规范.md §1.K` + `swagger-lint-helper.py check_post_must_be_json` | CR 看到 POST 接口 docstring 含 `in: formData` 或 `consumes:` 含 form-urlencoded/multipart（非豁免路径段）即阻塞，要求改写为 `in: body` + JSON `schema` 或 `consumes: application/json`；豁免白名单（路径段含 `upload` / `import` / `attachment` / `webhook` / `callback` / `notify` / `oauth` 任一）自动跳过；写时硬门禁已被 `swagger-lint-helper.py check_post_must_be_json` 兜底（`in: formData` 正则 + consumes 字段扫描），CR 复核 PR diff 即可 |
 
 **审查动作清单**（每个 PR 必跑）：
 
@@ -457,6 +462,78 @@ rg "check_description_redundant_content|check_no_path_in_description|check_no_re
 > - **v4.4.0**（当前版本）：3 个新检查函数 WARNING 阶段，不阻断；CR 仍应记录 + 要求改写
 > - **v4.5.0**：3 个新检查函数升级为 ERROR 硬阻断（PreToolUse Write exit 2 → Claude Code confirm UI）
 > - **v5.0.0**：考虑全面替换 `export_docs.py` 表格模板为 `$ref` 全展开视图（自动渲染全局组件）
+
+## v4.5.0+ 接口契约四铁律 ERROR 硬门禁 Quick-Check（review 必跑·用户决策 D 续）
+
+> 对齐 `接口契约规范.md §1.G`（路径禁动态参数）+ §1.H（HTTP 方法白名单）+ §1.I（description 禁鉴权）+ §1.J（description 禁错误码清单）。审查者收到 PR 后必须执行的 4 条扫描命令（**v4.5.0 起全部 ERROR 硬门禁，无 WARNING 过渡期**——4 条规则都是「明确反模式，不是风格建议」）：
+
+```bash
+# 1. 装饰器路径含动态参数 <xxx> 扫描（v4.5.0+ §1.G 铁律）
+#    期望:业务接口命中 0 条；webhook/oauth/callback 段内例外白名单跳过
+git diff master...HEAD -U0 -- '*.py' \
+  | rg "@(?:bp|app|router|api)\.(?:route|get|post)\(['\"][^'\"]*<[^>]+>" \
+  | rg -v "(webhook|oauth|callback)"
+
+# 2. 装饰器 methods= 含禁用方法扫描（v4.5.0+ §1.H 铁律：只允许 GET 或 POST）
+#    期望:命中 0 条
+git diff master...HEAD -U0 -- '*.py' \
+  | rg "methods\s*=\s*\[[^\]]*['\"](?:PUT|PATCH|DELETE|HEAD|OPTIONS)['\"]"
+
+# 3. description / parameters[].description / responses[].description 含鉴权字眼扫描（v4.5.0+ §1.I 铁律）
+#    期望:命中 0 条（15 类鉴权字眼：JWT / Bearer / 需登录 / 需 JWT / 需认证 / 需鉴权 / 需 token / Authorization 等）
+git diff master...HEAD -U0 -- '*.py' \
+  | rg -A3 '^\s*(description:|parameters:|responses:)' \
+  | rg -i "JWT|Bearer\s*Token|需.*登录|需.*认证|需.*鉴权|需.*JWT|Authorization\s*header|鉴权失败"
+
+# 4. description 含错误码清单扫描（v4.5.0+ §1.J 铁律：6 类模式）
+#    期望:命中 0 条
+git diff master...HEAD -U0 -- '*.py' \
+  | rg -A5 '^\s*description:\s*$|^\s*description:\s*[^\s]' \
+  | rg "错误码[:：]\s*\d+|错误码列表|返回码[:：]?\s*\d+|\d{5}\s+[一-鿿]|code[:\s]+\d{4,}|\d{5}\s*[、，,/]"
+```
+
+> 命令 1 命中（装饰器路径含 `<...>` 且不在 webhook/oauth/callback 白名单内）→ Critical 阻塞——按 v4.5.0+ §1.G 路径禁动态参数铁律，所有资源标识走 query 或 body；反例 `/detail/<int:id>` 改为 `/detail?id={id}`；例外白名单（段内含 `webhook` / `oauth` / `callback` 关键字）自动跳过；写时硬门禁已被 `swagger-lint-helper.py check_no_dynamic_path` 兜底（AST 解析 `@bp.route` 装饰器），CR 复核 PR diff 即可。
+>
+> 命令 2 命中（`methods=` 含 PUT/PATCH/DELETE/HEAD/OPTIONS）→ Critical 阻塞——按 v4.5.0+ §1.H HTTP 方法白名单铁律，业务接口只允许 GET 或 POST；按 §0 / §2 速查表对应改为 GET（列表/详情/字典/导出/下载/流式/进度）或 POST（创建/更新/删除/批量删除/导入/上传/bind/webhook）；写时硬门禁已被 `swagger-lint-helper.py check_allowed_methods` 兜底。
+>
+> 命令 3 命中（description / parameters[].description / responses[].description 含鉴权字眼）→ Critical 阻塞——按 v4.5.0+ §1.I 铁律，鉴权方式由全局 `securityDefinitions` + `security` 声明，UI 自动展示锁图标，不必在每个接口 description 重述「JWT / Bearer / 需登录」；写时硬门禁已被 `swagger-lint-helper.py check_no_auth_in_description` 兜底（15 类 `_AUTH_WORDS_IN_DESCRIPTION` 扫描）。
+>
+> 命令 4 命中（description 含 6 类错误码清单模式之一）→ Critical 阻塞——按 v4.5.0+ §1.J 铁律，错误码统一在 `responses.examples` 或 `$ref BizError` 全局组件维护，description 短句仅说明接口功能；写时硬门禁已被 `swagger-lint-helper.py check_no_error_codes_in_description` 兜底（6 类 `_ERROR_CODE_LIST_PATTERNS` 正则匹配）。
+>
+> **6 层 AI 视野覆盖（v4.5.0+ 四铁律）**：
+> - L1 全局铁律段：`CLAUDE.md` 必读段（每次会话自动加载）——v4.5.0 接口契约四铁律
+> - L2 L1 索引触发词：`mcpowers-feat` + `mcpowers-api-contract` + `mcpowers-requirement-change` description 加 v4.5.0 触发词
+> - L3 编排 Read 步骤：相关技能 ## 编排 / ## 触发即执行 Step 1 强 Read `接口契约规范.md §1.G-§1.J` + `swagger-lint-helper.py` 4 个新检查函数
+> - L4 自检清单决策问句：「路径含动态参数？」「methods= 在白名单？」「description 含鉴权？」「description 含错误码清单？」4 问句
+> - L5 硬门禁：`swagger-lint-helper.py check_no_dynamic_path` / `check_allowed_methods` / `check_no_auth_in_description` / `check_no_error_codes_in_description` 4 个新检查函数（v4.5.0 起 ERROR 级，PreToolUse Write exit 2 → Claude Code confirm UI）
+> - L6 审查门禁：R19 + R20 + R21 + R22 + 上述 Quick-Check 段（review 兜底）
+>
+> **与 R18 关系**：R18 = description 8 类禁用内容（HTTP 状态码 / 完整路径 / 响应结构 等）——v4.4.0 WARNING → v4.5.0 ERROR；R19-R22 = v4.5.0 直接 ERROR（无过渡期）——因为这 4 条是「明确反模式」而不是「风格建议」（路径传 id 前端拼接差异 / PUT/PATCH 语义混淆前端调试困难），不留 WARNING 试错期。
+
+## v4.5.1+ POST 强制 JSON Quick-Check（review 必跑）
+
+> 对齐 `接口契约规范.md §1.K`（POST 一律 application/json）。审查者收到 PR 后必须执行的 1 条扫描命令（**v4.5.1 起 ERROR 硬门禁，无 WARNING 过渡期**——这是「明确反模式」不是风格建议）：
+
+```bash
+# POST 接口非豁免路径段含 in: formData / consumes 含 form-urlencoded / multipart 扫描（v4.5.1+ §1.K 铁律）
+#    期望:命中 0 条（POST + formData/form-urlencoded 视为违规；豁免白名单路径段 upload/import/attachment/webhook/callback/notify/oauth 跳过）
+git diff master...HEAD -U0 -- '*.py' \
+  | rg -B5 -A0 "methods\s*=\s*\[[^\]]*['\"]POST['\"]" \
+  | rg "in:\s*formData|consumes:.*(application/x-www-form-urlencoded|multipart/form-data)" \
+  | rg -v "upload|import|attachment|webhook|callback|notify|oauth"
+```
+
+> 命令命中（POST 接口 + in: formData / consumes 含 form-urlencoded/multipart，且路径段不在豁免白名单内）→ Critical 阻塞——按 v4.5.1+ §1.K POST 强制 JSON 铁律，业务接口 POST 一律 `Content-Type: application/json`；改写为 `in: body` + JSON `schema` 或 `consumes: application/json`；豁免白名单（路径段含 `upload` / `import` / `attachment` / `webhook` / `callback` / `notify` / `oauth` 任一关键字）自动跳过；写时硬门禁已被 `swagger-lint-helper.py check_post_must_be_json` 兜底（`in: formData` 正则 + consumes 字段扫描 + 路径段白名单判定），CR 复核 PR diff 即可。
+>
+> **6 层 AI 视野覆盖（v4.5.1+ §1.K）**：
+> - L1 全局铁律段：`CLAUDE.md` 必读段（每次会话自动加载）——v4.5.1 POST 强制 JSON 铁律
+> - L2 L1 索引触发词：`mcpowers-feat` + `mcpowers-api-contract` + `mcpowers-requirement-change` description 加 v4.5.1 触发词
+> - L3 编排 Read 步骤：相关技能 ## 编排 / ## 触发即执行 Step 1 强 Read `接口契约规范.md §1.K` + `swagger-lint-helper.py` 5 个新检查函数
+> - L4 自检清单决策问句：「POST 接口是否声明 formData / form-urlencoded？是否在豁免白名单？」2 问句
+> - L5 硬门禁：`swagger-lint-helper.py check_post_must_be_json()`（v4.5.1 起 ERROR 级，PreToolUse Write exit 2 → Claude Code confirm UI）
+> - L6 审查门禁：R23 + 上述 Quick-Check 段（review 兜底）
+>
+> **与 R19-R22 关系**：R19-R22 = v4.5.0 四铁律（路径 / 方法 / 鉴权 / 错误码清单）；R23 = v4.5.1 新增（POST 强制 JSON）——5 条规则都是「明确反模式不是风格建议」，全部 ERROR 级无 WARNING 过渡期。
 
 ## 审查后
 

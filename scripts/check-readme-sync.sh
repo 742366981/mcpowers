@@ -96,14 +96,6 @@ echo "[2/13] 校验 README ↔ docs/ 规范同步"
 # v2.31.0:保留 *规范.md 匹配(代表「以『规范』结尾的命名约定」)
 # 不命名变体(如 Swagger字段契约.md)由 §22 单独检查存在性
 README_SPECS=$(grep -oE '[A-Za-z一-龥]+规范\.md' "$README" 2>/dev/null | sort -u || true)
-# DEBUG-2026-08-17:定位 CI #69 失败根因 — 临时输出
-echo "  DEBUG: README_SPECS count=$(echo "$README_SPECS" | grep -c .)" >&2
-echo "  DEBUG: ACTUAL_SPECS count=$(echo "$ACTUAL_SPECS_TMP" | grep -c .)" >&2
-echo "  DEBUG: grep version: $(grep --version | head -1)" >&2
-echo "  DEBUG: README file size: $(wc -c < "$README") bytes" >&2
-echo "  DEBUG: README first 3 bytes hex: $(head -c 3 "$README" | xxd -p)" >&2
-echo "  DEBUG: LANG=$LANG LC_ALL=$LC_ALL" >&2
-# DEBUG-END
 # v2.0：mcpowers-shared 移到 skills/mcpowers-shared/
 ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
 

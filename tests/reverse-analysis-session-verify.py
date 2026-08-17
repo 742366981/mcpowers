@@ -21,6 +21,7 @@ import sys
 import tempfile
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -311,8 +312,11 @@ with tempfile.TemporaryDirectory() as tmp:
         file.write(
             json.dumps(
                 {
+                    # 用 ISO 字符串 + tzinfo.utc 转 epoch ms，避免 time.mktime(time.strptime(...))
+                    # 把无 tzinfo struct 当 host 本地时间（CI TZ=UTC vs 本地 TZ=Asia/Shanghai
+                    # 差 8 小时，导致 [5/10] 时间窗关联在 CI 失配）
                     "ts_ms": int(
-                        time.mktime(time.strptime("2026-07-28 10:00:01", "%Y-%m-%d %H:%M:%S"))
+                        datetime.fromisoformat("2026-07-28T10:00:01+08:00").timestamp()
                     )
                     * 1000,
                     "type": "fetch-call",

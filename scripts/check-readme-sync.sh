@@ -95,7 +95,10 @@ fi
 echo "[2/13] 校验 README ↔ docs/ 规范同步"
 # v2.31.0:保留 *规范.md 匹配(代表「以『规范』结尾的命名约定」)
 # 不命名变体(如 Swagger字段契约.md)由 §22 单独检查存在性
-README_SPECS=$(grep -oE '[A-Za-z一-龥]+规范\.md' "$README" 2>/dev/null | sort -u || true)
+# v2.27.0+:ERE 在 GNU grep 3.11+ + LANG=C.UTF-8 环境下对 [一-龥] 字符范围 0 匹配，
+# 改用 PCRE + \p{L}\p{Han} Unicode property（不依赖 locale collation）。
+# 命令前缀 LC_ALL=C.UTF-8 是为了让 Windows Git Bash 单字节 locale 也能跑 grep -P。
+README_SPECS=$(LC_ALL=C.UTF-8 grep -oP '[\p{L}\p{Han}]+规范\.md' "$README" 2>/dev/null | sort -u || true)
 # v2.0：mcpowers-shared 移到 skills/mcpowers-shared/
 ACTUAL_SPECS=$(find "$REPO_DIR/skills/mcpowers-shared/docs/技术规范" -name "*规范.md" 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -u)
 

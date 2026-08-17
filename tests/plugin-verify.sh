@@ -408,9 +408,18 @@ SESSION_VERIFY="$REPO_DIR/tests/reverse-analysis-session-verify.py"
 assert "逆向会话自检脚本存在" "[ -f '$SESSION_VERIFY' ]"
 if [ -f "$SESSION_VERIFY" ] && [ -n "$PY_BIN" ]; then
     set +e
-    $PY_BIN "$SESSION_VERIFY" >/dev/null 2>&1
+    SESSION_STDERR_FILE=$(mktemp)
+    $PY_BIN "$SESSION_VERIFY" >/dev/null 2>"$SESSION_STDERR_FILE"
     RC_SESSION=$?
     set -e
+    if [ "$RC_SESSION" -ne 0 ]; then
+        # 仅在失败时打印 stderr + 环境信息，便于跨平台排查（CI 不能吞错）
+        echo "    ↳ 逆向会话自检 stderr ↓↓↓"
+        sed 's/^/      /' "$SESSION_STDERR_FILE" | head -80
+        echo "    ↳ ↑↑↑ stderr end"
+        echo "    ↳ 环境: Python=$($PY_BIN --version 2>&1) | OS=$(uname -a 2>/dev/null || ver) | LC_ALL=${LC_ALL:-<unset>} | LANG=${LANG:-<unset>}"
+    fi
+    rm -f "$SESSION_STDERR_FILE"
     assert_eq "逆向会话自检通过（exit 0）" "$RC_SESSION" "0"
 fi
 

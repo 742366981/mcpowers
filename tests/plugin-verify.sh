@@ -418,6 +418,10 @@ if [ -f "$SESSION_VERIFY" ] && [ -n "$PY_BIN" ]; then
         sed 's/^/      /' "$SESSION_STDERR_FILE" | head -80
         echo "    ↳ ↑↑↑ stderr end"
         echo "    ↳ 环境: Python=$($PY_BIN --version 2>&1) | OS=$(uname -a 2>/dev/null || ver) | LC_ALL=${LC_ALL:-<unset>} | LANG=${LANG:-<unset>}"
+        # 同时写入 GitHub Actions annotation（公开 API 可见，避免需登录看 logs）
+        FIRST_LINE=$(head -1 "$SESSION_STDERR_FILE" | tr -d '\r' | cut -c1-200)
+        LAST_LINE=$(tail -1 "$SESSION_STDERR_FILE" | tr -d '\r' | cut -c1-200)
+        echo "::error file=tests/reverse-analysis-session-verify.py,line=1::[7.5] Python exit=$RC_SESSION | first=$FIRST_LINE | last=$LAST_LINE"
     fi
     rm -f "$SESSION_STDERR_FILE"
     assert_eq "逆向会话自检通过（exit 0）" "$RC_SESSION" "0"

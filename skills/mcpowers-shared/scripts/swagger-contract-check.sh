@@ -22,10 +22,16 @@ LINT_PY="$SCRIPT_DIR/swagger-lint-helper.py"
 
 # ---------- 解析参数 ----------
 FILE_PATH=""
+# v4.5.2+ PreToolUse wrapper 可传 --content-file=<tmp_path>,含用户即将写入/修改的代码;
+#       PostToolUse wrapper 不传(读磁盘即可);helper 优先用 content-file,缺失则回退磁盘
+CONTENT_FILE=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --file-path=*)
             FILE_PATH="${1#--file-path=}"
+            ;;
+        --content-file=*)
+            CONTENT_FILE="${1#--content-file=}"
             ;;
         *)
             # 忽略未知参数(兼容性)
@@ -94,7 +100,11 @@ if [ -z "$PY" ]; then
 fi
 
 # 跑 lint,exit 0/2 透传
-"$PY" "$LINT_PY" --file-path="$FILE_PATH" --fields-file="$FIELDS_FILE" || LINT_EXIT=$?
+LINT_ARGS=(--file-path="$FILE_PATH" --fields-file="$FIELDS_FILE")
+if [ -n "$CONTENT_FILE" ] && [ -f "$CONTENT_FILE" ]; then
+    LINT_ARGS+=(--content-file="$CONTENT_FILE")
+fi
+"$PY" "$LINT_PY" "${LINT_ARGS[@]}" || LINT_EXIT=$?
 LINT_EXIT=${LINT_EXIT:-0}
 
 # 清理临时文件

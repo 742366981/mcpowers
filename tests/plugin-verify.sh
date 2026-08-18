@@ -526,6 +526,181 @@ if [ -x "$HOOK_NOREF_PRE" ] && [ -x "$HOOK_NOREF_POST" ] && [ -n "$PY_BIN" ]; th
     RC_T10=$?
     set -e
     assert_eq "T10 .yaml refer to → exit 2" "$RC_T10" "2"
+
+    # v4.5.2+ Edit/MultiEdit 输入格式兼容守护（根因 2 回归）
+    # T11:Edit 模式 .py 含「参考《代码规范》§11.3」→ exit 2（detector 必须支持 new_string）
+    set +e
+    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"old","new_string":"# 参考《代码规范》§11.3 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t11
+    RC_T11=$?
+    set -e
+    assert_eq "T11 Edit 模式内部规范引用 → exit 2" "$RC_T11" "2"
+
+    # T12:MultiEdit 模式 .py 含禁用字眼 → exit 2（detector 必须拼接 edits[*].new_string）
+    set +e
+    echo '{"tool_name":"MultiEdit","tool_input":{"file_path":"src/foo.py","edits":[{"old_string":"a","new_string":"# 参考《代码规范》§11.3"},{"old_string":"b","new_string":"# 按规范要求\nval = 2"}]}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t12
+    RC_T12=$?
+    set -e
+    assert_eq "T12 MultiEdit 模式违规引用 → exit 2" "$RC_T12" "2"
+
+    # T13:Edit 模式 .py 含「参考 RFC 7519」→ exit 0（外部权威放行仍生效）
+    set +e
+    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"old","new_string":"# 参考 RFC 7519\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
+    RC_T13=$?
+    set -e
+    assert_eq "T13 Edit 模式外部权威放行 → exit 0" "$RC_T13" "0"
+
+    # T14:Edit 模式 .py 含「详见 utils/security.py」→ exit 2（项目内代码拦截仍生效）
+    set +e
+    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"x","new_string":"# 详见 utils/security.py\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
+    RC_T14=$?
+    set -e
+    assert_eq "T14 Edit 模式项目内代码拦截 → exit 2" "$RC_T14" "2"
+
+    # T15:hooks.json 的 Edit|MultiEdit matcher 必须注册 no-ref-words（根因 1 回归）
+    EDIT_BLOCK=$(awk '/"matcher":[[:space:]]*"Edit\|MultiEdit"/,/^      \}$/' "$REPO_DIR/hooks/hooks.json")
+    if echo "$EDIT_BLOCK" | grep -q "pre-write-check-no-ref-words.sh"; then
+        echo "  ✓ T15 hooks.json Edit|MultiEdit matcher 注册了 no-ref-words"
+        PASS=$((PASS + 1))
+    else
+        echo "  ✗ T15 hooks.json Edit|MultiEdit matcher 漏配 no-ref-words hook"
+        FAIL=$((FAIL + 1))
+    fi
+fi
+
+# ============== 7.8 v4.5.2+ 扩展自检（duplicate MultiEdit + spec-frontmatter MultiEdit 锁定 + swagger PostToolUse 钩子） ==============
+echo "[7.8] v4.5.2+ 扩展自检（duplicate MultiEdit + spec-frontmatter MultiEdit 锁定 + swagger PostToolUse 兜底）"
+
+# ---- T16:duplicate 函数检测器 Edit 模式回归锁（v4.5.2 前 Edit 已支持,锁住防退化） ----
+HOOK_DUP="$REPO_DIR/hooks/pre-write-check-duplicate.sh"
+assert "T16 pre-write-check-duplicate.sh 存在" "[ -f '$HOOK_DUP' ]"
+if [ -n "$PY_BIN" ] && [ -x "$HOOK_DUP" ]; then
+    TMP_T16="$REPO_DIR/tests/.tmp_dup_t16"
+    rm -rf "$TMP_T16" 2>/dev/null || true
+    mkdir -p "$TMP_T16/src/utils" 2>/dev/null || true
+    cd "$TMP_T16"
+    git init -q . && git config user.email "v@t" && git config user.name "v"
+    cat > src/utils/a.py <<'PYFIX'
+def format_response(data):
+    return {"ok": True, "data": data}
+PYFIX
+    git add -A && git commit -q -m "baseline"
+    if command -v cygpath >/dev/null 2>&1; then
+        TMP_T16_WIN=$(cygpath -m "$TMP_T16")
+    else
+        TMP_T16_WIN="$TMP_T16"
+    fi
+    # Edit 模式:new_string 是单行透传 wrapper → exit 2
+    set +e
+    PAYLOAD_T16='{"tool_name":"Edit","tool_input":{"file_path":"'$TMP_T16_WIN'/src/wrapper.py","old_string":"x","new_string":"def format_response(text):\n    return some_other.format_response(text)\n"}}'
+    echo "$PAYLOAD_T16" | bash "$HOOK_DUP" 2>/dev/null
+    RC_T16=$?
+    set -e
+    assert_eq "T16 Edit 模式单行透传 → exit 2" "$RC_T16" "2"
+    cd "$REPO_DIR"
+    rm -rf "$TMP_T16" 2>/dev/null || true
+fi
+
+# ---- T17:duplicate 函数检测器 MultiEdit 支持(v4.5.2 新增,修复 edits 数组漏配) ----
+if [ -n "$PY_BIN" ] && [ -x "$HOOK_DUP" ]; then
+    TMP_T17="$REPO_DIR/tests/.tmp_dup_t17"
+    rm -rf "$TMP_T17" 2>/dev/null || true
+    mkdir -p "$TMP_T17/src/utils" 2>/dev/null || true
+    cd "$TMP_T17"
+    git init -q . && git config user.email "v@t" && git config user.name "v"
+    cat > src/utils/a.py <<'PYFIX'
+def format_response(data):
+    return {"ok": True, "data": data}
+PYFIX
+    git add -A && git commit -q -m "baseline"
+    if command -v cygpath >/dev/null 2>&1; then
+        TMP_T17_WIN=$(cygpath -m "$TMP_T17")
+    else
+        TMP_T17_WIN="$TMP_T17"
+    fi
+    # MultiEdit 模式:edits[*].new_string 含单行透传 wrapper → exit 2
+    set +e
+    PAYLOAD_T17='{"tool_name":"MultiEdit","tool_input":{"file_path":"'$TMP_T17_WIN'/src/wrapper.py","edits":[{"old_string":"a","new_string":"def format_response(text):\n    return other.format_response(text)\n"}]}}'
+    echo "$PAYLOAD_T17" | bash "$HOOK_DUP" 2>/tmp/dup_t17
+    RC_T17=$?
+    set -e
+    assert_eq "T17 MultiEdit 模式单行透传 → exit 2" "$RC_T17" "2"
+    assert "T17 stderr 含单行透传标签" "grep -q '单行透传' /tmp/dup_t17"
+    cd "$REPO_DIR"
+    rm -rf "$TMP_T17" 2>/dev/null || true
+fi
+
+# ---- T18:spec-frontmatter 检测器 MultiEdit 删除字段场景锁定(v4.5.2 修复确认行为不退化) ----
+HOOK_SFM="$REPO_DIR/hooks/pre-write-check-spec-frontmatter.sh"
+DETECTOR_SFM="$REPO_DIR/hooks/check_spec_frontmatter.py"
+assert "T18 pre-write-check-spec-frontmatter.sh 存在" "[ -f '$HOOK_SFM' ]"
+assert "T18 check_spec_frontmatter.py 存在" "[ -f '$DETECTOR_SFM' ]"
+if [ -n "$PY_BIN" ] && [ -x "$HOOK_SFM" ]; then
+    # 临时造一个真实的技术规范 frontmatter 文件,MultiEdit 删除 stability 字段
+    TMP_T18_DIR="$REPO_DIR/tests/.tmp_sfm_t18"
+    rm -rf "$TMP_T18_DIR" 2>/dev/null || true
+    mkdir -p "$TMP_T18_DIR/skills/mcpowers-shared/docs/技术规范" 2>/dev/null || true
+    cat > "$TMP_T18_DIR/skills/mcpowers-shared/docs/技术规范/测试规范.md" <<'MDFIX'
+---
+name: test
+type: shared
+stability: stable
+last_breaking_change: v1.0.0
+---
+
+# body
+MDFIX
+    if command -v cygpath >/dev/null 2>&1; then
+        TMP_T18_WIN=$(cygpath -m "$TMP_T18_DIR")
+    else
+        TMP_T18_WIN="$TMP_T18_DIR"
+    fi
+    set +e
+    PAYLOAD_T18='{"tool_name":"MultiEdit","tool_input":{"file_path":"'$TMP_T18_WIN'/skills/mcpowers-shared/docs/技术规范/测试规范.md","edits":[{"old_string":"stability: stable\nlast_breaking_change: v1.0.0","new_string":"removed"}]}}'
+    echo "$PAYLOAD_T18" | bash "$HOOK_SFM" 2>/tmp/sfm_t18
+    RC_T18=$?
+    set -e
+    assert_eq "T18 MultiEdit 删除 stability/last_breaking_change → exit 2" "$RC_T18" "2"
+    assert "T18 stderr 含删除字段提示" "grep -q 'stability' /tmp/sfm_t18 || grep -q 'last_breaking_change' /tmp/sfm_t18"
+    rm -rf "$TMP_T18_DIR" 2>/dev/null || true
+fi
+
+# ---- T19:PostToolUse swagger 兜底钩子文件存在 + 可执行 ----
+HOOK_SWAGGER_POST="$REPO_DIR/hooks/post-write-check-swagger.sh"
+assert "T19 post-write-check-swagger.sh 存在" "[ -f '$HOOK_SWAGGER_POST' ]"
+[ -x "$HOOK_SWAGGER_POST" ] || { echo "  ✗ T19 post-write-check-swagger.sh 不可执行"; FAIL=$((FAIL + 1)); }
+if [ -x "$HOOK_SWAGGER_POST" ]; then
+    echo "  ✓ T19 post-write-check-swagger.sh 可执行"
+    PASS=$((PASS + 1))
+fi
+
+# ---- T20:hooks.json PostToolUse matcher 必须注册 swagger 兜底钩子 ----
+POST_BLOCK=$(awk '/"PostToolUse":/,/^    \]$/' "$REPO_DIR/hooks/hooks.json" 2>/dev/null || true)
+# 用更稳健的 awk:从 PostToolUse 段开始读到下一行 "  ]"
+if echo "$POST_BLOCK" | grep -q "post-write-check-swagger.sh"; then
+    echo "  ✓ T20 hooks.json PostToolUse matcher 注册了 swagger 兜底钩子"
+    PASS=$((PASS + 1))
+else
+    echo "  ✗ T20 hooks.json PostToolUse matcher 漏配 swagger 兜底钩子"
+    FAIL=$((FAIL + 1))
+fi
+
+# ---- T21:PostToolUse swagger 钩子快速过滤 + 错误防御 ----
+if [ -x "$HOOK_SWAGGER_POST" ]; then
+    set +e
+    # 空 stdin → exit 0
+    echo '' | bash "$HOOK_SWAGGER_POST" 2>/dev/null
+    RC_T21_EMPTY=$?
+    # 非接口文件路径 → exit 0
+    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/utils/foo.py","old_string":"a","new_string":"b"}}' | bash "$HOOK_SWAGGER_POST" 2>/dev/null
+    RC_T21_NOT_VIEW=$?
+    # 非 .py 接口文件路径 → exit 0(lint-helper 仅支持 .py)
+    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/api/foo.txt","old_string":"a","new_string":"b"}}' | bash "$HOOK_SWAGGER_POST" 2>/dev/null
+    RC_T21_NOT_PY=$?
+    set -e
+    assert_eq "T21 空 stdin → exit 0" "$RC_T21_EMPTY" "0"
+    assert_eq "T21 非接口文件 → exit 0" "$RC_T21_NOT_VIEW" "0"
+    # 路径 src/api/foo.txt 含 /api/ 命中过滤规则,但非 .py → 文件不存在 → helper 检测项目无 swagger → exit 0
+    assert_eq "T21 .txt 路径(项目未装 swagger)→ exit 0" "$RC_T21_NOT_PY" "0"
 fi
 
 # ============== 旧安装脚本不应残留 ==============

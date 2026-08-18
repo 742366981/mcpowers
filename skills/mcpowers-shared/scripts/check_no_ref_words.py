@@ -614,7 +614,26 @@ def main() -> int:
         payload = payload["tool_input"]
 
     file_path = payload.get("file_path", "")
-    content = payload.get("content", "")
+    # v4.5.2+ 兼容 Edit/MultiEdit 三种工具的 stdin JSON 形状:
+    #   Write:      {"file_path":"...","content":"..."}
+    #   Edit:       {"file_path":"...","old_string":"...","new_string":"..."}
+    #   MultiEdit:  {"file_path":"...","edits":[{"old_string":"...","new_string":"..."}, ...]}
+    # 优先走 Write 的 content 字段(原行为不变);否则 Edit 的 new_string;否则 MultiEdit 拼接所有 edits[*].new_string。
+    # 任何一种都无法抽出可扫描内容 → content 留空 → main() 后续 return 0 放行(与原行为一致)。
+    if "content" in payload and isinstance(payload["content"], str):
+        content = payload["content"]
+    elif "new_string" in payload and isinstance(payload["new_string"], str):
+        content = payload["new_string"]
+    elif "edits" in payload and isinstance(payload["edits"], list):
+        parts = [
+            e["new_string"]
+            for e in payload["edits"]
+            if isinstance(e, dict) and isinstance(e.get("new_string"), str)
+        ]
+        content = "\n".join(parts)
+    else:
+        # 兜底:直传 {"file_path":"...","content":"..."} 的单测场景
+        content = payload.get("content", "")
 
     if not content:
         return 0

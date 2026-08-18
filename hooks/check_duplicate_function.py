@@ -12,7 +12,11 @@
 #   2 = 命中 block 候选 → stderr 写警告，触发 Claude Code confirm UI
 #   1 = 解析失败，放行
 #
-# 输入：stdin 是 Claude Code 注入的 JSON，含 tool_input.{file_path, content, new_string, old_string}
+# 输入：stdin 是 Claude Code 注入的 JSON，三种写入工具的形状各异：
+#   Write     → tool_input.{file_path, content}
+#   Edit      → tool_input.{file_path, old_string, new_string}
+#   MultiEdit → tool_input.{file_path, edits:[{old_string, new_string}, ...]}
+# v4.5.2+：兼容 MultiEdit（之前只读 content / new_string，MultiEdit 静默放行）。
 #
 # 入口函数命名为 hook_main() 而非 main()：避开防过度抽象铁律钩子对 def main()
 # 的全局冲突（与 check_spec_frontmatter.py 的约定一致）。
@@ -518,7 +522,22 @@ def hook_main():
 
     tool_input = data.get('tool_input', {}) or {}
     file_path = tool_input.get('file_path', '') or ''
-    new_str = tool_input.get('content', '') or tool_input.get('new_string', '') or ''
+    # v4.5.2+ 兼容三种工具 stdin JSON 形状（与 check_no_ref_words.py §main 同模式）：
+    #   Write     → content（整个新文件全文）
+    #   Edit      → new_string（一段替换）
+    #   MultiEdit → edits[*].new_string（多段替换,逐段拼接）
+    new_str = ''
+    if isinstance(tool_input.get('content'), str):
+        new_str = tool_input['content']
+    elif isinstance(tool_input.get('new_string'), str):
+        new_str = tool_input['new_string']
+    elif isinstance(tool_input.get('edits'), list):
+        parts = [e['new_string'] for e in tool_input['edits']
+                 if isinstance(e, dict) and isinstance(e.get('new_string'), str)]
+        new_str = '\n'.join(parts)
+    else:
+        # 兜底：兼容直传 stdin 的旧单测场景
+        new_str = tool_input.get('content', '') or tool_input.get('new_string', '') or ''
     old_str = tool_input.get('old_string', '') or ''
 
     if not file_path:

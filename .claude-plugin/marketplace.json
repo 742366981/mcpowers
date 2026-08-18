@@ -1,6 +1,6 @@
 {
   "name": "mcpowers",
-  "version": "4.5.1",
+  "version": "4.5.2",
   "description": "AI 辅助开发的标准化技能体系（场景层 24 个 + 方法层 8 个 + 规范库 32 个）",
   "owner": {
     "name": "742366981",
@@ -9,9 +9,9 @@
   "plugins": [
     {
       "name": "mcpowers",
-      "description": "主入口路由器 + 32 个技能 + 32 个技术规范 + v4.5.1 §1.K POST 强制 JSON 铁律",
+      "description": "主入口路由器 + 32 个技能 + 32 个技术规范 + v4.5.2 硬门禁零字眼检测扩展至 Edit/MultiEdit",
       "source": "./",
-      "version": "4.5.1",
+      "version": "4.5.2",
       "category": "development",
       "keywords": [
         "workflow",

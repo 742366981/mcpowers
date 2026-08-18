@@ -7,6 +7,41 @@
 
 ## [Unreleased]
 
+## v4.5.2 - 2026-08-18
+
+> 🎯 **核心定位**：Edit/MultiEdit 模式下硬门禁全量修复——用户在 `ynas-amadeus-service` 项目实测反馈「硬门禁对文档字眼 + 代码注释字眼相关都不生效，新增和编辑都没有拦截」「api 规范没生效」。v4.5.2 同时修 4 个 Edit/MultiEdit 漏配 / 盲区：
+>   1. no-ref-words 硬门禁（v4.3.0 引入但 v4.5.1 漏配 Edit|MultiEdit matcher，detector 只读 content 字段）→ 全部修复
+>   2. duplicate 函数检测（v2.28.x 起支持 Edit 但漏配 MultiEdit `edits` 数组）→ 全部修复
+>   3. spec-frontmatter 删除字段检测（v2.27.4 起支持 Edit + MultiEdit，无 bug，仅加回归测试锁定）→ 加测试防退化
+>   4. Swagger 接口契约（PreToolUse 钩子从磁盘读旧文件，Edit/MultiEdit 新增 @bp.route 时漏检）→ 新增 PostToolUse 兜底
+
+### Breaking Changes
+
+无（纯 bug 修复；行为差异：Edit/MultiEdit 写入代码/配置含禁用字眼、重复函数、Swagger 字段缺失现在会被 confirm UI / 自动反馈拦截；之前是静默放行——修复前的静默放行就是 bug）。
+
+### 新增
+
+- **`hooks/hooks.json` 在 `Edit|MultiEdit` matcher 下注册 `pre-write-check-no-ref-words.sh`**：v4.5.1 之前该 hook 仅在 Write matcher 下注册，Edit|MultiEdit 漏配导致编辑场景下硬门禁零拦截。v4.5.2 补齐——`Edit|MultiEdit` matcher 现在与 Write matcher 在硬门禁零字眼检测 wrapper 这一项上对齐（同样其他 5 个 hook：pre-write-confirm-api-hint / pre-write-check-duplicate / pre-write-check-import / pre-write-check-spec-frontmatter / pre-write-check-doc-sync 已在 v2.x 早期就注册）。
+- **`skills/mcpowers-shared/scripts/check_no_ref_words.py` `main()` 增加 Edit / MultiEdit 输入格式归一化逻辑**：v4.3.0 引入的检测器只读 stdin JSON 的 `content` 字段，Claude Code Edit 工具传入 `old_string`/`new_string`、MultiEdit 传入 `edits[*].new_string`，导致即使 hook 注册了也因检测器拿到 `content=""` 直接 return 0 放行。v4.5.2 优先走 Write 的 `content` 字段（原行为不变），其次 Edit 的 `new_string`，再次 MultiEdit 拼接所有 `edits[*].new_string`；三种都拿不到才走兜底 `payload.get("content", "")`。
+- **`hooks/check_duplicate_function.py` 输入解析扩展到 MultiEdit `edits[*].new_string`**：v2.28.x 起的检测器只读 `content` / `new_string` 字段，MultiEdit 模式拿到 `new_str=""` 后 `extract_function_names` 返回空集直接 return 0 → 静默放行。v4.5.2 复用 no-ref-words 同模式 3 档归一化（content / new_string / edits[*].new_string 拼接），MultiEdit 也走「同文件重名 + 跨文件单行透传」3 档判定。
+- **`hooks/post-write-check-swagger.sh` 新增 PostToolUse 兜底钩子**：v2.31.0+ Swagger 契约门禁的 PreToolUse 钩子从磁盘读 `file_path`——Write 模式时新文件未落盘，Edit/MultiEdit 模式时读到旧文件。用户在 Edit 模式新增 `@bp.route` 但没写 docstring → PreToolUse 看到旧文件无新函数 → 静默放行（用户报告「api 规范没生效」的根因）。v4.5.2 新增 PostToolUse 钩子在文件已写入后跑同一 helper（`swagger-contract-check.sh` → `swagger-lint-helper.py`），命中违规 → exit 2 → Claude Code 把 stderr 喂回 Claude 自动修正（强反馈而非 confirm UI）。
+- **`hooks/hooks.json` PostToolUse matcher 下注册 `post-write-check-swagger.sh`**：与 `post-write-check-no-ref-words.sh` 对齐——PostToolUse 段从 2 个 hook 增到 3 个。
+- **`skills/mcpowers-shared/scripts/swagger-contract-check.sh` 增加 `--content-file=<tmp>` 可选参数**：PreToolUse wrapper 后续可改造为 stdin 注入 content 走临时文件路径，helper 优先用 content-file 缺失则回退磁盘读——为 v4.5.3+ PreToolUse Write 模式补齐做准备（v4.5.2 仅 PostToolUse 启用，本参数当前未被调用，留作接口预留）。
+- **`tests/plugin-verify.sh §7.7` 新增 T11-T15 共 5 个 no-ref-words 回归测试**：T11 Edit 模式 .py 含内部规范名 → exit 2；T12 MultiEdit 模式 .py 含禁用字眼 → exit 2；T13 Edit 模式外部权威前缀（RFC 7519）→ exit 0 守护智能二分在 Edit 模式下仍放行；T14 Edit 模式项目内代码路径 → exit 2 守护项目内代码拦截在 Edit 模式下仍生效；T15 检查 `hooks.json` 中 `Edit|MultiEdit` matcher 块必须包含 `pre-write-check-no-ref-words.sh` 条目（根因 1 配置不漏配的硬守护）。
+- **`tests/plugin-verify.sh §7.8` 新增 T16-T21 共 6 个 v4.5.2 扩展回归测试**：T16 Edit 模式单行透传 → exit 2（duplicate Edit 回归锁）；T17 MultiEdit 模式单行透传 → exit 2（duplicate MultiEdit v4.5.2 新支持）；T18 MultiEdit 删除 stability/last_breaking_change → exit 2（spec-frontmatter MultiEdit 行为锁定防退化）；T19 PostToolUse swagger 钩子文件存在 + 可执行；T20 hooks.json PostToolUse matcher 注册 swagger 兜底钩子；T21 PostToolUse swagger 钩子快速过滤（空 stdin / 非接口文件 / .txt 路径 → exit 0）。
+
+### 调整
+
+- **stderr 违规提示加 `[Edit]` / `[MultiEdit]` 前缀**（v4.5.2+）：让用户在 Edit 模式下能区分违规来源（行号仍为 new_string 相对行号；绝对化涉及外部 `old_string` → 文件位置查找，留待未来单独 issue）。
+- **`CLAUDE.md` 第 100 行 v4.5.2+ 段扩写为 4 项并行修复条目**：明示 v4.5.1 之前 no-ref-words hook 仅在 Write matcher 下注册，v4.5.2 同时扩展 hooks.json Edit|MultiEdit matcher 注册 + detector 兼容 `new_string` / `edits[*].new_string` 输入格式；并新增 3 个并行修复说明（duplicate MultiEdit / spec-frontmatter MultiEdit 锁定 / Swagger PostToolUse 兜底）。
+- **`README.md` 同步 11 → 12 个 Hook 脚本计数 + 核心功能表 6 行扩写 v4.5.2+ Swagger Edit/MultiEdit PostToolUse 兜底说明**：含 Claude Code 工具段 + 设计理念骨架增强段 + 1 句话总结 + 升级场景 5 维护说明 + 路由器 SKILL.md「## 5. 硬约束完整覆盖」标题。
+
+### 风险
+
+- **存量项目升级 v4.5.1 → v4.5.2 后第一次 Edit/MultiEdit 操作可能扫到历史违规**：v4.5.1 静默放行的禁用字眼 / 重复函数 / Swagger 字段缺失存量代码现在会被 confirm UI / 自动反馈拦截——这是修复（不是破坏），但用户体验上突然"严了"。建议升级前批量预扫：`rg "参考《|详见 utils/|按规范要求" 你的项目 --type py --type sh -l` 看哪些文件含历史违规；如有大量存量，可在 hook stderr 提示后临时在 confirm UI 选"是"放行，逐步清理。
+- **`new_string` 相对行号对用户可读性下降**：用户看到 stderr 报 `L1` 不一定是文件第 1 行——而是 new_string 内相对第 1 行。已在 stderr 加 `[Edit]` / `[MultiEdit]` 前缀提示，但用户仍需打开 diff 才能精确定位；绝对化留待未来单独 issue。
+- **PostToolUse swagger 钩子强反馈可能干扰 Claude 自动决策**：exit 2 把 stderr 喂回 Claude 触发自动重写流程；如果 Claude 选择 undo 该 Edit 而非补齐字段，会导致用户原本的改动被回退。属于「严谨反馈」的副作用，无法完全消除；用户可在 hook stderr 后追加一句话指引 Claude 该怎么改。
+
 ## v4.5.1 - 2026-08-16
 
 > 🎯 **核心定位**：§1.K POST 强制 JSON 铁律（v4.5.0 接口契约四铁律之后用户决策 D 续的「第 5 条」——业务接口 POST 一律 `application/json`，禁 form-urlencoded/multipart，避免后端 `request.form` / `request.files` 兜底导致接口语义混乱）

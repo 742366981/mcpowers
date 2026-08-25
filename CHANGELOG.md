@@ -7,6 +7,43 @@
 
 ## [Unreleased]
 
+## v4.6.0 - 2026-08-25
+
+> 🎯 **核心定位**：新增 **FastAPI 后端规范 v1.0**——1:1 镜像 `Flask后端规范.md` v1.2 的 22 章节结构（§0 接口速查 / §1 目录结构 / §2 路径 / §3 应用工厂 / §4 配置 / §5 中间件 / §6 日志 / §7 异常 / §8 错误码 / §9 响应 / §10 认证 / §11 OpenAPI 文档 / §12-§19 各专项 / §20 检查清单 / §附录 A/B / §21 Docker / §22 v4.5.x 铁律），框架绑定部分替换为 FastAPI 原生实现（`lifespan` / `Depends` / `APIRouter` / `Pydantic` + 原生 OpenAPI）。规范库 32 → 33 份。
+
+### Breaking Changes
+
+无。FastAPI 规范是新增资产，未影响 Flask / Vue / 爬虫等现有栈规范；现有项目不受影响。
+
+### 新增
+
+- **`skills/mcpowers-shared/docs/技术规范/FastAPI后端规范.md`（v1.0 / 1961 行）**：22 章节完整镜像 `Flask后端规范.md` 章节框架，框架绑定部分替换：
+  - **目录结构**：`apps/` → `app/` + 增 `schemas/`（Pydantic BaseModel 集）+ `services/`
+  - **应用工厂**：`create_app()` + `@asynccontextmanager async def lifespan(app)`
+  - **中间件**：`BaseHTTPMiddleware` 子类 + `dispatch()` 替代 `@app.before_request` / `teardown_appcontext`
+  - **认证**：`Depends(get_current_user)` + `HTTPBearer` 替代 `@login_required`
+  - **OpenAPI 文档（§11）**：Pydantic BaseModel + Field + response_model 替代 Flasgger docstring；FastAPI 已原生暴露 `/openapi.json` 与 `/docs`（Swagger UI）；新增 `tools/export_openapi.py` 最小实现 + `custom_openapi()` 注入 BearerAuth 全局声明
+  - **异常处理（§7）**：`@app.exception_handler(Exception)` 替代 `app.errorhandler`
+  - **DB / Redis**：SQLAlchemy async + `aiomysql`；`contextvars.ContextVar` 替代 `flask.g`
+  - **部署（§18）**：Gunicorn + `uvicorn.workers.UvicornWorker` 替代 `GeventWebSocketWorker`
+  - **CORS（§17）**：CORSMiddleware + `allow_methods=['GET', 'POST']` 收紧（§1.H 铁律落地）
+  - **辅助函数（§15）**：`hash_password` / `generate_token` / `generate_captcha` 等价实现，注明「复用优先于二次抽象」
+- **`mcpowers-spec-index` §1 查表新增 `FastAPI / 后端 .py` 行** + **§2 接口类型速查新增 FastAPI 列**（与 Flask docstring 模板列对齐）+ **§3 文件树新增 `FastAPI后端规范.md`** + **示例 4 改写为 FastAPI**。模型现在按"接口契约规范 + 栈规范"双层加载：写 FastAPI 接口时同时 Read `接口契约规范.md`（栈无关）+ `FastAPI后端规范.md`（栈特定）。
+- **`docs/CLAUDE.md`**「## 5. 规范体系」段新增 FastAPI 规范说明 + 「## 触发条件」段新增 FastAPI 触发映射（★ 加功能 / 新增接口 / 做页面 → 命中 `mcpowers-feat` 并加载 FastAPI 规范）。
+- **`docs/README.md`**「规范体系」章节新增 FastAPI 规范行（共 33 个）+ 简要描述。
+- **`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` 版本号 4.5.2 → 4.6.0**：新增 FastAPI 后端规范对应的市场元数据描述更新（规范库 32 → 33）。
+
+### 调整
+
+- **`FastAPI后端规范.md §11` v4.5.x OpenAPI 文档铁律完整落地**：§1.G 路径禁动态参数（`@router.get('/xxx/list')` 不写 `{xxx}`；详情走 `Query(..., alias='id')`）+ §1.H HTTP 方法白名单（仅 GET / POST）+ §1.I description 禁鉴权字眼 15 类 + §1.J description 禁错误码清单 + §1.K POST 强制 JSON（Pydantic BaseModel 默认 application/json；UploadFile 走 multipart 例外）。§22「v4.5.x 接口契约铁律落地」段对四铁律 + §1.K + v4.4.0 description 8 类禁用 + v4.4.0 SSOT 收敛逐条给出 FastAPI 落地点。
+- **`FastAPI后端规范.md §20.4`「接口文档字眼规范（v4.3.0+）」**：列出 v4.3.0+ 代码/配置零引用铁律的 FastAPI 栈级落地——共享字眼清单 `mcpowers-shared/docs/_assets/_forbidden_ref_words.txt` + 智能二分判定（外部权威 / 内部规范名 / 项目内路径 / `.md` 文档）+ 一键扫描 `python mcpowers-shared/scripts/check_no_ref_words.py app/schemas/`。
+
+### 风险
+
+- **存量 FastAPI 项目升级 v4.6.0 后第一次写 schema 可能扫到历史违规**：v4.6.0 之前 FastAPI 项目没有强制 §1.G/§1.H/§1.I/§1.J/§1.K + description 8 类禁用 + 22 字眼 + `$ref` 复用——现在 hook 与 `mcpowers-code-review` R13-R23 会扫到。建议升级前批量预扫：`rg "@router\.(put|delete|patch|head|options)|\{[^}]+\}|described in|conform to" your_project/app/ --type py -l` 看哪些文件含历史违规。
+- **`tools/export_openapi.py` 写入 `docs/API文档/openapi.md` 是占位实现**：v1.0 用 `json.dumps` 占位，生产环境建议替换为 fastapi-docs 或第三方 Markdown 渲染器（保持 SSOT——同一份 schema 渲染两次，机器 / 人类两份分别落盘）。
+- **`FastAPI后端规范.md §21` Docker 部分仅给差异点速查**：完整 docker-compose 文件直接引用 `Flask后端规范.md §21.1-21.6`——避免与 Flask 版双向漂移；FastAPI 项目的三套 docker-compose 文件结构与 Flask 项目完全一致，仅 `command:` 字段固定 `python -u gunicorn_loader.py --{env}`，其他配置（image / volumes / environment / healthcheck）沿用 Flask 版。
+
 ## v4.5.2 - 2026-08-18
 
 > 🎯 **核心定位**：Edit/MultiEdit 模式下硬门禁全量修复——用户在 `ynas-amadeus-service` 项目实测反馈「硬门禁对文档字眼 + 代码注释字眼相关都不生效，新增和编辑都没有拦截」「api 规范没生效」。v4.5.2 同时修 4 个 Edit/MultiEdit 漏配 / 盲区：

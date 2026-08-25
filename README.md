@@ -20,7 +20,7 @@ mcpowers 提供 7 大核心能力，让 AI 像资深工程师一样按流程工�
 
 ### 1 句话总结
 
-> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 32 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物封装形式 + v2.31.0 Swagger 字段契约硬门禁 + v4.4.0 接口文档 SSOT 终态收敛 + v4.5.0 接口契约四铁律 ERROR 硬门禁 + v4.5.1 POST 强制 JSON 铁律 + 顶层文档中文 + v2.18.0 浏览器自动化 DrissionPage 全场景默认）
+> **mcpowers = 借鉴 superpowers 方法论的骨架 + 自带 33 个技术规范的肉 + 中文友好的壳**（v2.3.0 接口契约规范 + v2.6.0 日志规范 + v2.14.0 爬虫拆分 7 册 + v2.17.0 模块产物封装形式 + v2.31.0 Swagger 字段契约硬门禁 + v4.4.0 接口文档 SSOT 终态收敛 + v4.5.0 接口契约四铁律 ERROR 硬门禁 + v4.5.1 POST 强制 JSON 铁律 + v4.6.0 新增 FastAPI 后端规范 v1.0 + 顶层文档中文 + v2.18.0 浏览器自动化 DrissionPage 全场景默认）
 >
 > 有规范时强制按规范写（保证代码可读性统一），无规范时退回通用方法论（保证任务能完成）。
 
@@ -36,7 +36,7 @@ mcpowers 的核心理念：**让 AI 像资深工程师一样按流程工作，�
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
 - **终态交付**：文档与代码注释只写当前状态，不留历史演进痕迹和"参考 xxx"来源指代（详见《文档编写规范》§9）
 - **编排显式化**：23 个场景技能统一带 `## 编排` 段，写明调谁、何时调、失败时
-- **规范元数据化**：32 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
+- **规范元数据化**：33 个核心规范带 YAML frontmatter（title/type/applies_to/priority/version），机器可查
 - **骨架增强**：路由器轻量化、SessionStart 注入完整铁律、5 个事件组 / 12 个 Hook 脚本（SessionStart + PreToolUse(Bash/Write/Edit) + PostToolUse，含 v2.27.0+ Python 局部 import 拦截 + v2.27.4+ 规范 frontmatter 双字段强制声明 + v2.28.2+ 重复函数检测极简化：跨文件同名默认放行 + 同文件重名 / 单行透传 wrapper 两类 block + v2.29.0+ doc-sync 物理门禁 + v4.0.2+ 文档画蛇添足字眼软门禁 + v4.5.2+ Swagger PostToolUse 兜底）、冒烟测试 + 同步校验脚本
 
 ---
@@ -97,7 +97,7 @@ mcpowers/                              # 仓库根 = 插件根
 │   ├── mcpowers-code-review/          # 代码审查
 │   ├── mcpowers-subagent/             # 子代理并行
 │   │
-│   └── mcpowers-shared/               # 规范资产库（24 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层；v2.6.0 新增日志规范；v4.4.0 新增 swagger_components.md + flask_swagger_config.py）
+│   └── mcpowers-shared/               # 规范资产库（24 技术规范 + 1 产品 + 1 铁律 + 2 模板 + 1 工具 + 2 启动脚本 + 5 API契约资产 v2.2.0；v2.3.0 接口契约规范覆盖通用层；v2.6.0 新增日志规范；v4.4.0 新增 swagger_components.md + flask_swagger_config.py；**v4.6.0 新增 FastAPI后端规范 v1.0**，规范库累计 33 份）
 │       ├── SKILL.md                   # 入口（按需加载导航）
 │       ├── mcpowers-spec-index/       # 规范导航（查表）
 │       ├── scripts/                   # 启动脚本（Windows + POSIX 双版本）
@@ -109,10 +109,11 @@ mcpowers/                              # 仓库根 = 插件根
 │           ├── AI操作规范.md          # 全局铁律
 │           ├── 产品设计/
 │           │   └── 产品设计规范.md
-│           ├── 技术规范/              # 32 个技术规范（v2.3.0 新增接口契约规范；v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.31.0 新增 Swagger 字段契约）
+│           ├── 技术规范/              # 33 个技术规范（v2.3.0 新增接口契约规范；v2.6.0 新增日志规范；v2.14.0 爬虫拆分 7 册；v2.31.0 新增 Swagger 字段契约；v4.6.0 新增 FastAPI 后端规范）
 │           │   ├── 接口契约规范.md     # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化参数/响应）
 │           │   ├── API规范.md
 │           │   ├── Flask后端规范.md
+│           │   ├── FastAPI后端规范.md  # 🆕 v4.6.0（Pydantic + 原生 OpenAPI；§11 OpenAPI 文档落地 v4.5.x 五铁律）
 │           │   ├── Vue前端规范.md
 │           │   ├── 爬虫规范.md
 │           │   ├── 爬虫分析规范.md        # v2.14.0 主册（公共方法论）
@@ -229,7 +230,7 @@ mcpowers v2.0+ 已改造为 [Claude Code 官方插件市场](https://docs.claude
 **安装内容**（由插件系统自动部署）：
 - ✅ 1 个主入口路由器（`mcpowers`）
 - ✅ 32 个场景/方法技能（24 场景 + 8 方法）
-- ✅ 32 个技术规范（`mcpowers-shared`，详见 [`CHANGELOG.md`](CHANGELOG.md)）
+- ✅ 33 个技术规范（`mcpowers-shared`，完整清单 [`CHANGELOG.md`](CHANGELOG.md)）
 - ✅ 5 个 Hook 事件组 / 12 个 Hook 脚本（v4.3.0+ 新增代码/配置零引用智能二分；v4.5.2+ 新增 Swagger Edit/MultiEdit PostToolUse 兜底；自动注册，无需改 `settings.json`）
 
 > **两种触发方式并存**：① **自然语言自动路由**（说「加个功能」自动命中 `mcpowers-feat`）；② **斜杠直接调用**（`/mcpowers-feat`）。

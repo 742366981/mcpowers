@@ -9,7 +9,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 | `.claude-plugin/` | **插件市场元数据**（`marketplace.json` + `plugin.json`，由 Claude Code 插件系统读取） |
 | `skills/mcpowers/` | **主入口路由器**（每次对话注入） |
 | `skills/mcpowers-*` | **32 个可路由技能**（场景层 24 + 方法层 8，扁平化） |
-| `skills/mcpowers-shared/` | 规范资产库（32 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除；v2.31.0 新增 `Swagger字段契约.md` 字段清单机制） |
+| `skills/mcpowers-shared/` | 规范资产库（33 个技术规范 + `mcpowers-spec-index` 导航，v2.6.0 新增 `日志规范.md`；v2.14.0 爬虫拆分 7 册；v2.15.0 协作模式 B 工具化 `user-action-recorder.py`；v2.22.0 Flask/爬虫日志实现层对齐 `日志规范.md`——按 type 分文件、禁止按级别切文件；v2.23.1 docker-compose 启动命令统一：`up -d --force-recreate`、`--build` 不带 `--force-recreate`、stop/down 区分停止与删除；v2.31.0 新增 `Swagger字段契约.md` 字段清单机制；**v4.6.0 新增 `FastAPI后端规范.md` v1.0**——1:1 镜像 Flask 规范 22 章节；Pydantic BaseModel + Field + response_model 替代 Flasgger docstring；§11 OpenAPI 文档体系完整落地 v4.5.x 接口契约五铁律） |
 | `hooks/` | Claude Code hooks 资产（5 个事件组 / 12 个脚本 + `hooks.json`（v4.5.2+ 含 `post-write-check-swagger.sh` Swagger 接口契约兜底；v4.3.0+ 含 `pre-write-check-no-ref-words.sh` + `post-write-check-no-ref-words.sh`）；v2.28.2+ 含 `pre-write-check-duplicate.sh` 重复函数检测（极简：跨文件同名默认放行 + 同文件重名 + 单行透传 wrapper 两类 block；豁免 `main` / `hook_main` 入口惯例 + Python dunder 协议方法 + 单下划线私有名）；v2.27.0+ 含 `pre-write-check-import.sh` Python 局部 import 拦截；v2.27.4+ 含 `pre-write-check-spec-frontmatter.sh` 规范 frontmatter 字段强制声明；**v2.29.0+ 含 `pre-write-check-doc-sync.sh` doc-sync 物理门禁（path/route/env 三类检查）——替代 v2.9.0 引入的 `doc-sync-install` 技能 [已废弃]，不向用户项目注入任何文件，装 mcpowers 即自动支持**；**v4.3.0+ 含 `pre-write-check-no-ref-words.sh`（写时硬门禁）+ `post-write-check-no-ref-words.sh`（兜底软门禁）+ 共享 `scripts/check_no_ref_words.py` 检测器 + 3 份共享常量（`_forbidden_ref_words.txt` + `_internal_spec_docs.txt` + `_external_authority.txt`）——智能二分判定代码/配置零引用字眼，覆盖 R15（接口零引用）+ R16（.md 零引用）+ R17（代码/配置零引用）三层铁律**） |
 | `tests/` | 插件结构验证（`plugin-verify.sh`） |
 | `scripts/` | 工具脚本（`check-readme-sync.sh`） |
@@ -55,7 +55,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 位于 `mcpowers-shared/docs/技术规范/`：
 - **通用规范**：API、数据库、缓存、Git、代码(SOLID/KISS/DRY/YAGNI)、测试、部署等
-- **技术锁规范**：Flask后端、Vue前端、爬虫
+- **技术锁规范**：Flask后端、FastAPI 后端、Vue前端、爬虫
 
 **按需加载**：场景/方法层技能不预加载规范，而是通过 `mcpowers-spec-index` 查表（"做什么 → 读哪个规范"）按需 Read。
 
@@ -89,7 +89,7 @@ AI 辅助开发的标准化技能体系。**按场景拆分的轻量级技能组
 
 **运行时版本访问白名单（v2.27.4+ 全栈适用铁律）**：上条禁的是"注入物硬编码版本号"。本条允许的是"AI 运行时访问历史版本"——AI 在 Claude Code 工具调用层 `ls ~/.claude/plugins/cache/mcpowers/mcpowers/` 发现用户已装的旧版本 → `Read` 读该版本规范（version 是运行时发现，**不**是预先硬编码）；项目根存在 `.mcpowers-version: v{major}.{minor}.{patch}` 时 AI 默认读该版本；用户显式指定"按 v{major}.{minor}.{patch} 规范写"时 AI 按指令读历史版本。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §运行时版本访问白名单」。
 
-**规范稳定性分级 + CHANGELOG 强制破坏声明（v2.27.4+ 全栈适用铁律）**：所有 32 份规范 frontmatter 必须声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；AI 读取规范后必读这两个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG / deprecated 不写新代码）。每次 mcpowers 发布的 `CHANGELOG.md` 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的**唯一权威索引**。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §CHANGELOG 强制破坏声明段」；方法层落地：`mcpowers-code-review` 增 R9 stability 审查维度 + 审查动作清单第 6 项。
+**规范稳定性分级 + CHANGELOG 强制破坏声明（v2.27.4+ 全栈适用铁律）**：所有 33 份规范 frontmatter 必须声明 `stability: stable|evolving|deprecated` + `last_breaking_change: v{major}.{minor}.{patch}`；AI 读取规范后必读这两个字段决定行为（stable 假设跨 minor 兼容 / evolving 升级时主动查 CHANGELOG / deprecated 不写新代码）。每次 mcpowers 发布的 `CHANGELOG.md` 必须含 `### Breaking Changes` 段（哪怕标"无"），作为用户升级兼容性的**唯一权威索引**。详见 [`代码规范.md`](skills/mcpowers-shared/docs/技术规范/代码规范.md)「最高铁律 · mcpowers 注入路径稳定性 §CHANGELOG 强制破坏声明段」；方法层落地：`mcpowers-code-review` 增 R9 stability 审查维度 + 审查动作清单第 6 项。
 
 **终态交付基线**：文档与代码注释只描述当前状态，不保留历史演进痕迹（"原为 xxx" / "已废弃" / 变更历史章节）与参考来源指代（"参考 xxx 文档"）；变更历史只允许出现在 `CHANGELOG.md` 与 README「最近变更」。详见 `文档编写规范.md §9` + `代码规范.md §11.3`。
 
@@ -245,6 +245,6 @@ for f in sorted(os.listdir('skills')):
 - **方法复用**：TDD / Review / Plan / Brainstorm 等方法层技能被场景层按需编排
 - **按需加载**：通过 `mcpowers-spec-index` 查表按需 Read 规范文件，避免爆上下文
 - **铁律双约束**：软约束靠技能描述（`铁律` 段落 + `## 反模式（禁止）` ❌ 清单），硬约束靠 Claude Code hooks 物理阻断
-- **资产零损耗**：32 个技术规范原地保留，路径不重组、不重命名
+- **资产零损耗**：33 个技术规范原地保留，路径不重组、不重命名
 - **完全独立**：不依赖任何外部技能，Git 操作由 4 个 `mcpowers-git-*` 技能自包含
 - **零安装脚本**：依赖 Claude Code 插件系统管理安装/卸载/升级，仓库零维护成本

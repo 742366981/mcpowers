@@ -7,7 +7,7 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 
 > **用法**：上层技能命中后，先 Read 本表确定要加载的规范文件路径，再按需 Read 命中的规范。**不要跳过本表去猜**。
 >
-> **当前索引 35 个规范文件**（24 原有 + 4 API契约新增 v2.2.0 + 1 接口契约规范新增 v2.3.0 + 1 日志规范新增 v2.6.0 + 1 公共配套 + 6 平台专项 = 爬虫分析规范 v2.14.0 拆分 7 册，按需加载避免爆上下文；v2.19.0 新增 `reverse-analysis-session.py` 与 §8.5/§8.6 章节，归属工具与抓包册；v2.21.0 新增 §8.8 派生产物自动生成 + 工具 `session-artifacts-generator.py` + 规范《爬虫分析规范》§3.11 App 录制选型调研）
+> **当前索引 36 个规范文件**（24 原有 + 4 API契约新增 v2.2.0 + 1 接口契约规范新增 v2.3.0 + 1 日志规范新增 v2.6.0 + 1 公共配套 + 6 平台专项 = 爬虫分析规范 v2.14.0 拆分 7 册，按需加载避免爆上下文；v2.19.0 新增 `reverse-analysis-session.py` 与 §8.5/§8.6 章节，归属工具与抓包册；v2.21.0 新增 §8.8 派生产物自动生成 + 工具 `session-artifacts-generator.py` + 规范《爬虫分析规范》§3.11 App 录制选型调研；**v4.6.0 新增 `FastAPI后端规范.md` v1.0**——Pydantic BaseModel + Field + response_model 替代 Flasgger docstring；§11 OpenAPI 文档体系完整落地 v4.5.x 四铁律 + §1.K POST 强制 JSON）
 
 ---
 
@@ -18,6 +18,8 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 | **任何写代码** | `代码规范.md`（SOLID/KISS/DRY/YAGNI，常驻基线，**含 §Python import 位置规范**——`import` 必须位于模块顶部） |
 | **任何接口契约设计 / API 设计**（v2.3.0）⭐ | **`接口契约规范.md`**（栈无关通用层：19 类接口 + 简短 description + parameters/responses 完整结构化规则 + 多栈 docstring 模板） |
 | **Flask / 后端 `.py`** | `Flask后端规范.md` + `API规范.md` |
+| **FastAPI / 后端 `.py`**（v4.6.0 新增） | `FastAPI后端规范.md` + `API规范.md`（Pydantic BaseModel + 原生 OpenAPI；栈级落地 §1.G/§1.H/§1.I/§1.J/§1.K 五铁律） |
+| **Vue / 前端 `.vue`** | `Vue前端规范.md` + `设计规范.md` |
 | **Vue / 前端 `.vue`** | `Vue前端规范.md` + `设计规范.md` |
 | **爬虫（项目骨架）** | `爬虫规范.md` |
 | **逆向统一入口 / 交付与验收** | `爬虫分析规范.md` §1.1-§1.3 + §9.4（目标分层、三种交付形态、外部资源所有权铁律、生命周期、真实可用性、有界并发） |
@@ -62,6 +64,8 @@ description: 规范导航技能。把"当前任务/文件类型 → 该读哪个
 > **栈无关通用契约（任何语言）**：`接口契约规范.md` §0（19 类接口速查表）+ §2.1-§2.13（每类详细契约）
 >
 > **Flask/Flasgger docstring 实现细节**：见 `docs/API文档/swagger_template.md`（仅 13 类基础 CRUD + 登录登出）
+>
+> **FastAPI / Pydantic 实现细节**（v4.6.0 新增）：见 `FastAPI后端规范.md §11`——`APIRouter` 装饰器 + `Pydantic BaseModel + Field` + `response_model` 完整替代 docstring；§11.5 自带 `tools/export_openapi.py` 拉 `/openapi.json` 落盘脚本
 >
 > **业务路径/响应/错误码**：见 `API规范.md`
 
@@ -115,6 +119,7 @@ mcpowers-shared/docs/
     ├── 接口契约规范.md       # 🆕 v2.3.0 通用层（栈无关，19 类接口 + 简短 description + 结构化 parameters/responses）
     ├── API规范.md
     ├── Flask后端规范.md
+    ├── FastAPI后端规范.md  # 🆕 v4.6.0（22 章节镜像 Flask；Pydantic + 原生 OpenAPI；§11 OpenAPI 文档落地 v4.5.x 五铁律）
     ├── Vue前端规范.md
     ├── 爬虫规范.md
     ├── 爬虫分析规范.md        # v2.14.0 主册（公共方法论：§1 流程/§3-§6 接口分析/§9.4 真实可用性验收/§10.9 指纹交接/§11 风控）
@@ -187,10 +192,10 @@ mcpowers-shared/docs/
 3. 加载：`代码同步修改规范.md` + `细节记录规范.md` + 对应栈规范 + **`接口契约规范.md`**（接口改动时）
 4. 不加载：无关规范
 
-**示例 4：用户说"加一个 FastAPI 接口"（v2.3.0 新增）**
+**示例 4：用户说"加一个 FastAPI 接口"（v4.6.0 起改写）**
 1. 命中 `mcpowers-feat`
-2. Read 本表 → 查"任何接口契约设计"（⭐ v2.3.0）
-3. 加载：`代码规范.md` + **`接口契约规范.md`**（含 FastAPI docstring 模板 §3.2）
+2. Read 本表 → 查"任何接口契约设计"（⭐ v2.3.0）+ "FastAPI / 后端 .py" 行（⭐ v4.6.0）
+3. 加载：`代码规范.md` + **`接口契约规范.md`**（栈无关契约）+ **`FastAPI后端规范.md`**（栈特定：Pydantic + APIRouter + response_model + 5 铁律落地）
 4. 不加载：Flask 后端规范（栈无关）/ Vue/爬虫/设计等
 
 **示例 5：用户说"加一个 WebHook 回调接口"（v2.3.0 新增）**

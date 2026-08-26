@@ -732,11 +732,16 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 2. **用户确认后** - 按 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 执行：
    1. 创建 .gitignore（根据项目类型识别）
    2. 创建语言特定文件
-   3. 创建虚拟环境脚本（按 §3.3.4 6 条铁律：CMD 优先 / 编码处理 / 不写中文 echo / 路径双引号 / `call activate.bat` / 错误处理）
+   3. 创建虚拟环境脚本（按 §3.3.4 6 条铁律：CMD 优先 / 编码处理 / 不写中文 echo / 路径双引号 / `call .\activate.bat` / 错误处理）
    4. 创建环境配置示例
    5. 更新记忆文件
 
-> ⚠️ **生成 / 修改任何 `.bat` 时必须按 §3.3.4 6 条铁律**——CMD 双击直接能跑通为准。**禁止**沿用旧模板里 `call activate`（依赖 PATHEXT，PowerShell 标签会失败）+ 中文 echo（GBK 默认 CMD 下必乱码）+ 无错误处理（失败仍继续跑后续步骤）的写法。爬虫项目 4 类典型模板（`windows_cmd/一键启动.bat` / `一键关闭.bat` / `{module}_windows.bat` / `update_windows.bat`）落地于爬虫规范 §25。
+> ⚠️ **生成 / 修改任何 `.bat` 时必须按 §3.3.4 6 条铁律（v4.6.2）**——CMD 双击直接能跑通为准。
+> - **R5**：必须 `call .\activate.bat`（显式相对路径），**禁止**裸名 `call activate.bat`（`chcp 65001 > nul` 切换 UTF-8 代码页会破坏 cmd 的 PATHEXT，导致即使当前目录有 activate.bat 也报「不是内部或外部命令」，debug3 无 chcp 成功 / debug4 加 chcp 后失败，100% 可重现）；**禁止** `call activate`（依赖 PATHEXT，PowerShell 标签会失败）；**禁止** `Activate.ps1`（CMD 不能直接跑）。
+> - **R2**：**禁止**源文件 UTF-8 BOM——CMD 双击 bat 时首 3 字节 `EF BB BF` 会被视为命令名前缀导致「不是内部或外部命令」（bat 文件不需要 BOM，CMD 不识别）。验证：`xxd 你的bat.bat | head -1` 应显示 `4065 6368 ...` 而非 `efbb bf40 ...`。
+> - **R3**：进度统一英文 `echo [1/5] ...`，彻底回避 chcp + BOM 双重保险；REM 注释也建议英文（GBK 默认 CMD 下中文 REM 必乱码）。
+> - **R6**：每步 `|| goto :error` + 末尾 `:error` 段 + `pause` + `exit /b 1`——失败立即停，不再继续跑后续步骤。
+> - 爬虫项目 4 类典型模板（`windows_cmd/一键启动.bat` / `一键关闭.bat` / `{module}_windows.bat` / `update_windows.bat`）落地于爬虫规范 §25。
 
 **自检确认**：
 - [ ] `.gitignore` 是否已创建？ → 验证：`ls .gitignore`

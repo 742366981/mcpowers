@@ -1,6 +1,6 @@
 {
   "name": "mcpowers",
-  "version": "4.6.1",
+  "version": "4.6.2",
   "description": "AI 辅助开发的标准化技能体系（场景层 24 个 + 方法层 8 个 + 规范库 33 个，含 FastAPI 后端规范 v1.0 + Windows .bat 编写规范 v1.0）",
   "owner": {
     "name": "742366981",
@@ -9,9 +9,9 @@
   "plugins": [
     {
       "name": "mcpowers",
-      "description": "主入口路由器 + 32 个技能 + 33 个技术规范（含 FastAPI 后端 v1.0 + Windows .bat 编写规范 v1.0）+ v4.5.2 硬门禁零字眼检测扩展至 Edit/MultiEdit",
+      "description": "主入口路由器 + 32 个技能 + 33 个技术规范（含 FastAPI 后端 v1.0 + Windows .bat 编写规范 v1.0 + v4.6.2 R2/R5 真实 bug 修复）+ v4.5.2 硬门禁零字眼检测扩展至 Edit/MultiEdit",
       "source": "./",
-      "version": "4.6.1",
+      "version": "4.6.2",
       "category": "development",
       "keywords": [
         "workflow",

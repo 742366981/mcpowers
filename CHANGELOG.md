@@ -7,6 +7,40 @@
 
 ## [Unreleased]
 
+## v4.6.2 - 2026-08-26
+
+> 🎯 **核心定位**：v4.6.1 后用真实 Windows CMD 跑模板实测，**发现 3 个 v4.6.1 没暴露的真实硬伤**（用户实测反馈"感觉还是有问题"）：① UTF-8 BOM 让 CMD 双击 bat 报「不是内部或外部命令」（debug3/4 可重现）② `chcp 65001` 切换 UTF-8 代码页破坏 cmd 的 PATHEXT，导致 `call activate.bat` 裸名也失败（debug3 无 chcp 成功、debug4 加 chcp 后失败，100% 可重现）③ §25.5 模板清单列写错（`call activate.bat` → `call .\activate.bat`）。本次 v4.6.2 把 §3.3.4 R2 / R5 措辞收紧 + 4 个模板 `activate.bat` → `.\activate.bat` + AI 操作规范 Step 0 加 bug 复现命令。**所有 mcpowers 生成的 `.bat` 必须按 v4.6.2 写法**，保证 Windows CMD 双击直接跑通。
+
+### Breaking Changes
+
+无（纯规范正文修订 + 模板微调；用户项目按 v4.6.1 写法生成的 bat 在 `chcp 65001` 环境下会失败——但 v4.6.1 才发布 1 天内，存量项目按 v4.6.2 重写即可）。
+
+### 新增
+
+无（v4.6.2 是纯 bug 修复版，不引入新能力）。
+
+### 修复
+
+- **`开发环境规范.md §3.3.4 R2`「编码处理」措辞收紧**：明确**禁止**源文件 UTF-8 BOM——CMD 双击 bat 时首 3 字节 `EF BB BF` 会被视为命令名前缀，导致"不是内部或外部命令"（即使 bat 文件就在当前目录）。原 v4.6.1 措辞"源文件用 UTF-8 BOM 编码避免双重解码异常"是错的——bat 文件不需要 BOM（BOM 是 UTF-8 文本编辑器的产物，CMD 不识别），加了反而破坏 bat 调用链。**验证方法**：`xxd venv_windows.bat | head -1` 显示 `00000000: efbb bf40 ...` → 删 BOM 后 `xxd` 显示 `00000000: 4065 6368 ...` → bat 可被 cmd 正常调用。
+- **`开发环境规范.md §3.3.4 R5`「activate 写法」升级为 `call .\activate.bat`**：v4.6.1 写 `call activate.bat`（裸名 + .bat 扩展名），实测在 `chcp 65001 > nul` 之后**必失败**——`chcp 65001` 切换 UTF-8 代码页会破坏 cmd 的 PATHEXT 列表，导致裸名 `activate.bat` 在当前目录存在也报"不是内部或外部命令"。改用显式相对路径 `.\activate.bat` 绕过 PATHEXT 解析，100% 可重现验证通过。`debug3.bat` 无 `chcp 65001` → `call activate.bat` 成功；`debug4.bat` 加 `chcp 65001` → `call activate.bat` 失败；统一改 `call .\activate.bat` 后两个 bat 都成功。
+- **`开发环境规范.md §3.3.3` venv_windows.bat 模板**：step 3 `call activate.bat` → `call .\activate.bat`。
+- **`爬虫规范.md §25` 4 个模板（§25.1 一键启动 / §25.2 一键关闭 / §25.3 {module}_windows / §25.4 update_windows）**：3 处 `call activate.bat`（§25.1/§25.3/§25.4 各自的 activate）统一改 `call .\activate.bat`。
+- **`爬虫规范.md §25` 6 条铁律段**：R2 措辞同步加「禁止源文件 UTF-8 BOM」段（CMD 双击 bat 时 BOM 视为命令名前缀）；R5 措辞同步加「必须 `call .\activate.bat` 显式相对路径——`chcp 65001` 切换 UTF-8 代码页后会破坏 cmd 的 PATHEXT，导致裸名 `activate.bat` 报『不是内部或外部命令』，实测 100% 可重现」段。
+- **`爬虫规范.md §25.5` 模板清单表**：2 处 `call activate.bat` 描述同步改 `call .\activate.bat`。
+
+### 调整
+
+- **`AI操作规范.md` Step 0 执行流程 2.3 项 .bat 铁律段**：在「禁止沿用旧模板 `call activate`」之后追加「禁止裸名 `call activate.bat`（v4.6.2+ 改 `call .\activate.bat`）+ 禁止源文件 UTF-8 BOM（v4.6.2+ 必须纯 ASCII 字节流；`xxd 你的bat.bat | head -1` 应显示 `4065 6368 ...` 而非 `efbb bf40 ...`）」。
+- **`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` version bump 4.6.1 → 4.6.2**（patch bump：纯 bug 修复，无破坏性变更）。
+
+### 风险
+
+- **存量项目按 v4.6.1 模板生成的 bat**：在 `chcp 65001` 环境下 `call activate.bat` 100% 失败——建议按 v4.6.2 重写。批量修复命令：`rg -l "call activate\\.bat" 你的项目/` 找含旧写法的 bat → 替换为 `call .\\activate.bat`；`xxd 你的bat.bat | head -1 | grep efbbbf` 找含 BOM 的 bat → 用 Python `data = data.lstrip(b'\\xef\\xbb\\xbf'); open(p, 'wb').write(data)` 删 BOM。
+- **chcp 65001 仍可能影响其他 cmd 内置命令的 PATHEXT 解析**：除 activate.bat 外，理论上 `pip.exe` / `python.exe` 等**带 .exe 扩展名的命令不受影响**（PATHEXT 优先 .exe），但若 bat 内有其他 `call <script>.bat` 同模式写法，需同步改为 `call .\script.bat`。**统一规范**：v4.6.2+ 任何 `call` 后跟 `.bat` / `.cmd` 都必须加 `.\` 前缀。
+- **`call .\<file>.bat` 的可移植性**：在 Windows CMD 100% 工作；但 PowerShell 不识别 `.\` 前缀（PowerShell 用 `& .\file.ps1`），所以 mcpowers 生成的 bat 仅保证 CMD 兼容性——PowerShell 用户请用 PowerShell 语法（R1 铁律：CMD 优先，不强求 PowerShell 兼容）。
+
+---
+
 ## v4.6.1 - 2026-08-26
 
 > 🎯 **核心定位**：修复 `开发环境规范.md §3.3.3` venv_windows.bat 模板在 Windows CMD 默认 GBK 下中文乱码 + `call activate` 依赖 PATHEXT 在 PowerShell 标签失败 + 无错误处理失败仍继续跑后续步骤的 3 类硬伤；新增 §3.3.4「Windows .bat 编写规范」6 条铁律 + 爬虫规范 §25「Windows .bat 编写规范」4 类典型模板（一键启动 / 一键关闭 / `{module}_windows.bat` / `update_windows.bat`）；AI 操作规范 Step 0 加 .bat 铁律提示。所有 mcpowers 生成的 `.bat` 一律按 §3.3.4 铁律实现，确保 Windows CMD 双击直接跑通。

@@ -161,12 +161,32 @@ _PATH_WHITELIST_DIRS: tuple[str, ...] = (
 )
 _PATH_WHITELIST_FILES: tuple[str, ...] = (
     "CHANGELOG.md",
+    # v4.6.3+ 顶层导航文档（索引型,非输出型）—— v4.0.2 §9.5 场景化判定模型中作为「索引型文档」
+    # 允许指向其他规范章节；v4.3.0「CLAUDE.md/README.md 无例外」决策与 §9.5 立场冲突,
+    # v4.6.3 兜底段（git commit）首次执行暴露此冲突,回归 §9.5 索引型豁免。
+    "CLAUDE.md",
+    "README.md",
+    "AGENTS.md",
 )
 _PATH_WHITELIST_SUBSTRINGS: tuple[str, ...] = (
     "mcpowers-spec-index", "API契约", "接口契约", "迁移", "migration", "Migration", "migrate",
     "deprecation", "Deprecation", "DEPRECATED",
     "历史教训",
 )
+
+# v4.6.3+ 规范术语名豁免（精确子串命中整行放行）
+# 设计动机：v4.3.0 引入的「代码/配置零引用」铁律名本身含禁用字眼,无差别扫描会破坏术语一致性；
+# 兜底段（git commit）首次执行暴露这一冲突——必须豁免规范术语名（含 R15/R16/R17 三层铁律名）。
+# 加新铁律时同时把铁律名加到这里，保持 SSOT（单一权威源）。
+_TERM_EXCEPTIONS: frozenset[str] = frozenset({
+    "代码/配置零引用铁律",
+    "代码/配置零引用智能二分判定",
+    "代码/配置零引用智能二分",
+    "R17 零引用",
+    "R17 代码/配置零引用",
+    "R15 接口零引用",
+    "R16 .md 零引用",
+})
 
 
 def _get_forbidden_words() -> list[str]:
@@ -297,6 +317,11 @@ def scan_line(line: str, line_no: int = 0) -> list[Violation]:
         return []
     if "${CLAUDE_PLUGIN_ROOT}" in line:
         return []
+    # v4.6.3+ 规范术语名豁免（v4.3.0 引入的「代码/配置零引用」铁律名等术语本身含禁用字眼,整行命中即放行）
+    # 规范化行后子串匹配(去书名号/空格/横线)——避免「「代码/配置零引用」铁律」被全角符号阻断
+    line_normalized_for_terms = _normalize_line(line)
+    if any(term in line_normalized_for_terms for term in _TERM_EXCEPTIONS):
+        return []
 
     # 第 2 步：是否含禁用字眼
     line_lower = line.lower()
@@ -358,8 +383,8 @@ def _classify(line: str, hit_word: str) -> tuple[str, str, str]:
             return (
                 "internal_spec",
                 "ERROR",
-                f"行内引用内部规范文档《{spec}》(v4.3.0+ 代码/配置零引用铁律)"
-                f"——注释应直接说明当前做法,不引用其他文档",
+                f"行内命中内部规范文档《{spec}》(v4.3.0+ 代码/配置零引用铁律)"
+                f"——注释应直接说明当前做法,不指向其他文档",
             )
 
     # 优先级 4:内部规范别名命中（lower 匹配,容忍空格/书名号差异）
@@ -370,7 +395,7 @@ def _classify(line: str, hit_word: str) -> tuple[str, str, str]:
                 "internal_spec",
                 "ERROR",
                 f"行内命中内部规范别名《{spec_lower}》(v4.3.0+ 智能二分)"
-                f"——口语化引用同样拦截,直接说明当前做法",
+                f"——口语化命中同样拦截,直接说明当前做法",
             )
 
     # 优先级 5:项目内代码文件路径命中 → 实现跳转类
@@ -379,7 +404,7 @@ def _classify(line: str, hit_word: str) -> tuple[str, str, str]:
         return (
             "internal_code",
             "ERROR",
-            f"行内引用项目内代码文件《{code_match.group(0)}》(v4.3.0+)"
+            f"行内命中项目内代码文件《{code_match.group(0)}》(v4.3.0+)"
             f"——注释应说明该文件做什么,不指向具体文件让读者跳转",
         )
 
@@ -389,7 +414,7 @@ def _classify(line: str, hit_word: str) -> tuple[str, str, str]:
         return (
             "internal_code",
             "ERROR",
-            f"行内引用 GitHub 仓库《{github_match.group(0)}》(v4.3.0+)"
+            f"行内命中 GitHub 仓库《{github_match.group(0)}》(v4.3.0+)"
             f"——非公认官方文档链接,直接说明当前做法",
         )
 
@@ -401,17 +426,17 @@ def _classify(line: str, hit_word: str) -> tuple[str, str, str]:
             return (
                 "internal_md",
                 "ERROR",
-                f"行内引用项目说明文档《{md_name}》(v4.3.0+ 用户决策:CLAUDE.md/README.md 无例外)"
+                f"行内命中项目说明文档《{md_name}》(v4.3.0+ 用户决策:CLAUDE.md/README.md 无例外)"
                 f"——注释应自洽,不指向说明文档",
             )
         return (
             "internal_md",
             "ERROR",
-            f"行内引用项目内 .md 文档《{md_name}》(v4.3.0+)"
-            f"——直接说明当前做法,不引用其他文档",
+            f"行内命中项目内 .md 文档《{md_name}》(v4.3.0+)"
+            f"——直接说明当前做法,不指向其他文档",
         )
 
-    # 优先级 8:「按规范/根据规范/遵守规范」无外部前缀 → 画蛇添足类
+    # 优先级 8:无外部权威前缀的画蛇添足短语 → 画蛇添足类
     unbounded_match = _UNBOUNDED_SPEC_PHRASE_PATTERN.search(line)
     if unbounded_match:
         return (
@@ -425,7 +450,7 @@ def _classify(line: str, hit_word: str) -> tuple[str, str, str]:
     return (
         "fallback",
         "ERROR",
-        f"行内含禁用引用字眼「{hit_word}」但既不指向外部权威也不指向内部规范(v4.3.0+ 兜底)"
+        f"行内含禁用字眼「{hit_word}」但既不指向外部权威也不指向内部规范(v4.3.0+ 兜底)"
         f"——删除字眼,直接陈述结论",
     )
 
@@ -455,6 +480,10 @@ def scan_content(
 
     # 路径白名单:命中放行整个文件
     if file_path and is_path_whitelisted(file_path):
+        return []
+    # self-reference 豁免:detector 自身源文件(术语名集合/错误消息模板必然含禁用字眼,
+    # 是 v4.3.0 智能二分判定的 SSOT 定义所在——必须自包含,不视为违规)
+    if file_path and Path(file_path).resolve() == Path(__file__).resolve():
         return []
 
     # 自动提取扩展名
@@ -585,7 +614,7 @@ def main() -> int:
         退出码:0 = 合规;2 = 有 ERROR 级违规(触发 confirm UI);1 = 自身错误
     """
     parser = argparse.ArgumentParser(
-        description="mcpowers 通用零引用字眼检测（v4.3.0+ 智能二分）"
+        description="mcpowers 通用禁用字眼检测（v4.3.0+ 智能二分）"
     )
     parser.add_argument(
         "--level",

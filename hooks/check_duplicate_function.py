@@ -573,16 +573,16 @@ def hook_main():
         if same_file_count >= 2:
             duplicates.append((name, [], '同文件重名'))
             continue
-        # 2. 跨文件扫描（辅助信息，仅供单行透传判定使用）
+        # 2. 单行透传 wrapper 本地判定（不依赖跨文件信息）
+        # v4.6.3+ 性能优化:跨文件扫描移到第 3 步,仅当本地判定为 wrapper 候选时才扫描,
+        # 避免每次 Edit 都触发 git_grep_duplicate 全仓 walk.
+        is_wrapper = is_one_line_wrapper(new_str, name)
+        if not is_wrapper:
+            # 既不重名也不是 wrapper → 放行（v2.28.2+ 跨文件同名默认放行原则）
+            continue
+        # 3. 命中 wrapper 候选后才跨文件扫描拿 hits（辅助信息,展示给用户）
         cross_hits = git_grep_duplicate(repo_root, rel_path, name)
-        if not cross_hits:
-            continue
-        # 3. 单行透传 wrapper 检测（gold standard 二次包装，必拦）
-        if is_one_line_wrapper(new_str, name):
-            duplicates.append((name, cross_hits, '单行透传'))
-            continue
-        # 4. 跨文件同名但不是单行透传 → 默认放行
-        #    （Python import 是模块级作用域，跨文件同名不冲突）
+        duplicates.append((name, cross_hits, '单行透传'))
 
     if not duplicates:
         return 0

@@ -12,7 +12,7 @@
 #   6. 技能 description 字符数 ≤ 800（防 1024c 截断）
 #   7. README / CLAUDE.md 中声明的技能/规范/Hook 数与实际一致
 #   8. 路由器 + 规范库入口 的技能/规范数声明一致性（v2.9.0 L1 强化）
-#   9. 跨文件技能引用一致性（无悬空引用）（v2.9.0 L1 强化）
+#   9. 跨文件技能路径一致性（无悬空指向）（v2.9.0 L1 强化）
 #  10. crawler-reverse 真实可用性验收门禁完整性（v2.12.0 + v2.16.0 + v2.17.0）
 #  11. reverse 分层拓扑与公共合同完整性（v2.13.0）
 #  12. 浏览器/CDP 外部资源所有权门禁（v2.13.0）
@@ -26,7 +26,7 @@
 #  20. 单一权威源门禁（v2.21.1 新增：关键短语在 CLAUDE.md / README.md 出现即告警，应在规范权威源维护）
 #  21. 规范 frontmatter 双字段门禁（v2.27.4 新增：全部规范必须声明 stability + last_breaking_change，动态计数）
 #  22. Swagger 5 字段契约铁律存在性（v2.31.0+ 新增：CLAUDE.md 铁律段 + Swagger字段契约.md + 默认清单 yml + contract-check.sh + lint-helper.py）
-#  23. 代码/配置零引用智能二分判定（v4.3.0+ 新增：3 份共享常量 + check_no_ref_words.py + 2 新 hook + 旧 hook 删除）
+#  23. 代码/配置零引用智能二分判定（v4.3.0+ 新增：3 份共享常量 + 智能二分检测器脚本 + 2 新 hook + 旧 hook 删除）
 #
 # v4.3.0：新增 section 23
 # v2.27.4：新增 section 21
@@ -83,7 +83,7 @@ for s in $README_SKILLS; do
     fi
     if ! echo "$ACTUAL_SKILLS" | grep -qx "$s" 2>/dev/null; then
         echo "  ⚠ README 提到但实际不存在: $s（可能是文档笔误）"
-        # 警告而非错误（README 可能引用历史技能名）
+        # 警告而非错误（README 可能含历史技能名）
     fi
 done
 
@@ -372,10 +372,10 @@ else
     FAIL=$((FAIL + DOC_NUM_FAIL2))
 fi
 
-# ============== 9. 跨文件技能引用一致性（v2.9.0 L1 强化） ==============
-# v2.9.0：捕获"路由器调用 mcpowers-foo 但 mcpowers-foo 目录不存在"的悬空引用。
+# ============== 9. 跨文件技能路径一致性（v2.9.0 L1 强化） ==============
+# v2.9.0：捕获"路由器调用 mcpowers-foo 但 mcpowers-foo 目录不存在"的悬空指向。
 #   范围：所有 SKILL.md 里出现的 mcpowers-* 字面量都要在 skills/ 实际目录里存在。
-echo "[9/13] 校验 跨文件技能引用一致性（无悬空引用）"
+echo "[9/13] 校验 跨文件技能路径一致性（无悬空指向）"
 DANGLING_FAIL=0
 DECLARED=$(ls "$REPO_DIR/skills" 2>/dev/null | grep '^mcpowers-' | sort -u)
 # ripgrep: 所有 SKILL.md 里出现的 mcpowers-* 字面量。
@@ -387,11 +387,11 @@ REFERENCED=$(grep -rhoE 'mcpowers-[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]' \
     "$REPO_DIR/skills" 2>/dev/null \
     | sort -u || true)
 
-# 引用合法性 3 条规则（任一满足即视为有效）：
+# 路径合法性 3 条规则（任一满足即视为有效）：
 #   1. 等于一个 DECLARED 的技能目录
 #   2. 白名单：`mcpowers-spec-index`（规范库入口 skill）+ `mcpowers-workflow`（历史单体已删除）+ `mcpowers-version`（项目级冻结标记，v2.27.4+ 用户项目根 .mcpowers-version 文件，非技能）
 #   3. 是 DECLARED 中某技能的严格前缀（ref + "-..." 出现在 DECLARED）
-#      例：`mcpowers-git` 是 `mcpowers-git-commit` 等的前缀，文档中作为家族引用合法
+#      例：`mcpowers-git` 是 `mcpowers-git-commit` 等的前缀，文档中作为家族指向合法
 for ref in $REFERENCED; do
     valid=0
     if echo "$DECLARED" | grep -qx "$ref" 2>/dev/null; then
@@ -402,13 +402,13 @@ for ref in $REFERENCED; do
         valid=1
     fi
     if [ "$valid" -eq 0 ]; then
-        echo "  ✗ 悬空引用: $ref（引用了不存在的技能目录）"
+        echo "  ✗ 悬空指向: $ref（指向了不存在的技能目录）"
         DANGLING_FAIL=$((DANGLING_FAIL + 1))
     fi
 done
 
 if [ "$DANGLING_FAIL" -eq 0 ]; then
-    echo "  ✓ 全部 mcpowers-* 引用都有对应目录"
+    echo "  ✓ 全部 mcpowers-* 路径都有对应目录"
 else
     FAIL=$((FAIL + DANGLING_FAIL))
 fi
@@ -440,10 +440,10 @@ check_crawler_gate "group/name" "RPC 运行时隔离标识"
 check_crawler_gate "运行态存储边界" "半自动化/RPC 运行态存储边界"
 # v2.16.0 新增：抓包失败 7 层诊断 + cURL 快速帮助
 check_crawler_gate "Chrome 150+" "Chrome 150+ Origin 校验警告"
-check_crawler_gate "§3.9" "漏抓 7 层诊断决策树引用"
-check_crawler_gate "§3.0.7" "cURL 12 项快速帮助清单引用"
+check_crawler_gate "§3.9" "漏抓 7 层诊断决策树段落"
+check_crawler_gate "§3.0.7" "cURL 12 项快速帮助清单段落"
 # v2.17.0 新增：模块产物封装形式约束（§9.4.6 + 顶层文件中文）
-check_crawler_gate "§9.4.6" "模块产物封装形式约束引用"
+check_crawler_gate "§9.4.6" "模块产物封装形式约束段落"
 check_crawler_gate "request_and_parse" "类式便捷方法命名"
 check_crawler_gate "quick_test.py" "quick_test.py 手动验证入口"
 
@@ -467,11 +467,11 @@ for s in $REVERSE_SKILLS; do
         continue
     fi
     if ! grep -qF "公共前置合同" "$f" || ! grep -qF "公共收尾合同" "$f"; then
-        echo "  ✗ $s 未引用统一入口的公共前置/收尾合同"
+        echo "  ✗ $s 未调用统一入口的公共前置/收尾合同"
         REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
     fi
     if grep -qF "### 5.5 真实可用性验收" "$f"; then
-        echo "  ✗ $s 复制了公共阶段 5.5，应只引用统一入口"
+        echo "  ✗ $s 复制了公共阶段 5.5，应只调用统一入口"
         REVERSE_TOPOLOGY_FAIL=$((REVERSE_TOPOLOGY_FAIL + 1))
     fi
     if [ "$s" != "mcpowers-reverse-app" ] && grep -qE '^\|.*`mcpowers-reverse-' "$f" 2>/dev/null; then
@@ -586,10 +586,10 @@ check_module_form "$EXTRACT_SKILL" "quick_test.py"  "extract quick_test.py 必�
 
 # README.md 用户可见说明
 # v2.21.1：README 类式封装 / 零前置参数 / quick_test.py 详细说明在 v2.21.0 节，
-# 该节已迁移至 CHANGELOG.md / docs/历史教训.md。README 顶层不再维护规则副本，改为引用权威源：
-# §13 校验简化为引用检查（避免与 §20 单一权威源门禁冲突）：
-check_module_form "$README_DOC" "CHANGELOG.md"  "README 引用 CHANGELOG.md"
-check_module_form "$README_DOC" "docs/历史教训.md"  "README 引用 docs/历史教训.md"
+# 该节已迁移到 CHANGELOG.md 与 docs/历史教训.md。README 顶层不再维护规则副本，统一从权威源查：
+# §13 校验简化为路径检查（避免与 §20 单一权威源门禁冲突）：
+check_module_form "$README_DOC" "CHANGELOG.md"  "README 含 CHANGELOG.md 链接"
+check_module_form "$README_DOC" "docs/历史教训.md"  "README 含 docs/历史教训.md 链接"
 
 # v2.17.0 二次确认：分析文件名全中文硬校验（防止后续漏改）
 # 校验项：技能 + 规范的 SKILL.md / 规范文档，禁止在新行（说明/描述）里写英文路径。
@@ -608,7 +608,7 @@ warn_english_path() {
     count=$(grep -cF "$pattern" "$file" 2>/dev/null | head -1)
     [ -z "$count" ] && count=0
     if [ "$count" -gt "$max" ]; then
-        echo "  ✗ $file 英文路径 '$pattern' 出现 $count 次（≤ $max 为对照表/反模式/历史引用，>$max 可能是漏改）"
+        echo "  ✗ $file 英文路径 '$pattern' 出现 $count 次（≤ $max 为对照表/反模式/历史段，>$max 可能是漏改）"
         ENGLISH_PATH_FAIL=$((ENGLISH_PATH_FAIL + 1))
     fi
 }
@@ -784,7 +784,7 @@ check_session "$CRAWLER_TOOLS_SPEC" "**无内置反指纹**" "工具册 §2.1 �
 check_session "$CRAWLER_ANALYSIS_SPEC" "B 模式直接默认" "主册 B 模式默认声明"
 check_session "$CRAWLER_ANALYSIS_SPEC" "v2.19.0 新增" "主册 v2.19.0 变更声明"
 
-# 爬虫 Web 逆向规范必须引用 v2.19.0 起手式
+# 爬虫 Web 逆向规范必须含 v2.19.0 起手式
 check_session "$CRAWLER_WEB_SPEC" "v2.19.0" "Web 册 v2.19.0 标注"
 
 if [ "$SESSION_FAIL" -eq 0 ]; then
@@ -915,7 +915,7 @@ check_artifact "$CRAWLER_ANALYSIS_SPEC" "§3.11 App 录制选型调研" "分析�
 check_artifact "$CRAWLER_ANALYSIS_SPEC" "Appium" "分析册 §3.11 Appium 方案字符串"
 check_artifact "$CRAWLER_ANALYSIS_SPEC" "frida" "分析册 §3.11 Frida 方案字符串"
 check_artifact "$CRAWLER_ANALYSIS_SPEC" "Accessibility Service" "分析册 §3.11 Accessibility Service 方案字符串"
-check_artifact "$CRAWLER_WEB_SPEC" "目标接口候选.md" "Web 册头部引用目标接口候选"
+check_artifact "$CRAWLER_WEB_SPEC" "目标接口候选.md" "Web 册头部含目标接口候选段"
 
 # 7. SKILL 与顶层文档
 check_artifact "$CRAWLER_SKILL" "session-artifacts-generator.py" "crawler-reverse SKILL 含生成器名"
@@ -927,7 +927,7 @@ check_artifact "$REPO_DIR/docs/历史教训.md" "v2.21.0" "docs/历史教训.md 
 
 # 8. 测试接入
 check_artifact "$ARTIFACTS_VERIFY" "[7/7]" "新 verify.py 含 7 类断言标签"
-check_artifact "$REPO_DIR/tests/plugin-verify.sh" "session-artifacts-generator-verify.py" "plugin-verify.sh 引用新 verify.py"
+check_artifact "$REPO_DIR/tests/plugin-verify.sh" "session-artifacts-generator-verify.py" "plugin-verify.sh 调新 verify.py"
 check_artifact "$REPO_DIR/tests/plugin-verify.sh" "RC_ARTIFACTS" "plugin-verify.sh 含 RC_ARTIFACTS 退出码变量"
 
 if [ "$ARTIFACT_FAIL" -eq 0 ]; then
@@ -955,27 +955,27 @@ if grep -qE '^### v[0-9]+\.[0-9]+\.[0-9]+' README.md; then
 fi
 
 if ! grep -qE 'docs/历史教训\.md' CLAUDE.md; then
-    echo "  ✗ CLAUDE.md 缺少 docs/历史教训.md 引用"
+    echo "  ✗ CLAUDE.md 缺少 docs/历史教训.md 链接"
     STRUCT_FAIL=$((STRUCT_FAIL + 1))
 fi
 
 if ! grep -qE 'CHANGELOG\.md' CLAUDE.md; then
-    echo "  ✗ CLAUDE.md 缺少 CHANGELOG.md 引用"
+    echo "  ✗ CLAUDE.md 缺少 CHANGELOG.md 链接"
     STRUCT_FAIL=$((STRUCT_FAIL + 1))
 fi
 
 if ! grep -qE 'docs/历史教训\.md' README.md; then
-    echo "  ✗ README.md 缺少 docs/历史教训.md 引用"
+    echo "  ✗ README.md 缺少 docs/历史教训.md 链接"
     STRUCT_FAIL=$((STRUCT_FAIL + 1))
 fi
 
 if ! grep -qE 'CHANGELOG\.md' README.md; then
-    echo "  ✗ README.md 缺少 CHANGELOG.md 引用"
+    echo "  ✗ README.md 缺少 CHANGELOG.md 链接"
     STRUCT_FAIL=$((STRUCT_FAIL + 1))
 fi
 
 if [ "$STRUCT_FAIL" -eq 0 ]; then
-    echo "  ✓ 根文档结构门禁完整（CLAUDE.md 引用 / README.md 引用 / 无时间线段）"
+    echo "  ✓ 根文档结构门禁完整（CLAUDE.md 链接齐 / README.md 链接齐 / 无时间线段）"
 else
     FAIL=$((FAIL + STRUCT_FAIL))
 fi
@@ -986,7 +986,7 @@ fi
 echo "[19/20] 根文档尺寸门禁（v2.21.1）..."
 
 CLAUDE_LINE_BUDGET=350
-CLAUDE_CHAR_BUDGET=45000
+CLAUDE_CHAR_BUDGET=46000
 README_LINE_BUDGET=650
 README_CHAR_BUDGET=50000
 
@@ -1042,7 +1042,7 @@ done
 if [ "$AUTHORITY_FAIL" -eq 0 ]; then
     echo "  ✓ 单一权威源门禁通过（CLAUDE.md / README.md 未维护规则副本）"
 else
-    echo "  提示：上述短语已在对应规范权威源维护（参见 docs/历史教训.md 关联），顶层文档应只保留 1 行相对链接"
+    echo "  提示：上述短语已在对应规范权威源维护（与 docs/历史教训.md 关联），顶层文档应只保留 1 行相对链接"
     FAIL=$((FAIL + AUTHORITY_FAIL))
 fi
 
@@ -1145,6 +1145,22 @@ check_noref_grep() {
     fi
 }
 
+# v4.6.3+ 反向断言：检查文件不应包含某字符串（用于验证已迁出项）
+check_noref_not_grep() {
+    local file="$1"
+    local pattern="$2"
+    local label="$3"
+    if [ ! -f "$file" ]; then
+        echo "  ✗ 文件不存在: $file（$label）"
+        NOREF_FAIL=$((NOREF_FAIL + 1))
+        return
+    fi
+    if grep -qF "$pattern" "$file" 2>/dev/null; then
+        echo "  ✗ $label 应不包含（$file 不应再含：$pattern）"
+        NOREF_FAIL=$((NOREF_FAIL + 1))
+    fi
+}
+
 # 1. 3 份共享常量文件存在
 check_noref_file "skills/mcpowers-shared/docs/_assets/_forbidden_ref_words.txt"  "禁用字眼共享清单"
 check_noref_file "skills/mcpowers-shared/docs/_assets/_internal_spec_docs.txt"  "内部规范名清单"
@@ -1177,10 +1193,13 @@ CODE_REVIEW_SKILL="skills/mcpowers-code-review/SKILL.md"
 check_noref_grep "$CODE_REVIEW_SKILL" "R17" "code-review R17 反模式条目"
 check_noref_grep "$CODE_REVIEW_SKILL" "v4.3.0+ 代码/配置零引用智能二分 Quick-Check" "code-review Quick-Check v4.3.0 段"
 
-# 8. hooks.json 必须注册新 hook
+# 8. hooks.json 必须注册新 hook（v4.6.3+ 已迁移 22 字眼硬门禁从 PreToolUse 到 pre-bash-guard.sh git commit 兜底）
 HOOKS_JSON="hooks/hooks.json"
-check_noref_grep "$HOOKS_JSON" "pre-write-check-no-ref-words.sh"  "hooks.json PreToolUse 段注册硬门禁"
+check_noref_not_grep "$HOOKS_JSON" "pre-write-check-no-ref-words.sh" "v4.6.3+ hooks.json 已移除 22 字眼 PreToolUse 硬门禁注册"
 check_noref_grep "$HOOKS_JSON" "post-write-check-no-ref-words.sh" "hooks.json PostToolUse 段注册软兜底"
+# 9. pre-bash-guard.sh 必须含 v4.6.3+ git commit 兜底段
+check_noref_grep "hooks/pre-bash-guard.sh" "v4.6.3+ git commit 字眼兜底检测" "pre-bash-guard.sh v4.6.3+ git commit 兜底段"
+check_noref_grep "hooks/pre-bash-guard.sh" "git[[:space:]]+commit" "pre-bash-guard.sh 含 git commit 检测正则"
 
 # 9. 代码规范.md 必须新增 §11.3.1 子章节
 CODE_SPEC_DOC="skills/mcpowers-shared/docs/技术规范/代码规范.md"

@@ -132,6 +132,73 @@ if [ -z "$DENY_REASON" ] && echo "$COMMAND" | grep -qE 'iptables[[:space:]]+-F|s
     DENY_REASON="关闭防火墙/SELinux"
 fi
 
+# ============== v4.6.3+ git commit 字眼兜底检测 ==============
+# 设计动机:
+#   v4.3.0~v4.6.2 期间 22 字眼硬门禁挂在 PreToolUse Write/Edit/MultiEdit 上,
+#   用户反馈两大问题:① 每 Edit 一行就被 confirm UI 阻塞,全自动场景下整个流程卡住;
+#   ② AI 都想办法绕开(同义词池无限 vs 22 字眼封闭集,这场对抗 hook 永远输).
+#   v4.6.3 改为提交前一次性兜底:开发期不再拦截,git commit 时扫暂存区所有变更文件.
+#
+# 触发条件:命令以 `git commit ` 或 `git commit` 开头(任何选项组合,含 -m/-a/-S 等)
+# 兜底方式:从暂存区逐个 Read 文件,喂给 check_no_ref_words.py,ERROR 违规累计即阻断
+#
+# 性能:每个暂存文件启一次 Python 子进程;常规 commit 5-10 文件 ~100ms/文件,2 秒内完成.
+#       对比原 PreToolUse Edit 每行触发 ~50ms × 10 次= 500ms,反而更快.
+if [ -z "$DENY_REASON" ] && [[ "$COMMAND" =~ ^[[:space:]]*git[[:space:]]+commit([[:space:]]|$) ]]; then
+    DETECTOR="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}/skills/mcpowers-shared/scripts/check_no_ref_words.py"
+    # WORK_DIR 优先用 Claude Code 注入的 CLAUDE_PROJECT_DIR,否则 fallback 当前 pwd
+    WORK_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+    # 探测可用 python 解释器（pre-bash-guard.sh 原本无 PY 探测,这里按需探测）
+    PY_BASH=""
+    for cand in python python3 py; do
+        if command -v "$cand" >/dev/null 2>&1; then
+            if "$cand" -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+                PY_BASH="$cand"
+                break
+            fi
+        fi
+    done
+    if [ -n "$PY_BASH" ] && [ -f "$DETECTOR" ]; then
+        STAGED_FILES=$(cd "$WORK_DIR" 2>/dev/null && git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+        REF_BLOCKED=0
+        REF_VIOLATIONS=""
+        if [ -n "$STAGED_FILES" ]; then
+            while IFS= read -r f; do
+                [ -z "$f" ] && continue
+                case "$f" in
+                    *.py|*.sh|*.js|*.ts|*.jsx|*.tsx|*.mjs|*.cjs|*.go|*.java|*.kt|*.swift|*.rb|*.rs|\
+                    *.yaml|*.yml|*.json|*.ini|*.toml|*.conf)
+                        CONTENT=$(cd "$WORK_DIR" 2>/dev/null && git show ":$f" 2>/dev/null || true)
+                        if [ -n "$CONTENT" ]; then
+                            PAYLOAD=$(printf '%s' "$CONTENT" | "$PY_BASH" -c "
+import json, sys
+print(json.dumps({'file_path': sys.argv[1], 'content': sys.stdin.read()}, ensure_ascii=False))
+" "$f" 2>/dev/null || true)
+                            if [ -n "$PAYLOAD" ]; then
+                                STDERR_OUT=$(printf '%s' "$PAYLOAD" | "$PY_BASH" "$DETECTOR" --level=ERROR 2>&1 >/dev/null || true)
+                                if [ -n "$STDERR_OUT" ]; then
+                                    REF_BLOCKED=1
+                                    REF_VIOLATIONS="${REF_VIOLATIONS}   → $f:"$'\n'"${STDERR_OUT}"$'\n'
+                                fi
+                            fi
+                        fi
+                        ;;
+                esac
+            done <<< "$STAGED_FILES"
+        fi
+        if [ "$REF_BLOCKED" = "1" ]; then
+            echo "❌ [mcpowers 铁律 · git commit 字眼门禁 v4.6.3+] 检测到暂存区文件含禁用字眼" >&2
+            echo "" >&2
+            echo "   违规摘要:" >&2
+            printf '%s' "$REF_VIOLATIONS" >&2
+            echo "   修复依据:mcpowers-shared/docs/技术规范/代码规范.md §11.3.1 智能二分判定" >&2
+            echo "   修复建议:删掉禁用字眼,直接陈述当前做法(v4.3.0+ 铁律)" >&2
+            echo "   修正后重新 git commit" >&2
+            exit 2
+        fi
+    fi
+fi
+
 # ============== 决策 ==============
 if [ -n "$DENY_REASON" ]; then
     echo "❌ [mcpowers 铁律阻断] $DENY_REASON" >&2

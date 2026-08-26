@@ -454,28 +454,28 @@ assert "_forbidden_ref_words.txt 存在" "[ -f '$FORBIDDEN_FILE' ]"
 assert "_internal_spec_docs.txt 存在" "[ -f '$INTERNAL_FILE' ]"
 assert "_external_authority.txt 存在" "[ -f '$EXTERNAL_FILE' ]"
 if [ -x "$HOOK_NOREF_PRE" ] && [ -x "$HOOK_NOREF_POST" ] && [ -n "$PY_BIN" ]; then
-    # T1:写 .py 含「参考《代码规范》§11.3」 → exit 2（内部规范拦截）
+    # v4.6.3+:pre-write-check-no-ref-words.sh 改为 no-op stub(任何输入都 exit 0),
+    # 字眼门禁迁移到 git commit 时由 pre-bash-guard.sh 兜底(见 §7.9 T22/T23).
+    # T1:PreToolUse 不再拦字眼 → exit 0（v4.6.3+ 新行为）
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考《代码规范》§11.3 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t1
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考《代码规范》§11.3 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T1=$?
     set -e
-    assert_eq "T1 .py 内部规范引用 → exit 2（硬门禁）" "$RC_T1" "2"
-    assert "T1 stderr 含「代码规范」" "grep -q '代码规范' /tmp/noref_t1"
+    assert_eq "T1 v4.6.3+ PreToolUse 不再拦字眼(参考《代码规范》→ exit 0)" "$RC_T1" "0"
 
-    # T2:写 .py 含「详见 utils/security.py」 → exit 2（项目内代码文件拦截）
+    # T2:同上 .py 项目内代码引用 → exit 0
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 详见 utils/security.py\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t2
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 详见 utils/security.py\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T2=$?
     set -e
-    assert_eq "T2 .py 项目内代码文件引用 → exit 2" "$RC_T2" "2"
-    assert "T2 stderr 含「utils/security.py」" "grep -q 'utils/security.py' /tmp/noref_t2"
+    assert_eq "T2 v4.6.3+ PreToolUse 不再拦字眼(详见 utils/security.py → exit 0)" "$RC_T2" "0"
 
-    # T3:写 .py 含「按规范要求」 → exit 2（兜底画蛇添足拦截）
+    # T3:同上 .py 兜底字眼 → exit 0
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 按规范要求校验\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t3
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 按规范要求校验\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T3=$?
     set -e
-    assert_eq "T3 .py 兜底画蛇添足 → exit 2" "$RC_T3" "2"
+    assert_eq "T3 v4.6.3+ PreToolUse 不再拦字眼(按规范要求 → exit 0)" "$RC_T3" "0"
 
     # T4:写 .py 含「参考 RFC 7519 实现 JWT」 → exit 0（外部权威放行）
     set +e
@@ -513,57 +513,58 @@ if [ -x "$HOOK_NOREF_PRE" ] && [ -x "$HOOK_NOREF_POST" ] && [ -n "$PY_BIN" ]; th
     assert_eq "T8 post-write 软门禁不阻断（exit 0）" "$RC_T8" "0"
     assert "T8 post-write stderr 含违规提示" "grep -q '代码规范' /tmp/noref_t8"
 
-    # T9:写 .py 含「参考 CLAUDE.md」 → exit 2（用户决策:无例外）
+    # v4.6.3+ no-ref-words PreToolUse 拦截已迁移到 git commit 兜底（pre-bash-guard.sh）.
+    # PreToolUse Edit|MultiEdit 模式不再拦字眼(避免阻塞自动化 + AI 同义词绕过).
+    # T9:写 .py 含「参考 CLAUDE.md」 → 不再被 PreToolUse 拦(迁移后)
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考 CLAUDE.md\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t9
+    echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.py","content":"# 参考 CLAUDE.md\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T9=$?
     set -e
-    assert_eq "T9 .py 引用 CLAUDE.md → exit 2（无例外）" "$RC_T9" "2"
+    assert_eq "T9 v4.6.3+ PreToolUse 不再拦字眼(.py 引用 CLAUDE.md → exit 0)" "$RC_T9" "0"
 
-    # T10:写 .yaml 含「reference to」 → exit 2（英文 11 字眼拦截）
+    # T10:写 .yaml 含「reference to」 → 不再被 PreToolUse 拦
     set +e
-    echo '{"tool_name":"Write","tool_input":{"file_path":"config/app.yaml","content":"name: foo\ndescription: refer to internal spec\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t10
+    echo '{"tool_name":"Write","tool_input":{"file_path":"config/app.yaml","content":"name: foo\ndescription: refer to internal spec\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T10=$?
     set -e
-    assert_eq "T10 .yaml refer to → exit 2" "$RC_T10" "2"
+    assert_eq "T10 v4.6.3+ PreToolUse 不再拦字眼(.yaml refer to → exit 0)" "$RC_T10" "0"
 
-    # v4.5.2+ Edit/MultiEdit 输入格式兼容守护（根因 2 回归）
-    # T11:Edit 模式 .py 含「参考《代码规范》§11.3」→ exit 2（detector 必须支持 new_string）
+    # T11:Edit 模式 .py 含「参考《代码规范》§11.3」→ 不再被 PreToolUse 拦
     set +e
-    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"old","new_string":"# 参考《代码规范》§11.3 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t11
+    echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"old","new_string":"# 参考《代码规范》§11.3 命名\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T11=$?
     set -e
-    assert_eq "T11 Edit 模式内部规范引用 → exit 2" "$RC_T11" "2"
+    assert_eq "T11 v4.6.3+ Edit 模式不再拦字眼(参考《代码规范》→ exit 0)" "$RC_T11" "0"
 
-    # T12:MultiEdit 模式 .py 含禁用字眼 → exit 2（detector 必须拼接 edits[*].new_string）
+    # T12:MultiEdit 模式 .py 含禁用字眼 → 不再被 PreToolUse 拦
     set +e
-    echo '{"tool_name":"MultiEdit","tool_input":{"file_path":"src/foo.py","edits":[{"old_string":"a","new_string":"# 参考《代码规范》§11.3"},{"old_string":"b","new_string":"# 按规范要求\nval = 2"}]}}' | bash "$HOOK_NOREF_PRE" 2>/tmp/noref_t12
+    echo '{"tool_name":"MultiEdit","tool_input":{"file_path":"src/foo.py","edits":[{"old_string":"a","new_string":"# 参考《代码规范》§11.3"},{"old_string":"b","new_string":"# 按规范要求\nval = 2"}]}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T12=$?
     set -e
-    assert_eq "T12 MultiEdit 模式违规引用 → exit 2" "$RC_T12" "2"
+    assert_eq "T12 v4.6.3+ MultiEdit 模式不再拦字眼(违规拼接 → exit 0)" "$RC_T12" "0"
 
-    # T13:Edit 模式 .py 含「参考 RFC 7519」→ exit 0（外部权威放行仍生效）
+    # T13:Edit 模式 .py 含「参考 RFC 7519」→ exit 0(脚本已变 no-op,所有输入都放行)
     set +e
     echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"old","new_string":"# 参考 RFC 7519\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T13=$?
     set -e
-    assert_eq "T13 Edit 模式外部权威放行 → exit 0" "$RC_T13" "0"
+    assert_eq "T13 v4.6.3+ PreToolUse 全放行(参考 RFC 7519 → exit 0)" "$RC_T13" "0"
 
-    # T14:Edit 模式 .py 含「详见 utils/security.py」→ exit 2（项目内代码拦截仍生效）
+    # T14:Edit 模式 .py 含「详见 utils/security.py」→ exit 0(脚本已变 no-op)
     set +e
     echo '{"tool_name":"Edit","tool_input":{"file_path":"src/foo.py","old_string":"x","new_string":"# 详见 utils/security.py\nval = 1\n"}}' | bash "$HOOK_NOREF_PRE" 2>/dev/null
     RC_T14=$?
     set -e
-    assert_eq "T14 Edit 模式项目内代码拦截 → exit 2" "$RC_T14" "2"
+    assert_eq "T14 v4.6.3+ PreToolUse 全放行(详见 utils/security.py → exit 0)" "$RC_T14" "0"
 
-    # T15:hooks.json 的 Edit|MultiEdit matcher 必须注册 no-ref-words（根因 1 回归）
+    # T15:hooks.json 的 Edit|MultiEdit matcher 必须**不**再注册 no-ref-words(v4.6.3+ 反向锁)
     EDIT_BLOCK=$(awk '/"matcher":[[:space:]]*"Edit\|MultiEdit"/,/^      \}$/' "$REPO_DIR/hooks/hooks.json")
     if echo "$EDIT_BLOCK" | grep -q "pre-write-check-no-ref-words.sh"; then
-        echo "  ✓ T15 hooks.json Edit|MultiEdit matcher 注册了 no-ref-words"
-        PASS=$((PASS + 1))
-    else
-        echo "  ✗ T15 hooks.json Edit|MultiEdit matcher 漏配 no-ref-words hook"
+        echo "  ✗ T15 v4.6.3+ hooks.json Edit|MultiEdit matcher 仍注册 no-ref-words(应迁移到 git commit)"
         FAIL=$((FAIL + 1))
+    else
+        echo "  ✓ T15 v4.6.3+ hooks.json Edit|MultiEdit matcher 已移除 no-ref-words 注册"
+        PASS=$((PASS + 1))
     fi
 fi
 
@@ -702,6 +703,44 @@ if [ -x "$HOOK_SWAGGER_POST" ]; then
     # 路径 src/api/foo.txt 含 /api/ 命中过滤规则,但非 .py → 文件不存在 → helper 检测项目无 swagger → exit 0
     assert_eq "T21 .txt 路径(项目未装 swagger)→ exit 0" "$RC_T21_NOT_PY" "0"
 fi
+
+# ============== 7.9 v4.6.3+ git commit 字眼兜底检测自检 ==============
+echo "[7.9] v4.6.3+ pre-bash-guard.sh git commit 字眼兜底检测自检"
+
+# 临时建一个最小 git 仓库,模拟用户项目;暂存一个含禁用字眼的 .py 文件
+TMP_GIT_NOREF=$(mktemp -d 2>/dev/null || mktemp -d -t tmpgitnoref)
+TMP_GIT_CLEAN=$(mktemp -d 2>/dev/null || mktemp -d -t tmpgitclean)
+cd "$TMP_GIT_NOREF" && git init -q >/dev/null 2>&1 && git config user.email "test@test" && git config user.name "test"
+cd "$TMP_GIT_CLEAN" && git init -q >/dev/null 2>&1 && git config user.email "test@test" && git config user.name "test"
+
+# 暂存含禁用字眼的文件 (参考《代码规范》§11.3 触发 fallback)
+echo '# 参考《代码规范》§11.3 命名' > "$TMP_GIT_NOREF/bad.py"
+cd "$TMP_GIT_NOREF" && git add bad.py >/dev/null 2>&1
+
+# 暂存合法文件（不含禁用字眼）
+echo '# 干净的注释,直接陈述当前做法' > "$TMP_GIT_CLEAN/good.py"
+cd "$TMP_GIT_CLEAN" && git add good.py >/dev/null 2>&1
+
+HOOK_BASH="$REPO_DIR/hooks/pre-bash-guard.sh"
+
+# T22:git commit + 暂存区含禁用字眼 → exit 2(v4.6.3+ 兜底生效)
+set +e
+cd "$TMP_GIT_NOREF"
+echo '{"tool_input":{"command":"git commit -m test"}}' | bash "$HOOK_BASH" 2>/dev/null
+RC_T22=$?
+set -e
+assert_eq "T22 git commit + 暂存区含禁用字眼 → exit 2" "$RC_T22" "2"
+
+# T23:git commit + 暂存区干净 → exit 0(放过)
+set +e
+cd "$TMP_GIT_CLEAN"
+echo '{"tool_input":{"command":"git commit -m test"}}' | bash "$HOOK_BASH" 2>/dev/null
+RC_T23=$?
+set -e
+assert_eq "T23 git commit + 暂存区干净 → exit 0" "$RC_T23" "0"
+
+# 清理临时目录
+rm -rf "$TMP_GIT_NOREF" "$TMP_GIT_CLEAN" 2>/dev/null || true
 
 # ============== 旧安装脚本不应残留 ==============
 echo ""

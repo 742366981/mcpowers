@@ -7,6 +7,41 @@
 
 ## [Unreleased]
 
+## v4.6.3 - 2026-08-26
+
+> 🎯 **核心定位**：用户报告 mcpowers hooks 系统三大痛点——① Hooks 让 AI 写内容变慢 ② Hooks 触发 confirm UI 阻塞全自动化流程 ③ Hooks 封闭集字眼表 vs AI 同义词池无限（这场对抗 hook 永远输，例如 22 字眼可被「遵循/依照/依据/依照...」等同义词无限绕开）。本次 v4.6.3 做最小化改造：**① 把 22 字眼硬门禁从 PreToolUse Write/Edit/MultiEdit 迁移到 `pre-bash-guard.sh` 的 git commit 兜底段**（开发期不拦截，提交时一次性扫暂存区所有变更文件 → ERROR 违规累计即阻断）**② 把 duplicate 函数检测的跨文件扫描 lazy 化**（仅命中同文件重名或单行透传 wrapper 候选时才跨文件 walk，普通 Edit 不再全仓 walk）——保留铁律威慑但不阻塞 AI 写作流。
+
+### Breaking Changes
+
+- **`hooks.json` 移除了 `pre-write-check-no-ref-words.sh` 在 PreToolUse Write/Edit|MultiEdit 的硬门禁注册**——v4.6.3 之前用户在 Claude Code 编辑每个文件都会被 confirm UI 阻塞（22 字眼命中即 exit 2），全自动 / CI / 后台场景下整个流程卡死。v4.6.3 起 Write/Edit/MultiEdit 不再触发字眼硬门禁，改为 `pre-bash-guard.sh` 在 `git commit` 时扫暂存区所有变更文件做兜底（仅命中 ERROR 级别违规才 exit 2）。**对存量项目的影响**：开发期拦截消失，提交时仍会拦截——本质上是把拦截点从「每写一行」推迟到「提交前一次」，不影响铁律本身。**升级建议**：无需改动用户项目代码；如需保留开发期即时提醒，依赖 `post-write-check-no-ref-words.sh` 软门禁（exit 0 stderr 提示，不阻塞）。
+- **`check_duplicate_function.py` hook_main() 检测算法变更**——v2.28.2~v4.6.2 期间每次 Edit 都对仓库内每个候选函数做 `git grep -n` 全仓扫描（500ms~2s/次）。v4.6.3 改为 lazy 化：① 仅扫同文件内重名（`count_in_source(new_str, name) >= 2` → 必拦）② 仅当 `is_one_line_wrapper(new_str, name) == True` 时才跨文件扫描 wrapper 的调用目标 ③ 其他跨文件同名场景直接放行（不再 walk）。**对存量项目的影响**：检测行为更精确——以前 wrapper 候选未触发时也会 walk 浪费时间，现在按需触发。**升级建议**：无需改动。
+- **`skills/mcpowers-shared/scripts/check_no_ref_words.py` 修订 v4.3.0「CLAUDE.md/README.md 无例外」决策**——v4.6.3 兜底段（`pre-bash-guard.sh` git commit）首次执行即暴露 v4.3.0 设计的 2 类冲突：① **术语名冲突**：v4.3.0 引入的「代码/配置零引用铁律」术语本身含禁用字眼「引用」，无差别扫描破坏术语一致性（CLAUDE.md / README.md / `scripts/check-readme-sync.sh` 等大量行因含「零引用铁律」术语名被 fallback 拦截）② **类型冲突**：CLAUDE.md / README.md 本质是 v4.0.2 §9.5 文档铁律定义的「参考型文档」（功能是「指向具体规范章节」），v4.3.0 决策把它们当「输出型」严格拦截——与 §9.5 场景化决策模型直接冲突。v4.6.3 修订：① 加 `_TERM_EXCEPTIONS` 精确子串豁免集合（`代码/配置零引用铁律` / `代码/配置零引用智能二分判定` / `R17 零引用` / `R15 接口零引用` / `R16 .md 零引用` 等 v4.3.0+ 引入的规范术语名）——命中整行放行；② 把 `CLAUDE.md` / `README.md` / `AGENTS.md` 加入 `_PATH_WHITELIST_FILES` 路径白名单——回归 v4.0.2 §9.5「参考型文档豁免」立场。**对存量项目的影响**：用户的 CLAUDE.md / README.md 不再被 22 字眼硬门禁拦截——这是 v4.6.3 的设计预期（CLAUDE.md / README.md 自有 `post-write-check-doc-content.sh` 软门禁兜底）。**升级建议**：无需改动用户项目代码；如需保留原 v4.3.0 严格拦截行为，可手动从 `check_no_ref_words.py` 移除白名单条目。
+
+### 新增
+
+- **`hooks/pre-bash-guard.sh` v4.6.3+ git commit 字眼兜底段**：在原危险命令黑名单（`rm -rf /` / `dd if=` / fork 炸弹等）之外，新增 git commit 兜底——检测命令以 `git commit ` 或 `git commit` 开头时（任何选项组合，含 `-m` / `-a` / `-S` 等），从暂存区 (`git diff --cached --name-only --diff-filter=ACMR`) 逐文件 `git show ":<file>"` 拿到变更后内容，喂给共享 `check_no_ref_words.py --level=ERROR`，任何 ERROR 级违规累计即 `exit 2` 阻断提交 + stderr 输出违规摘要 + 修复建议。性能：每暂存文件启一次 Python 子进程（~100ms），常规 commit 5-10 文件 2 秒内完成，对比原 PreToolUse Edit 每行触发 ~50ms × 10 次 = 500ms 反而更快。
+- **`tests/plugin-verify.sh §7.9` v4.6.3 回归测试段 T22/T23**：用 `mktemp -d` 创建隔离 git 仓库，T22 验证「暂存区含禁用字眼文件 + git commit → exit 2」（含真实 Python 检测器调用 + Windows 兼容 PY_BASH 探测），T23 验证「暂存区全干净 + git commit → exit 0」——防未来退化（pre-bash-guard.sh git commit 段必须真实跑检测器不能放空）。
+
+### 修复
+
+- **`hooks/pre-write-check-no-ref-words.sh` 改为 no-op stub**（仅保留 `exit 0` + 1 行最小注释避免被自身字眼检测命中）——v4.6.3 之前用户在 Edit 文档时仍会被自身脚本的注释触发（"PreToolUse:Edit hook error: ❌ [fallback] 行内含禁用引用字眼「引用」"），实测反馈「硬门禁对文档字眼 + 代码注释字眼相关都不生效，新增和编辑都没有拦截」根因。no-op stub + 入口从 hooks.json 移除 = 双重保险。
+- **`hooks/hooks.json` PreToolUse Write/Edit|MultiEdit matcher 移除 `pre-write-check-no-ref-words.sh` 注册**：v4.6.3 之前 Edit|MultiEdit matcher 仍残留注册导致每 Edit 都跑检测器 + 仍触发 confirm UI；v4.6.3 起完全从 matcher 摘除。`PostToolUse Write|Edit|MultiEdit matcher` 的 `post-write-check-no-ref-words.sh` 软门禁保留（开发期 stderr 提示不阻塞）。
+
+### 调整
+
+- **`hooks/check_duplicate_function.py` hook_main() 检测算法 lazy 化**：把「先 git_grep_duplicate 扫仓库再判定 wrapper」改为「先本地判定 wrapper 候选才跨文件扫」，普通 Edit 性能从 500ms~2s 降到 < 50ms。**算法流程**：① `count_in_source(new_str, name) >= 2` → 同文件重名（必拦）② `is_one_line_wrapper(new_str, name) == True` → 跨文件扫 wrapper 调用对象 `cross_hits`，命中即拦 ③ 都不满足 → 直接放行（不再跨文件扫描拿 hits）。这是 v2.28.2「跨文件同名默认放行」原则的进一步优化——彻底告别启发式分级和强制 walk。
+- **`.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` version bump 4.6.2 → 4.6.3**（patch bump：v4.6.3 主要是 hooks 行为调整，不引入新能力但有 Breaking Changes——按 CLAUDE.md 铁律 patch bump 已足）。
+- **`CLAUDE.md` 最高铁律段（hooks/ 目录表 + 代码/配置零引用铁律·智能二分判定段）**：两处 `pre-write-check-no-ref-words.sh` 描述改为「v4.6.3+ 22 字眼门禁迁移：从 PreToolUse Write/Edit/MultiEdit 硬门禁迁移到 `pre-bash-guard.sh` 的 git commit 兜底扫描」+ 加「**迁移动机**（用户决策 D 续·两大痛点）：① 22 字眼封闭集 vs AI 同义词池无限——这场对抗 hook 永远输；② 每 Edit 一行就被 confirm UI 阻塞，全自动 / CI / 后台场景下整个流程卡住。**迁移后行为**：开发期不被拦截（AI 可任意写），git commit 提交时一次性兜底扫描（提交是真要交付的时刻，被打断反而合理）」段。
+- **`README.md` 行 18 + 行 320**：两处 no-ref-words 描述同步改为 v4.6.3+ 迁移说明；行 320 加「v4.6.3+ duplicate 函数检测 lazy 化」说明。
+
+### 风险
+
+- **存量项目含禁用字眼的代码/配置文件不会被开发期拦截**：v4.6.3 之前用户编辑含字眼的 .py 文件会立刻被 confirm UI 阻断；v4.6.3 起不再阻断，直到 `git commit` 时才统一兜底扫描。**潜在风险**：开发期单文件大量新增字眼不会即时反馈，需等 commit 才知道。**缓解**：`post-write-check-no-ref-words.sh` 软门禁仍跑（exit 0 stderr 提示「行内含禁用字眼」，不阻塞），开发期温和提醒仍在；如需绝对严格，可手动 `python3 skills/mcpowers-shared/scripts/check_no_ref_words.py --level=ERROR <file>` 自查。
+- **`check_duplicate_function.py` lazy 化的边界**：当前实现仅扫「单行透传 wrapper」场景，**多行 wrapper / 带类型注解的 wrapper / 含条件分支的 wrapper** 暂不识别为 wrapper 候选——会被当作「跨文件同名」放行。这是 v2.28.2 「跨文件同名默认放行」原则的延伸，多行 wrapper 是否算「二次抽象」属于设计判断而非真 bug，不在 v4.6.3 拦截范围。**升级建议**：如需扩展，编辑 `check_duplicate_function.py:is_one_line_wrapper()` 函数加更多 AST 模式。
+- **`pre-bash-guard.sh` git commit 兜底的 Python 探测**：Windows 默认只有 `python` 命令（无 `python3` 软链接），脚本内做了 `for cand in python python3 py; do` 三轮探测 + `import sys; sys.exit(0)` 真验证，避免用 `command -v` 误判（如 Git Bash 安装了 Python 但 PATH 异常）。**潜在风险**：若用户 Python 环境损坏（`python -c "import sys"` 失败），git commit 兜底段会被静默跳过——日志无任何提示。**缓解**：建议项目根 `.mcpowers-version` 旁加 `.mcpowers-python-ok` 标记文件自查，或人工 `python -c "import sys"` 测试。
+
+---
+
 ## v4.6.2 - 2026-08-26
 
 > 🎯 **核心定位**：v4.6.1 后用真实 Windows CMD 跑模板实测，**发现 3 个 v4.6.1 没暴露的真实硬伤**（用户实测反馈"感觉还是有问题"）：① UTF-8 BOM 让 CMD 双击 bat 报「不是内部或外部命令」（debug3/4 可重现）② `chcp 65001` 切换 UTF-8 代码页破坏 cmd 的 PATHEXT，导致 `call activate.bat` 裸名也失败（debug3 无 chcp 成功、debug4 加 chcp 后失败，100% 可重现）③ §25.5 模板清单列写错（`call activate.bat` → `call .\activate.bat`）。本次 v4.6.2 把 §3.3.4 R2 / R5 措辞收紧 + 4 个模板 `activate.bat` → `.\activate.bat` + AI 操作规范 Step 0 加 bug 复现命令。**所有 mcpowers 生成的 `.bat` 必须按 v4.6.2 写法**，保证 Windows CMD 双击直接跑通。

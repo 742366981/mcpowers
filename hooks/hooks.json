@@ -47,10 +47,6 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-doc-sync.sh\""
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-no-ref-words.sh\""
           }
         ]
       },
@@ -76,10 +72,6 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-doc-sync.sh\""
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-check-no-ref-words.sh\""
           }
         ]
       }

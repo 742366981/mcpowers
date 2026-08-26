@@ -732,9 +732,11 @@ AI: 好的，我来编写需求文档并保存到 docs/需求文档/
 2. **用户确认后** - 按 `${CLAUDE_PLUGIN_ROOT}/skills/mcpowers-shared/docs/技术规范/开发环境规范.md` 执行：
    1. 创建 .gitignore（根据项目类型识别）
    2. 创建语言特定文件
-   3. 创建虚拟环境脚本
+   3. 创建虚拟环境脚本（按 §3.3.4 6 条铁律：CMD 优先 / 编码处理 / 不写中文 echo / 路径双引号 / `call activate.bat` / 错误处理）
    4. 创建环境配置示例
    5. 更新记忆文件
+
+> ⚠️ **生成 / 修改任何 `.bat` 时必须按 §3.3.4 6 条铁律**——CMD 双击直接能跑通为准。**禁止**沿用旧模板里 `call activate`（依赖 PATHEXT，PowerShell 标签会失败）+ 中文 echo（GBK 默认 CMD 下必乱码）+ 无错误处理（失败仍继续跑后续步骤）的写法。爬虫项目 4 类典型模板（`windows_cmd/一键启动.bat` / `一键关闭.bat` / `{module}_windows.bat` / `update_windows.bat`）落地于爬虫规范 §25。
 
 **自检确认**：
 - [ ] `.gitignore` 是否已创建？ → 验证：`ls .gitignore`

@@ -7,6 +7,48 @@
 
 ## [Unreleased]
 
+## v4.6.1 - 2026-08-26
+
+> 🎯 **核心定位**：修复 `开发环境规范.md §3.3.3` venv_windows.bat 模板在 Windows CMD 默认 GBK 下中文乱码 + `call activate` 依赖 PATHEXT 在 PowerShell 标签失败 + 无错误处理失败仍继续跑后续步骤的 3 类硬伤；新增 §3.3.4「Windows .bat 编写规范」6 条铁律 + 爬虫规范 §25「Windows .bat 编写规范」4 类典型模板（一键启动 / 一键关闭 / `{module}_windows.bat` / `update_windows.bat`）；AI 操作规范 Step 0 加 .bat 铁律提示。所有 mcpowers 生成的 `.bat` 一律按 §3.3.4 铁律实现，确保 Windows CMD 双击直接跑通。
+
+### Breaking Changes
+
+无（纯规范正文修订 + 模板扩展；用户项目不受影响——旧 bat 文件仍可保留运行，但建议按新版 §3.3.4 重写以保证 CMD 兼容性）。
+
+### 新增
+
+- **`开发环境规范.md §3.3.4`「Windows .bat 编写规范（总章·全栈适用铁律）」**：6 条铁律确保 Windows CMD 双击直接跑通——
+  - **R1 CMD 优先**：禁用 PowerShell 独占语法（`Activate.ps1` / `$env:` / `-File` / `Set-ExecutionPolicy`）
+  - **R2 编码处理**：含中文 echo / 中文路径 → 首行 `chcp 65001 > nul` + 源文件 UTF-8 BOM；纯英文可省
+  - **R3 不写中文 echo**（强烈推荐）：进度统一英文 `echo [1/5] ...` 彻底回避 R2
+  - **R4 路径双引号**：含空格必须 `"..."`，参数不裹进引号
+  - **R5 activate 写法**：必须 `call activate.bat`（CMD 自动解析 PATHEXT）；禁 `activate` / `Activate.ps1`
+  - **R6 错误处理**：每步 `|| goto :error`，失败立即停，末尾 `:error` 段 + `pause` + `exit /b 1`
+  - 配套两种风格范式：**A 多行 + 错误处理 + 暂停**（venv 创建 / 启动服务 / 看日志）/ **B 单行 `&&` 链式**（CI / 无人值守 / 工具脚本）；附 4 行风格选择指南
+- **爬虫规范 §25「Windows .bat 编写规范」**：4 类典型 bat 模板全部按 §3.3.4 铁律实现——
+  - **`windows_cmd/一键启动.bat`**（§25.1）：A 多行 + 末尾 `pause`，激活 venv + `python -u main.py %*`，窗口常驻看实时输出
+  - **`windows_cmd/一键关闭.bat`**（§25.2）：A 多行无 `:error`（关闭场景无进程可杀 = 正常分支），`taskkill /F /IM python.exe /T`
+  - **`windows_cmd/{module}_windows.bat`**（§25.3）：A 多行 + 末尾 `pause`，启动单模块 + `%*` 覆盖参数（默认线程数 5）
+  - **`windows_cmd/update_windows.bat`**（§25.4）：A 多行 + 错误处理，`git pull` + `pip install -U pip` + `pip install -r requirements_windows.txt`
+  - **§25.5 模板落地清单表**总结 5 类文件的风格 / 关键命令 / 备注
+
+### 修复
+
+- **`开发环境规范.md §3.3.3` venv_windows.bat 模板重写**：旧模板 `call activate`（依赖 PATHEXT，Windows Terminal 默认 PowerShell 标签失败）+ 中文 echo（GBK 默认 CMD 必乱码）+ 无错误处理（venv 创建失败仍继续 `cd` 进不存在的目录）。新模板用 `call activate.bat` 显式指定 + 全部进度 echo 英文 + 每步 `|| goto :error` + 路径加双引号 + 末尾 `pause` + `:error` 段 + `exit /b 1`——CMD 双击直接能跑通。
+
+### 调整
+
+- **`爬虫规范.md §24` 末尾**「详见 `开发环境规范.md §4.4`」改为「同 §4.4（docker-compose 启动/重启/重部署三态）」：去掉"详见"画蛇添足字眼（v4.0.2+ 文档编写铁律 §9.5 场景化判定：上下文已引用 §4.4，重复指向属输出型删字眼场景）。
+- **`AI操作规范.md` Step 0 新项目初始化**：执行流程 2.3 项加 `.bat 编写铁律要求`（"按 §3.3.4 6 条铁律：CMD 优先 / 编码处理 / 不写中文 echo / 路径双引号 / `call activate.bat` / 错误处理"），末尾加 ⚠️ 提示"禁止沿用旧模板 `call activate` + 中文 echo + 无错误处理写法"——AI 初始化项目时自动按新铁律生成 bat。
+
+### 风险
+
+- **存量项目含旧版 venv_windows.bat**：建议按 §3.3.4 重写——具体表现为：双击 .bat 弹出窗口后中文乱码 / `Activate.ps1` 报错 / 失败步骤继续跑后续命令。
+- **存量项目含旧版 `windows_cmd/` 下 4 类 bat**：建议按 §25 模板重写，理由同上。
+- **frontmatter stability 标注**：`开发环境规范.md` stability 仍是 `evolving`（v2.27.3 之后章节扩展）；`爬虫规范.md` stability 仍是 `stable`（§25 是纯新增章节，未修改任何旧章节内容，符合 stable "跨 minor 兼容"承诺）。
+
+---
+
 ## v4.6.0 - 2026-08-25
 
 > 🎯 **核心定位**：新增 **FastAPI 后端规范 v1.0**——1:1 镜像 `Flask后端规范.md` v1.2 的 22 章节结构（§0 接口速查 / §1 目录结构 / §2 路径 / §3 应用工厂 / §4 配置 / §5 中间件 / §6 日志 / §7 异常 / §8 错误码 / §9 响应 / §10 认证 / §11 OpenAPI 文档 / §12-§19 各专项 / §20 检查清单 / §附录 A/B / §21 Docker / §22 v4.5.x 铁律），框架绑定部分替换为 FastAPI 原生实现（`lifespan` / `Depends` / `APIRouter` / `Pydantic` + 原生 OpenAPI）。规范库 32 → 33 份。
